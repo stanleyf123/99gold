@@ -23,7 +23,7 @@ export default function Home() {
   const [newsUpdated, setNewsUpdated] = useState("正在更新新聞來源");
   useEffect(() => {
     let disposed = false;
-    const refreshNews = () => fetch(`/api/gold-news?t=${Date.now()}`, { cache: "no-store" })
+    const refreshNews = () => fetch(`/api/market-brief?t=${Date.now()}`, { cache: "no-store" })
       .then((response) => response.ok ? response.json() : Promise.reject())
       .then((data: { items?: NewsItem[]; updatedAt?: string }) => {
         if (disposed) return;
