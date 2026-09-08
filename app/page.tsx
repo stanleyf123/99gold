@@ -22,13 +22,24 @@ export default function Home() {
   const [news, setNews] = useState<NewsItem[]>(fallbackNews);
   const [newsUpdated, setNewsUpdated] = useState("正在更新新聞來源");
   useEffect(() => {
-    fetch("/api/gold-news")
+    let disposed = false;
+    const refreshNews = () => fetch(`/api/gold-news?t=${Date.now()}`, { cache: "no-store" })
       .then((response) => response.ok ? response.json() : Promise.reject())
       .then((data: { items?: NewsItem[]; updatedAt?: string }) => {
+        if (disposed) return;
         if (data.items?.length) setNews(data.items);
         if (data.updatedAt) setNewsUpdated(data.updatedAt);
       })
-      .catch(() => setNewsUpdated("新聞來源暫時無法連線"));
+      .catch(() => {
+        if (!disposed) setNewsUpdated("新聞來源暫時無法連線，將自動重試");
+      });
+
+    refreshNews();
+    const timer = window.setInterval(refreshNews, 60_000);
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+    };
   }, []);
   const path = useMemo(() => {
     const shapes: Record<string, string> = {
