@@ -16,7 +16,6 @@ const news = [
 ];
 
 export default function Home() {
-  const [active, setActive] = useState("今日金價");
   const [period, setPeriod] = useState("1M");
   const path = useMemo(() => {
     const shapes: Record<string, string> = {
@@ -32,8 +31,8 @@ export default function Home() {
     <main>
       <div className="topline"><span>市場開盤中</span><span>最後更新 2026.09.08　10:28 (GMT+8)</span></div>
       <nav className="nav">
-        <a className="brand" href="#top"><i>G</i><span>金澤<br/><em>GOLDEN TIDE</em></span></a>
-        <div className="navlinks">{["今日金價", "國際金價", "銀樓價格", "黃金回收", "市場情報"].map((item) => <button key={item} className={active === item ? "active" : ""} onClick={() => setActive(item)}>{item}</button>)}</div>
+        <a className="brand" href="/"><i>G</i><span>金澤<br/><em>GOLDEN TIDE</em></span></a>
+        <div className="navlinks"><a className="active" href="/#quotes">今日金價</a><a href="/international">國際金價</a><a href="/jewelry">銀樓價格</a><a href="/recycling">黃金回收</a><a href="/insights">市場情報</a></div>
         <button className="menu" aria-label="開啟選單">☰</button>
       </nav>
 
