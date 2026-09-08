@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const quotes = [
   { label: "國際現貨金", code: "XAU / USD", price: "4,424.50", unit: "美元／盎司", change: "+18.43", up: true },
@@ -9,14 +9,27 @@ const quotes = [
   { label: "美元匯率", code: "USD / TWD", price: "31.6858", unit: "新台幣", change: "−0.021", up: false },
 ];
 
-const news = [
-  ["市場焦點", "美元走弱，亞洲黃金現貨價盤中上揚"],
-  ["投資觀點", "利率訊號轉向，金價的下一步如何解讀？"],
-  ["黃金知識", "黃金存摺、金條與飾金：入門比較一次看懂"],
+type NewsItem = { title: string; date: string; url: string };
+
+const fallbackNews: NewsItem[] = [
+  { title: "黃金市場消息載入中", date: "", url: "" },
+  { title: "正在取得今日最新黃金新聞", date: "", url: "" },
+  { title: "市場行情將隨新聞來源更新", date: "", url: "" },
 ];
 
 export default function Home() {
   const [period, setPeriod] = useState("1M");
+  const [news, setNews] = useState<NewsItem[]>(fallbackNews);
+  const [newsUpdated, setNewsUpdated] = useState("正在更新新聞來源");
+  useEffect(() => {
+    fetch("/api/gold-news")
+      .then((response) => response.ok ? response.json() : Promise.reject())
+      .then((data: { items?: NewsItem[]; updatedAt?: string }) => {
+        if (data.items?.length) setNews(data.items);
+        if (data.updatedAt) setNewsUpdated(data.updatedAt);
+      })
+      .catch(() => setNewsUpdated("新聞來源暫時無法連線"));
+  }, []);
   const path = useMemo(() => {
     const shapes: Record<string, string> = {
       "1D": "M0 140 C28 126 48 140 70 112 S118 110 142 90 S190 99 218 55 S273 86 320 33",
@@ -45,11 +58,11 @@ export default function Home() {
       <section className="quoteSection" id="quotes"><div className="sectionHead"><div><p className="eyebrow">LIVE MARKET</p><h2>即時報價</h2></div><p>報價僅供參考，實際成交價格請以各通路公告為準。</p></div><div className="quoteGrid">{quotes.map((q) => <article className="quoteCard" key={q.label}><div><p>{q.label}</p><span>{q.code}</span></div><strong>{q.price}</strong><div className="quoteFoot"><span>{q.unit}</span><b className={q.up ? "up" : "down"}>{q.up ? "▲" : "▼"} {q.change}</b></div></article>)}</div></section>
 
       <section className="marketWrap"><div className="chartCard"><div className="chartTop"><div><p className="eyebrow">XAU / USD</p><h2>國際現貨黃金</h2></div><div><strong>4,424.50</strong><span className="up">▲ 18.43　0.42%</span></div></div><div className="chart"><div className="gridLines"/><svg viewBox="0 0 320 170" preserveAspectRatio="none" aria-label="黃金價格走勢圖"><defs><linearGradient id="fill" x1="0" x2="0" y1="0" y2="1"><stop stopColor="#d9a62e" stopOpacity=".38"/><stop offset="1" stopColor="#d9a62e" stopOpacity="0"/></linearGradient></defs><path d={`${path} L320 170 L0 170 Z`} fill="url(#fill)"/><path d={path} fill="none" stroke="#d9a62e" strokeWidth="3" vectorEffect="non-scaling-stroke"/></svg></div><div className="periods">{["1D", "1W", "1M", "1Y"].map((p) => <button className={period === p ? "selected" : ""} onClick={() => setPeriod(p)} key={p}>{p}</button>)}</div></div>
-        <aside className="signalCard"><p className="eyebrow">MARKET SIGNAL</p><h2>今日觀察</h2><div className="signal"><span>01</span><p>美元指數小幅回落，為貴金屬帶來支撐。</p></div><div className="signal"><span>02</span><p>市場等待利率決議，短線波動可能放大。</p></div><a href="#insights">閱讀市場情報 <b>→</b></a></aside></section>
+        <aside className="signalCard"><p className="eyebrow">DAILY GOLD NEWS</p><h2>今日觀察</h2>{news.slice(0, 2).map((item, index) => <div className="signal" key={item.title}><span>0{index + 1}</span>{item.url ? <a href={item.url} target="_blank" rel="noreferrer">{item.title}</a> : <p>{item.title}</p>}</div>)}<a href="#insights">查看最新黃金新聞 <b>→</b></a></aside></section>
 
       <section className="tools"><div><p className="eyebrow">SMART TOOLS</p><h2>換算你的<br/>黃金價值</h2></div><div className="tool"><span>黃金重量</span><strong>1.00 <small>錢</small></strong></div><div className="tool"><span>參考回收價</span><strong>NT$ 16,560</strong></div><button onClick={() => alert("試算完成：1 錢黃金的參考回收價為 NT$16,560。")}>開始試算 <b>→</b></button></section>
 
-      <section className="insights" id="insights"><div className="sectionHead"><div><p className="eyebrow">GOLD INSIGHTS</p><h2>市場情報</h2></div><a href="#top">全部文章 →</a></div><div className="newsGrid">{news.map(([type, title], i) => <article key={title}><div className={`newsVisual v${i + 1}`}><span>{String(i + 1).padStart(2, "0")}</span></div><p>{type}<time>2026.09.08</time></p><h3>{title}</h3><a href="#top">閱讀更多　→</a></article>)}</div></section>
+      <section className="insights" id="insights"><div className="sectionHead"><div><p className="eyebrow">DAILY GOLD NEWS</p><h2>最新黃金新聞</h2></div><p>{newsUpdated}</p></div><div className="newsGrid">{news.map((item, i) => <article key={item.title}><div className={`newsVisual v${i + 1}`}><span>{String(i + 1).padStart(2, "0")}</span></div><p>黃金市場<time>{item.date}</time></p><h3>{item.title}</h3>{item.url ? <a href={item.url} target="_blank" rel="noreferrer">閱讀原文　→</a> : <span className="loadingNews">載入中</span>}</article>)}</div></section>
       <footer><a className="brand" href="#top"><i>G</i><span>金澤<br/><em>GOLDEN TIDE</em></span></a><p>資料供投資與消費參考，不構成任何交易建議。</p><span>© 2026 GOLDEN TIDE</span></footer>
     </main>
   );
