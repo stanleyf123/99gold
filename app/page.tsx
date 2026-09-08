@@ -19,6 +19,7 @@ const fallbackNews: NewsItem[] = [
 
 export default function Home() {
   const [period, setPeriod] = useState("1M");
+  const [goldWeight, setGoldWeight] = useState("1.00");
   const [news, setNews] = useState<NewsItem[]>(fallbackNews);
   const [newsUpdated, setNewsUpdated] = useState("正在取得最新消息");
   useEffect(() => {
@@ -50,6 +51,10 @@ export default function Home() {
     };
     return shapes[period];
   }, [period]);
+  const estimatedRecycleValue = useMemo(() => {
+    const weight = Number.parseFloat(goldWeight);
+    return Number.isFinite(weight) && weight >= 0 ? Math.round(weight * 16560) : 0;
+  }, [goldWeight]);
 
   return (
     <main>
@@ -71,7 +76,7 @@ export default function Home() {
       <section className="marketWrap"><div className="chartCard"><div className="chartTop"><div><p className="eyebrow">XAU / USD</p><h2>國際現貨黃金</h2></div><div><strong>4,424.50</strong><span className="up">▲ 18.43　0.42%</span></div></div><div className="chart"><div className="gridLines"/><svg viewBox="0 0 320 170" preserveAspectRatio="none" aria-label="黃金價格走勢圖"><defs><linearGradient id="fill" x1="0" x2="0" y1="0" y2="1"><stop stopColor="#d9a62e" stopOpacity=".38"/><stop offset="1" stopColor="#d9a62e" stopOpacity="0"/></linearGradient></defs><path d={`${path} L320 170 L0 170 Z`} fill="url(#fill)"/><path d={path} fill="none" stroke="#d9a62e" strokeWidth="3" vectorEffect="non-scaling-stroke"/></svg></div><div className="periods">{["1D", "1W", "1M", "1Y"].map((p) => <button className={period === p ? "selected" : ""} onClick={() => setPeriod(p)} key={p}>{p}</button>)}</div></div>
         <aside className="signalCard"><p className="eyebrow">DAILY GOLD NEWS</p><h2>今日觀察</h2>{news.slice(0, 2).map((item, index) => <div className="signal" key={item.title}><span>0{index + 1}</span>{item.url ? <a href={item.url} target="_blank" rel="noreferrer">{item.title}</a> : <p>{item.title}</p>}</div>)}<a href="#insights">查看最新黃金新聞 <b>→</b></a></aside></section>
 
-      <section className="tools"><div><p className="eyebrow">SMART TOOLS</p><h2>換算你的<br/>黃金價值</h2></div><div className="tool"><span>黃金重量</span><strong>1.00 <small>錢</small></strong></div><div className="tool"><span>參考回收價</span><strong>NT$ 16,560</strong></div><button onClick={() => alert("試算完成：1 錢黃金的參考回收價為 NT$16,560。")}>開始試算 <b>→</b></button></section>
+      <section className="tools"><div><p className="eyebrow">SMART TOOLS</p><h2>換算你的<br/>黃金價值</h2></div><label className="tool weightInput"><span>黃金重量</span><strong><input type="number" inputMode="decimal" min="0" step="0.01" value={goldWeight} onChange={(event) => setGoldWeight(event.target.value)} aria-label="黃金重量（錢）"/> <small>錢</small></strong></label><div className="tool"><span>參考回收價</span><strong>NT$ {estimatedRecycleValue.toLocaleString("zh-TW")}</strong></div><button onClick={() => alert(`試算完成：${goldWeight || "0"} 錢黃金的參考回收價為 NT$${estimatedRecycleValue.toLocaleString("zh-TW")}。`)}>開始試算 <b>→</b></button></section>
 
       <section className="insights" id="insights"><div className="sectionHead"><div><p className="eyebrow">DAILY GOLD NEWS</p><h2>最新黃金新聞</h2></div><p>{newsUpdated}</p></div><div className="newsGrid">{news.map((item, i) => <article key={item.title}><div className={`newsVisual v${i + 1}`}><span>{String(i + 1).padStart(2, "0")}</span></div><p>黃金市場<time>{item.date}</time></p><h3>{item.title}</h3>{item.url ? <a href={item.url} target="_blank" rel="noreferrer">閱讀原文　→</a> : <span className="loadingNews">載入中</span>}</article>)}</div></section>
       <footer><a className="brand" href="#top"><i>G</i><span>金澤<br/><em>GOLDEN TIDE</em></span></a><p>資料供投資與消費參考，不構成任何交易建議。</p><span>© 2026 GOLDEN TIDE</span></footer>
