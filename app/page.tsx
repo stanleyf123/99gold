@@ -12,15 +12,15 @@ const quotes = [
 type NewsItem = { title: string; date: string; url: string };
 
 const fallbackNews: NewsItem[] = [
-  { title: "黃金市場消息載入中", date: "", url: "" },
-  { title: "正在取得今日最新黃金新聞", date: "", url: "" },
-  { title: "市場行情將隨新聞來源更新", date: "", url: "" },
+  { title: "查看最新黃金市場消息", date: "即時", url: "https://news.google.com/search?q=%E9%BB%83%E9%87%91&hl=zh-TW&gl=TW&ceid=TW%3Azh-Hant" },
+  { title: "查看美元指數最新消息", date: "即時", url: "https://news.google.com/search?q=%E7%BE%8E%E5%85%83%E6%8C%87%E6%95%B8&hl=zh-TW&gl=TW&ceid=TW%3Azh-Hant" },
+  { title: "查看聯準會利率決策消息", date: "即時", url: "https://news.google.com/search?q=%E8%81%AF%E6%BA%96%E6%9C%83%20%E5%88%A9%E7%8E%87&hl=zh-TW&gl=TW&ceid=TW%3Azh-Hant" },
 ];
 
 export default function Home() {
   const [period, setPeriod] = useState("1M");
   const [news, setNews] = useState<NewsItem[]>(fallbackNews);
-  const [newsUpdated, setNewsUpdated] = useState("正在更新新聞來源");
+  const [newsUpdated, setNewsUpdated] = useState("正在取得最新消息");
   useEffect(() => {
     let disposed = false;
     const refreshNews = () => fetch(`/api/market-brief?t=${Date.now()}`, { cache: "no-store" })
@@ -35,7 +35,7 @@ export default function Home() {
       });
 
     refreshNews();
-    const timer = window.setInterval(refreshNews, 60_000);
+    const timer = window.setInterval(refreshNews, 300_000);
     return () => {
       disposed = true;
       window.clearInterval(timer);
