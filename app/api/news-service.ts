@@ -40,8 +40,22 @@ function tag(xml: string, name: string) {
 function rssImage(xml: string) {
   const media = xml.match(/<(?:media:content|media:thumbnail|enclosure)[^>]+url=["']([^"']+)["']/i)?.[1];
   if (media) return decode(media);
+  const newsImage = tag(xml, "News:Image") || tag(xml, "image");
+  if (/^https?:\/\//i.test(newsImage)) return newsImage;
   const description = xml.match(/<description[^>]*>([\s\S]*?)<\/description>/i)?.[1] ?? "";
   return decode(description.match(/<img[^>]+src=["']([^"']+)["']/i)?.[1] ?? "");
+}
+
+async function articleImage(item: NewsItem): Promise<NewsItem> {
+  if (item.image || !/^https?:\/\//i.test(item.url)) return item;
+  try {
+    const response = await fetch(item.url, { redirect: "follow", signal: AbortSignal.timeout(2500), headers: { "User-Agent": "Mozilla/5.0 (compatible; GoldenTide/1.0)" } });
+    if (!response.ok) return item;
+    const html = await response.text();
+    const image = html.match(/<meta[^>]+(?:property|name)=["'](?:og:image|twitter:image)["'][^>]+content=["']([^"']+)["']/i)?.[1]
+      ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["'](?:og:image|twitter:image)["']/i)?.[1];
+    return image ? { ...item, image: new URL(decode(image), response.url).href } : item;
+  } catch { return item; }
 }
 
 async function fetchRss(url: string): Promise<NewsItem[]> {
@@ -58,14 +72,21 @@ async function fetchRss(url: string): Promise<NewsItem[]> {
 
 export async function getGoldNews() {
   const sources = [
+    fetchRss("https://www.bing.com/news/search?q=%E9%BB%83%E9%87%91%20OR%20%E7%BE%8E%E5%85%83%E6%8C%87%E6%95%B8%20OR%20%E8%81%AF%E6%BA%96%E6%9C%83&format=rss&setlang=zh-tw"),
     fetchGdelt(),
     fetchRss("https://www.kitco.com/rss/KitcoNews.xml"),
     fetchRss("https://news.google.com/rss/search?q=%E9%BB%83%E9%87%91%20OR%20%E7%BE%8E%E5%85%83%E6%8C%87%E6%95%B8%20OR%20%E8%81%AF%E6%BA%96%E6%9C%83%20when%3A1d&hl=zh-TW&gl=TW&ceid=TW%3Azh-Hant"),
   ];
-  const settled = await Promise.allSettled(sources);
-  const items = settled.flatMap((result) => result.status === "fulfilled" ? result.value : []);
-  const unique = [...new Map(items.map((item) => [item.url, item])).values()].slice(0, 3);
-  return { items: unique.length ? unique : liveSearchItems, isFallback: unique.length === 0 };
+  let unique: NewsItem[] = [];
+  try {
+    unique = await Promise.any(sources.map(async (source) => {
+      const items = await source;
+      if (!items.length) throw new Error("Empty feed");
+      return [...new Map(items.map((item) => [item.url, item])).values()].slice(0, 3);
+    }));
+  } catch { /* use live search links below */ }
+  const enriched = unique.length ? await Promise.all(unique.map(articleImage)) : liveSearchItems;
+  return { items: enriched, isFallback: unique.length === 0 };
 }
 
 export function updatedAt(isFallback: boolean) {
