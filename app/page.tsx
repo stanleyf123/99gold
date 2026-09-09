@@ -50,6 +50,7 @@ const focusLabels = ["黃金市場", "美元走勢", "聯準會政策"];
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<"quotes" | "news" | "history" | "tools">("quotes");
+  const [menuOpen, setMenuOpen] = useState(false);
   const [period, setPeriod] = useState("1M");
   const [goldWeight, setGoldWeight] = useState("1.00");
   const [toolUnit, setToolUnit] = useState<"qian" | "gram" | "tael" | "ounce">("qian");
@@ -98,6 +99,18 @@ export default function Home() {
     setSavedAlerts(next);
     try { window.localStorage.setItem("golden-tide-alerts", JSON.stringify(next)); } catch { /* ignore */ }
   };
+  useEffect(() => {
+    if (!menuOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setMenuOpen(false); };
+    document.addEventListener("keydown", closeOnEscape);
+    document.body.style.overflow = "hidden";
+    return () => { document.removeEventListener("keydown", closeOnEscape); document.body.style.overflow = ""; };
+  }, [menuOpen]);
+  const openDashboardSection = (tab: typeof activeTab) => {
+    setActiveTab(tab);
+    setMenuOpen(false);
+    window.setTimeout(() => document.getElementById("top")?.scrollIntoView({ behavior: "smooth" }), 40);
+  };
   const path = useMemo(() => {
     const shapes: Record<string, string> = {
       "1D": "M0 140 C28 126 48 140 70 112 S118 110 142 90 S190 99 218 55 S273 86 320 33",
@@ -126,8 +139,10 @@ export default function Home() {
       <nav className="nav">
         <a className="brand" href="/"><i>G</i><span>金澤<br/><em>GOLDEN TIDE</em></span></a>
         <div className="navlinks"><a className="active" href="/#quotes">今日金價</a><a href="/international">國際金價</a><a href="/jewelry">銀樓價格</a><a href="/recycling">黃金回收</a><a href="/insights">市場情報</a></div>
-        <button className="menu" aria-label="開啟選單">☰</button>
+        <button className="menu" aria-label="開啟功能選單" aria-expanded={menuOpen} aria-controls="mobileMenu" onClick={() => setMenuOpen(true)}>☰</button>
       </nav>
+
+      {menuOpen && <div className="menuOverlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setMenuOpen(false); }}><aside className="mobileMenu" id="mobileMenu" aria-label="網站功能"><div className="menuHead"><div><span>金澤</span><small>GOLDEN TIDE</small></div><button onClick={() => setMenuOpen(false)} aria-label="關閉功能選單">×</button></div><div className="menuQuote"><span>國際現貨金</span><strong>4,408.80</strong><small>XAU / USD　<b>+1.24%</b></small></div><nav className="menuFunctions"><button onClick={() => openDashboardSection("quotes")}><span>即時報價<small>LIVE QUOTES</small></span><b>→</b></button><button onClick={() => openDashboardSection("history")}><span>歷史金價<small>PRICE HISTORY</small></span><b>→</b></button><button onClick={() => openDashboardSection("tools")}><span>黃金工具<small>GOLD TOOLKIT</small></span><b>→</b></button><button onClick={() => openDashboardSection("news")}><span>市場新聞<small>MARKET NEWS</small></span><b>→</b></button><button onClick={() => { setMenuOpen(false); window.setTimeout(() => document.getElementById("price-alerts")?.scrollIntoView({ behavior: "smooth" }), 40); }}><span>到價標記<small>MY WATCHLIST</small></span><b>→</b></button></nav><p>報價與試算僅供參考</p></aside></div>}
 
       <section className="brandHero" aria-labelledby="brandTitle"><img src="/assets/golden-tide-hero.png" alt="金塊與金幣陳列於深色石材上"/><div className="brandHeroShade"/><div className="brandHeroCopy"><p className="eyebrow">TAIWAN GOLD MARKET INTELLIGENCE</p><h1 id="brandTitle">金澤 <span>GOLDEN TIDE</span></h1><p>掌握國際金價、台灣銀樓行情與你的黃金價值。</p><div className="heroBadges"><span>國際現貨</span><span>銀樓牌價</span><span>回收試算</span><span>市場情報</span></div></div><div className="heroLive"><span>市場開盤中</span><strong>4,408.80</strong><small>XAU / USD　<span>+1.24%</span></small></div></section>
 
@@ -143,6 +158,7 @@ export default function Home() {
       </section>
 
       <section className="tools marketRadar"><div><p className="eyebrow">MARKET RADAR</p><h2>今日市場<br/>快速判讀</h2></div><div className="tool"><span>國際理論價</span><strong>NT$ 16,896</strong><small>每錢・依現貨與匯率換算</small></div><div className="tool"><span>銀樓溢價</span><strong>+2.15%</strong><small>牌告賣出價相較理論價</small></div><div className="tool"><span>買賣價差</span><strong>NT$ 700</strong><small>每錢・未含工費</small></div><button onClick={() => { setActiveTab("tools"); window.scrollTo({ top: 92, behavior: "smooth" }); }}>開啟專業工具 <b>→</b></button></section>
+      <div id="price-alerts" className="scrollAnchor"/>
 
       <section className="alertCenter"><div className="alertIntro"><p className="eyebrow">PERSONAL WATCHLIST</p><h2>我的到價標記</h2><p>設定你關注的價格，網站會保存在這台裝置，回來時可快速查看距離目標還有多少。</p></div><div className="alertComposer"><label><span>關注項目</span><select value={alertMarket} onChange={(event) => setAlertMarket(event.target.value as typeof alertMarket)}>{alertMarkets.map((market) => <option value={market.id} key={market.id}>{market.label}</option>)}</select></label><label><span>目標價格</span><div><input type="number" inputMode="decimal" min="0" value={alertTarget} onChange={(event) => setAlertTarget(event.target.value)}/><small>{selectedAlertMarket.unit}</small></div></label><button onClick={savePriceAlert}>加入關注</button></div><div className="savedAlerts">{savedAlerts.length === 0 ? <div className="alertEmpty"><span>尚未設定</span><p>輸入目標價後即可建立你的個人關注清單。</p></div> : savedAlerts.map((item) => { const market = alertMarkets.find((entry) => entry.id === item.market) ?? alertMarkets[0]; const gap = item.target - market.value; return <article key={item.id}><div><span>{market.label}</span><small>目前 {market.value.toLocaleString("en-US")} {market.unit}</small></div><strong>{item.target.toLocaleString("en-US")}</strong><em className={gap >= 0 ? "watchUp" : "watchReached"}>{gap > 0 ? `距離目標 ${gap.toLocaleString("en-US")}` : "已達目標"}</em><button aria-label={`移除${market.label}到價標記`} onClick={() => removePriceAlert(item.id)}>×</button></article>; })}</div><p className="alertDisclaimer">此功能為裝置內的價格標記，不會發送系統推播；行情更新後可回到本站查看。</p></section>
 
