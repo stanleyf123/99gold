@@ -1,4 +1,4 @@
-export type NewsItem = { title: string; date: string; url: string };
+export type NewsItem = { title: string; date: string; url: string; image?: string };
 
 const liveSearchItems: NewsItem[] = [
   { title: "查看最新黃金市場消息", date: "即時", url: "https://news.google.com/search?q=%E9%BB%83%E9%87%91&hl=zh-TW&gl=TW&ceid=TW%3Azh-Hant" },
@@ -20,11 +20,12 @@ async function fetchGdelt(): Promise<NewsItem[]> {
   const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${query}&mode=artlist&maxrecords=12&sort=datedesc&format=json`;
   const response = await fetch(url, { signal: AbortSignal.timeout(4500), headers: { Accept: "application/json" } });
   if (!response.ok) throw new Error(`GDELT ${response.status}`);
-  const data = await response.json() as { articles?: Array<{ title?: string; url?: string; seendate?: string }> };
+  const data = await response.json() as { articles?: Array<{ title?: string; url?: string; seendate?: string; socialimage?: string }> };
   return (data.articles ?? []).map((article) => ({
     title: article.title?.trim() ?? "",
     url: article.url ?? "",
     date: dateLabel(article.seendate),
+    image: article.socialimage ?? "",
   })).filter((item) => item.title && item.url).slice(0, 3);
 }
 
@@ -36,6 +37,13 @@ function tag(xml: string, name: string) {
   return decode(xml.match(new RegExp(`<${name}[^>]*>([\\s\\S]*?)</${name}>`, "i"))?.[1] ?? "");
 }
 
+function rssImage(xml: string) {
+  const media = xml.match(/<(?:media:content|media:thumbnail|enclosure)[^>]+url=["']([^"']+)["']/i)?.[1];
+  if (media) return decode(media);
+  const description = xml.match(/<description[^>]*>([\s\S]*?)<\/description>/i)?.[1] ?? "";
+  return decode(description.match(/<img[^>]+src=["']([^"']+)["']/i)?.[1] ?? "");
+}
+
 async function fetchRss(url: string): Promise<NewsItem[]> {
   const response = await fetch(url, { signal: AbortSignal.timeout(4000), headers: { "User-Agent": "GoldenTide/1.0" } });
   if (!response.ok) throw new Error(`RSS ${response.status}`);
@@ -44,6 +52,7 @@ async function fetchRss(url: string): Promise<NewsItem[]> {
     title: tag(match[1], "title"),
     url: tag(match[1], "link"),
     date: dateLabel(tag(match[1], "pubDate")),
+    image: rssImage(match[1]),
   })).filter((item) => item.title && item.url).slice(0, 3);
 }
 

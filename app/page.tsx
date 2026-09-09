@@ -9,7 +9,7 @@ const quotes = [
   { label: "美元匯率", code: "USD / TWD", price: "31.6858", unit: "新台幣", change: "−0.021", up: false },
 ];
 
-type NewsItem = { title: string; date: string; url: string };
+type NewsItem = { title: string; date: string; url: string; image?: string };
 
 const fallbackNews: NewsItem[] = [
   { title: "查看最新黃金市場消息", date: "即時", url: "https://news.google.com/search?q=%E9%BB%83%E9%87%91&hl=zh-TW&gl=TW&ceid=TW%3Azh-Hant" },
@@ -80,7 +80,7 @@ export default function Home() {
       <section className="tools"><div><p className="eyebrow">SMART TOOLS</p><h2>換算你的<br/>黃金價值</h2></div><label className="tool weightInput"><span>黃金重量</span><strong><input type="number" inputMode="decimal" min="0" step="0.01" value={goldWeight} onChange={(event) => setGoldWeight(event.target.value)} aria-label="黃金重量（錢）"/> <small>錢</small></strong></label><div className="tool priceResult"><span>預估回收價</span><strong>NT$ {estimatedRecycleValue.toLocaleString("zh-TW")}</strong><small>依每錢 NT$16,560 試算</small></div><button onClick={() => { (document.activeElement as HTMLElement | null)?.blur(); setResultOpen(true); }}>查看試算結果 <b>→</b></button></section>
       {resultOpen && <div className="resultOverlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setResultOpen(false); }}><section className="resultDialog" role="dialog" aria-modal="true" aria-labelledby="resultTitle"><button className="dialogClose" aria-label="關閉試算結果" onClick={() => setResultOpen(false)}>×</button><div className="resultMark">✓</div><p className="eyebrow">GOLD VALUE RESULT</p><h2 id="resultTitle">黃金價值試算</h2><div className="resultRows"><div><span>黃金重量</span><strong>{goldWeight || "0"} 錢</strong></div><div><span>每錢參考價</span><strong>NT$ 16,560</strong></div></div><div className="resultTotal"><span>預估回收價</span><strong>NT$ {estimatedRecycleValue.toLocaleString("zh-TW")}</strong></div><p className="resultNote">此金額為參考試算，實際價格依各通路當下報價為準。</p><button className="dialogConfirm" onClick={() => setResultOpen(false)}>完成</button></section></div>}
 
-      <section className="insights" id="insights"><div className="sectionHead"><div><p className="eyebrow">DAILY GOLD NEWS</p><h2>最新黃金新聞</h2></div><p>{newsUpdated}</p></div><div className="newsGrid">{news.map((item, i) => <article key={item.title}><div className={`newsVisual v${i + 1}`}><span>{String(i + 1).padStart(2, "0")}</span></div><p>黃金市場<time>{item.date}</time></p><h3>{item.title}</h3>{item.url ? <a href={item.url} target="_blank" rel="noreferrer">閱讀原文　→</a> : <span className="loadingNews">載入中</span>}</article>)}</div></section>
+      <section className="insights" id="insights"><div className="sectionHead"><div><p className="eyebrow">DAILY GOLD NEWS</p><h2>最新黃金新聞</h2></div><p>{newsUpdated}</p></div><div className="newsGrid">{news.map((item, i) => <article key={item.title}><div className={`newsVisual v${i + 1}${item.image ? " hasImage" : ""}`}>{item.image && <img src={item.image} alt="" loading="lazy" referrerPolicy="no-referrer"/>}<span>{String(i + 1).padStart(2, "0")}</span></div><p>黃金市場<time>{item.date}</time></p><h3>{item.title}</h3>{item.url ? <a href={item.url} target="_blank" rel="noreferrer">閱讀原文　→</a> : <span className="loadingNews">載入中</span>}</article>)}</div></section>
       <footer><a className="brand" href="#top"><i>G</i><span>金澤<br/><em>GOLDEN TIDE</em></span></a><p>資料供投資與消費參考，不構成任何交易建議。</p><span>© 2026 GOLDEN TIDE</span></footer>
     </main>
   );
