@@ -18,7 +18,7 @@ function dateLabel(value?: string) {
 async function fetchGdelt(): Promise<NewsItem[]> {
   const query = encodeURIComponent('(gold OR "Federal Reserve" OR "dollar index") sourcelang:chinese');
   const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${query}&mode=artlist&maxrecords=12&sort=datedesc&format=json`;
-  const response = await fetch(url, { signal: AbortSignal.timeout(4500), headers: { Accept: "application/json" } });
+  const response = await fetch(url, { signal: AbortSignal.timeout(7000), headers: { Accept: "application/json" } });
   if (!response.ok) throw new Error(`GDELT ${response.status}`);
   const data = await response.json() as { articles?: Array<{ title?: string; url?: string; seendate?: string; socialimage?: string }> };
   return (data.articles ?? []).map((article) => ({
@@ -46,15 +46,27 @@ function rssImage(xml: string) {
   return decode(description.match(/<img[^>]+src=["']([^"']+)["']/i)?.[1] ?? "");
 }
 
+function directArticleUrl(value: string) {
+  try {
+    const url = new URL(value);
+    const target = url.hostname.includes("bing.com") ? url.searchParams.get("url") : null;
+    return target && /^https?:\/\//i.test(target) ? target : value;
+  } catch { return value; }
+}
+
+function secureImage(value?: string) {
+  return value?.replace(/^http:\/\//i, "https://") ?? "";
+}
+
 async function articleImage(item: NewsItem): Promise<NewsItem> {
-  if (item.image || !/^https?:\/\//i.test(item.url)) return item;
+  if (item.image || !/^https?:\/\//i.test(item.url)) return { ...item, image: secureImage(item.image) };
   try {
     const response = await fetch(item.url, { redirect: "follow", signal: AbortSignal.timeout(2500), headers: { "User-Agent": "Mozilla/5.0 (compatible; GoldenTide/1.0)" } });
     if (!response.ok) return item;
     const html = await response.text();
     const image = html.match(/<meta[^>]+(?:property|name)=["'](?:og:image|twitter:image)["'][^>]+content=["']([^"']+)["']/i)?.[1]
       ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["'](?:og:image|twitter:image)["']/i)?.[1];
-    return image ? { ...item, image: new URL(decode(image), response.url).href } : item;
+    return image ? { ...item, image: secureImage(new URL(decode(image), response.url).href) } : item;
   } catch { return item; }
 }
 
@@ -64,7 +76,7 @@ async function fetchRss(url: string): Promise<NewsItem[]> {
   const xml = await response.text();
   return [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)].map((match) => ({
     title: tag(match[1], "title"),
-    url: tag(match[1], "link"),
+    url: directArticleUrl(tag(match[1], "link")),
     date: dateLabel(tag(match[1], "pubDate")),
     image: rssImage(match[1]),
   })).filter((item) => item.title && item.url).slice(0, 3);
@@ -72,21 +84,18 @@ async function fetchRss(url: string): Promise<NewsItem[]> {
 
 export async function getGoldNews() {
   const sources = [
+    fetchRss("https://www.gold.org/rss.xml"),
     fetchRss("https://www.bing.com/news/search?q=%E9%BB%83%E9%87%91%20OR%20%E7%BE%8E%E5%85%83%E6%8C%87%E6%95%B8%20OR%20%E8%81%AF%E6%BA%96%E6%9C%83&format=rss&setlang=zh-tw"),
     fetchGdelt(),
     fetchRss("https://www.kitco.com/rss/KitcoNews.xml"),
     fetchRss("https://news.google.com/rss/search?q=%E9%BB%83%E9%87%91%20OR%20%E7%BE%8E%E5%85%83%E6%8C%87%E6%95%B8%20OR%20%E8%81%AF%E6%BA%96%E6%9C%83%20when%3A1d&hl=zh-TW&gl=TW&ceid=TW%3Azh-Hant"),
   ];
-  let unique: NewsItem[] = [];
-  try {
-    unique = await Promise.any(sources.map(async (source) => {
-      const items = await source;
-      if (!items.length) throw new Error("Empty feed");
-      return [...new Map(items.map((item) => [item.url, item])).values()].slice(0, 3);
-    }));
-  } catch { /* use live search links below */ }
-  const enriched = unique.length ? await Promise.all(unique.map(articleImage)) : liveSearchItems;
-  return { items: enriched, isFallback: unique.length === 0 };
+  const settled = await Promise.allSettled(sources);
+  const candidates = [...new Map(settled.flatMap((result) => result.status === "fulfilled" ? result.value : []).map((item) => [item.url, item])).values()];
+  const enriched = await Promise.all(candidates.slice(0, 9).map(articleImage));
+  const withImages = enriched.filter((item) => item.image);
+  const selected = [...withImages, ...enriched.filter((item) => !item.image)].slice(0, 3);
+  return { items: selected.length ? selected : liveSearchItems, isFallback: selected.length === 0 };
 }
 
 export function updatedAt(isFallback: boolean) {
