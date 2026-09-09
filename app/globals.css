@@ -90,3 +90,25 @@
   .nav .brand span{display:none}.nav .brand i{width:35px;height:35px;color:#deb74e;border-color:#c99b2f;background:rgba(6,17,18,.38)}.navlinks{display:none!important}.menu{display:block!important;color:#f4efe2;font-size:25px;width:42px;height:42px;padding:0;background:rgba(6,17,18,.28);border:1px solid rgba(220,182,76,.25)}
   .brandHero{min-height:250px;padding:93px 6vw 25px!important;align-items:flex-start}.brandHeroCopy .eyebrow,.heroBadges{display:none}.brandHeroCopy h1{font-size:38px;margin:0 0 8px}.brandHeroCopy h1 span{margin-top:4px}.brandHeroCopy>p:not(.eyebrow){max-width:245px;margin:0;font-size:11px}.heroLive{bottom:18px}.heroLive strong{font-size:21px}
 }
+
+/* Tighter mobile masthead: one brand lockup, left-side navigation and a shorter cover. */
+@media(max-width:460px){
+  .nav{justify-content:flex-start!important;gap:11px}
+  .menu{order:-1;display:grid!important;place-items:center;width:36px;height:36px;border:0;background:rgba(6,17,18,.5);font-size:0}
+  .menu::before{content:"☰";font-size:22px;line-height:1;color:#f4efe2}
+  .nav .brand{gap:8px;color:#f8f3e8;font-size:16px;line-height:.78;letter-spacing:.07em;text-shadow:0 2px 10px rgba(0,0,0,.45)}
+  .nav .brand i{width:31px;height:31px;font-size:19px;background:rgba(6,17,18,.48)}
+  .nav .brand span{display:block}
+  .nav .brand em{color:#d8ad43;font-size:6px;letter-spacing:.18em}
+  .brandHero{min-height:205px;padding:93px 6vw 18px!important}
+  .brandHero>img{object-position:65% center}
+  .brandHeroShade{background:linear-gradient(90deg,rgba(8,18,20,.98),rgba(9,22,23,.78) 53%,rgba(8,17,18,.18))}
+  .brandHeroCopy{max-width:53%;padding-top:10px}
+  .brandHeroCopy h1{display:none}
+  .brandHeroCopy>p:not(.eyebrow){max-width:190px;font-size:10px;line-height:1.5;color:#e0e2dc}
+  .heroLive{right:5vw;bottom:15px;padding:7px 0 0 13px}
+  .heroLive strong{font-size:20px}
+  .heroLive small{font-size:8px}
+  .menuOverlay{justify-content:flex-start}
+  .mobileMenu{box-shadow:22px 0 60px rgba(0,0,0,.34)}
+}
