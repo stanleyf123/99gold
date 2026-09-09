@@ -50,3 +50,25 @@
   .marketSummary strong{font:13px Georgia!important;white-space:nowrap}
   .panelNote{font-size:9px;margin-top:7px!important}
 }
+
+/* Professional dashboard tools */
+.marketTabs{grid-template-columns:repeat(4,1fr)}
+.proToolsPanel{min-height:0!important}
+.toolWorkspace{display:grid;grid-template-columns:.82fr 1.35fr;border:1px solid #d6cfc2;background:#fffdf8}
+.toolForm{padding:23px;display:grid;grid-template-columns:1fr 1fr;gap:17px 15px;border-right:1px solid #d6cfc2}
+.fieldGroup{display:grid;gap:8px}.fieldGroup:first-child{grid-column:1/-1}.fieldGroup label{font-size:11px;font-weight:700;color:#68706a;letter-spacing:.03em}
+.fieldGroup input,.fieldGroup select{width:100%;min-height:43px;border:1px solid #cfc7b9;background:#faf8f2;color:#172128;padding:0 12px;border-radius:0;font-size:14px;outline:none}
+.fieldGroup input:focus,.fieldGroup select:focus{border-color:#b98520;box-shadow:0 0 0 2px rgba(185,133,32,.12)}
+.inputPair{display:grid;grid-template-columns:1.25fr .9fr}.inputPair select{border-left:0}.moneyInput{display:grid;grid-template-columns:auto 1fr;align-items:center;border:1px solid #cfc7b9;background:#faf8f2}.moneyInput span{padding-left:11px;font-size:11px;color:#7b817a}.moneyInput input{border:0}
+.toolHint{grid-column:1/-1;margin:0;color:#7a8079;font-size:10px;line-height:1.55}
+.toolResults{padding:23px}.primaryResult{display:grid;gap:5px;padding-bottom:19px;border-bottom:1px solid #ded7ca}.primaryResult span,.resultMetrics span,.professionalStrip span{font-size:10px;color:#737a73}.primaryResult strong{font:34px Georgia;color:#ad7812}.primaryResult small,.resultMetrics small,.professionalStrip small{font-size:9px;color:#858b84}
+.resultMetrics{display:grid;grid-template-columns:repeat(2,1fr)}.resultMetrics>div{display:grid;gap:5px;padding:15px 13px 11px 0;border-bottom:1px solid #e6e0d5}.resultMetrics>div:nth-child(odd){border-right:1px solid #e6e0d5}.resultMetrics>div:nth-child(even){padding-left:15px}.resultMetrics strong{font:17px Georgia}.resultMetrics small{font-weight:700}
+.professionalStrip{display:grid;grid-template-columns:repeat(3,1fr);margin-top:12px;background:#e9e3d8}.professionalStrip>div{display:grid;gap:5px;padding:12px 15px;border-right:1px solid #cec6b8}.professionalStrip>div:last-child{border-right:0}.professionalStrip strong{font:15px Georgia}.newsVisual>span{display:none}
+.marketRadar .tool{gap:6px}.marketRadar .tool strong{font-size:22px}.marketRadar .tool small{font-size:10px;color:#7b8079;line-height:1.4}
+@media(max-width:800px){.toolWorkspace{grid-template-columns:1fr}.toolForm{border-right:0;border-bottom:1px solid #d6cfc2}}
+@media(max-width:460px){
+  .marketTabs{margin:0 4vw}.marketTabs button{padding:0 3px;font-size:12px!important;letter-spacing:0!important}
+  .proToolsPanel .panelHeading>p{display:none}.toolForm,.toolResults{padding:16px}.toolForm{grid-template-columns:1fr;gap:13px}.fieldGroup:first-child,.toolHint{grid-column:auto}
+  .fieldGroup input,.fieldGroup select{min-height:42px}.primaryResult strong{font-size:29px}.resultMetrics strong{font-size:15px}.professionalStrip{display:flex;overflow-x:auto;scrollbar-width:none}.professionalStrip>div{min-width:160px}.professionalStrip::-webkit-scrollbar{display:none}
+  .marketRadar{grid-template-columns:1fr 1fr!important}.marketRadar>div:first-child,.marketRadar button{grid-column:1/-1}.marketRadar .tool{border-top:1px solid #bcb4a8;border-left:0;padding:15px 0 0}.marketRadar .tool:nth-of-type(3){grid-column:1/-1}
+}
