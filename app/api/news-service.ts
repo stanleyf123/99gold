@@ -43,9 +43,10 @@ async function articleImage(url: string) {
     const response = await fetch(url, { headers: { "User-Agent": "99gold.net market-news" } });
     if (!response.ok) return "";
     const html = await response.text();
-    const articlePhoto = [...html.matchAll(/<(?:img|source)[^>]+src=["']([^"']+)["']/gi)]
+    const articlePhotos = [...html.matchAll(/<(?:img|source)[^>]+src=["']([^"']+)["']/gi)]
       .map((match) => match[1])
-      .find((image) => /(?:webphotos|upload|media|image|photo)/i.test(image) && !/(?:pic_fb|logo|icon|ad-)/i.test(image));
+      .filter((image) => /(?:webphotos|upload|media|image|photo)/i.test(image) && !/(?:pic_fb|logo|icon|ad-)/i.test(image));
+    const articlePhoto = articlePhotos.reverse().find((image) => /(?:WebCover|webphotos)/i.test(image)) ?? articlePhotos[0];
     if (articlePhoto) return articlePhoto.replace(/&amp;/g, "&").replace(/^http:\/\//i, "https://");
     const match = html.match(/<meta[^>]+(?:property|name)=["'](?:og:image|twitter:image)["'][^>]+content=["']([^"']+)["']/i)
       ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["'](?:og:image|twitter:image)["']/i);
@@ -100,10 +101,13 @@ async function fetchLatestTen(locale: keyof typeof newsMarkets) {
     fetchRss(`https://news.google.com/rss/search?q=${encodeURIComponent(market.query)}&hl=${market.hl}&gl=${market.gl}&ceid=${market.ceid}`),
   ]);
   const seen = new Set<string>();
+  const seenImages = new Set<string>();
   return sourceResults.flatMap((result) => result.status === "fulfilled" ? result.value : []).filter((item) => {
     if (seen.has(item.url)) return false;
     seen.add(item.url);
-    return Boolean(item.image) && isAllowedSource(item.sourceUrl, locale) && !(locale === "zh" && simplifiedChinese.test(item.title));
+    if (!item.image || seenImages.has(item.image)) return false;
+    seenImages.add(item.image);
+    return isAllowedSource(item.sourceUrl, locale) && !(locale === "zh" && simplifiedChinese.test(item.title));
   }).slice(0, 10);
 }
 
@@ -117,10 +121,11 @@ async function initialize() {
 export async function getDailyGoldNews(inputLocale = "zh") {
   await initialize();
   const locale = inputLocale === "en" || inputLocale === "ja" ? inputLocale : "zh";
-  const newsDay = `${taipeiDay()}-${locale}`;
+  const newsDay = `${taipeiDay()}-${locale}-v2`;
   const existing = await env.DB.prepare("SELECT id, title, url, article_date, image, fetched_at FROM daily_news WHERE news_day = ? ORDER BY position ASC LIMIT 10").bind(newsDay).all<{ id: number; title: string; url: string; article_date: string; image: string | null; fetched_at: string }>();
   const validExisting = existing.results.filter((item) => Boolean(item.image) && !(locale === "zh" && simplifiedChinese.test(item.title)));
-  if (validExisting.length === 10) return { items: validExisting.map((item) => ({ id: item.id, title: item.title, url: item.url, date: item.article_date, image: item.image ?? undefined })), updatedAt: validExisting[0].fetched_at };
+  const uniqueImages = new Set(validExisting.map((item) => item.image));
+  if (validExisting.length === 10 && uniqueImages.size === 10) return { items: validExisting.map((item) => ({ id: item.id, title: item.title, url: item.url, date: item.article_date, image: item.image ?? undefined })), updatedAt: validExisting[0].fetched_at };
   if (existing.results.length) await env.DB.prepare("DELETE FROM daily_news WHERE news_day = ?").bind(newsDay).run();
 
   const items = await fetchLatestTen(locale);
