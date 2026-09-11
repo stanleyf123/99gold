@@ -50,25 +50,22 @@ async function fetchRss(url: string): Promise<NewsItem[]> {
   })).filter((item) => item.title && item.url);
 }
 
-async function fetchGdelt(): Promise<NewsItem[]> {
-  const query = encodeURIComponent('(gold OR "Federal Reserve" OR "dollar index") sourcelang:chinese');
-  const response = await fetch(`https://api.gdeltproject.org/api/v2/doc/doc?query=${query}&mode=artlist&maxrecords=20&sort=datedesc&format=json`, { signal: AbortSignal.timeout(7000), headers: { Accept: "application/json" } });
-  if (!response.ok) throw new Error(`GDELT ${response.status}`);
-  const data = await response.json() as { articles?: Array<{ title?: string; url?: string; seendate?: string; socialimage?: string }> };
-  return (data.articles ?? []).map((article) => ({ title: article.title?.trim() ?? "", url: article.url ?? "", date: dateLabel(article.seendate), image: article.socialimage?.replace(/^http:\/\//i, "https://") ?? "" })).filter((item) => item.title && item.url);
-}
+const newsMarkets = {
+  zh: { query: "(黃金 OR 美元 OR 聯準會) (site:cna.com.tw OR site:money.udn.com OR site:ctee.com.tw OR site:reuters.com OR site:bloomberg.com) when:1d", hl: "zh-TW", gl: "TW", ceid: "TW:zh-Hant" },
+  en: { query: "(gold OR Federal Reserve OR dollar) (site:reuters.com OR site:apnews.com OR site:cnbc.com OR site:wsj.com OR site:bloomberg.com) when:1d", hl: "en-US", gl: "US", ceid: "US:en" },
+  ja: { query: "(金価格 OR FRB OR ドル) (site:nhk.or.jp OR site:nikkei.com OR site:jiji.com OR site:reuters.com OR site:bloomberg.co.jp) when:1d", hl: "ja", gl: "JP", ceid: "JP:ja" },
+} as const;
 
-async function fetchLatestTen() {
-  const sourceResults = await Promise.allSettled([
-    fetchRss("https://www.bing.com/news/search?q=%E9%BB%83%E9%87%91%20OR%20%E7%BE%8E%E5%85%83%E6%8C%87%E6%95%B8%20OR%20%E8%81%AF%E6%BA%96%E6%9C%83&format=rss&setlang=zh-tw"),
-    fetchGdelt(),
-    fetchRss("https://news.google.com/rss/search?q=%E9%BB%83%E9%87%91%20OR%20%E7%BE%8E%E5%85%83%E6%8C%87%E6%95%B8%20OR%20%E8%81%AF%E6%BA%96%E6%9C%83%20when%3A1d&hl=zh-TW&gl=TW&ceid=TW%3Azh-Hant"),
-  ]);
+const simplifiedChinese = /[这国们为从个们后发经济市场货币银行证监会国务院新华社中新网人民网黄金价格联储数据时钟]/;
+
+async function fetchLatestTen(locale: keyof typeof newsMarkets) {
+  const market = newsMarkets[locale];
+  const sourceResults = await Promise.allSettled([fetchRss(`https://news.google.com/rss/search?q=${encodeURIComponent(market.query)}&hl=${market.hl}&gl=${market.gl}&ceid=${market.ceid}`)]);
   const seen = new Set<string>();
   return sourceResults.flatMap((result) => result.status === "fulfilled" ? result.value : []).filter((item) => {
     if (seen.has(item.url)) return false;
     seen.add(item.url);
-    return true;
+    return Boolean(item.image) && !(locale === "zh" && simplifiedChinese.test(item.title));
   }).slice(0, 10);
 }
 
@@ -79,13 +76,16 @@ async function initialize() {
   ]);
 }
 
-export async function getDailyGoldNews() {
+export async function getDailyGoldNews(inputLocale = "zh") {
   await initialize();
-  const newsDay = taipeiDay();
+  const locale = inputLocale === "en" || inputLocale === "ja" ? inputLocale : "zh";
+  const newsDay = `${taipeiDay()}-${locale}`;
   const existing = await env.DB.prepare("SELECT id, title, url, article_date, image, fetched_at FROM daily_news WHERE news_day = ? ORDER BY position ASC LIMIT 10").bind(newsDay).all<{ id: number; title: string; url: string; article_date: string; image: string | null; fetched_at: string }>();
-  if (existing.results.length) return { items: existing.results.map((item) => ({ id: item.id, title: item.title, url: item.url, date: item.article_date, image: item.image ?? undefined })), updatedAt: existing.results[0].fetched_at };
+  const validExisting = existing.results.filter((item) => Boolean(item.image) && !(locale === "zh" && simplifiedChinese.test(item.title)));
+  if (validExisting.length === 10) return { items: validExisting.map((item) => ({ id: item.id, title: item.title, url: item.url, date: item.article_date, image: item.image ?? undefined })), updatedAt: validExisting[0].fetched_at };
+  if (existing.results.length) await env.DB.prepare("DELETE FROM daily_news WHERE news_day = ?").bind(newsDay).run();
 
-  const items = await fetchLatestTen();
+  const items = await fetchLatestTen(locale);
   if (!items.length) return { items: [], updatedAt: "" };
   const fetchedAt = new Intl.DateTimeFormat("zh-TW", { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Taipei", hour12: false }).format(new Date());
   await env.DB.batch(items.map((item, position) => env.DB.prepare("INSERT INTO daily_news (news_day, position, title, url, article_date, image, fetched_at) VALUES (?, ?, ?, ?, ?, ?, ?)").bind(newsDay, position + 1, item.title, item.url, item.date, item.image || null, fetchedAt)));

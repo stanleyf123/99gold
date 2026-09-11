@@ -91,6 +91,7 @@ export default function Home() {
   const [alertTarget, setAlertTarget] = useState("18000");
   const [savedAlerts, setSavedAlerts] = useState<SavedAlert[]>([]);
   const [news, setNews] = useState<NewsItem[]>(fallbackNews);
+  const [hiddenNews, setHiddenNews] = useState<string[]>([]);
   const [newsCategory, setNewsCategory] = useState<NewsCategory | "全部">("全部");
   const [newsUpdated, setNewsUpdated] = useState("正在取得最新消息");
   const [quotes, setQuotes] = useState<QuoteItem[]>(initialQuotes);
@@ -131,7 +132,7 @@ export default function Home() {
   }, []);
   useEffect(() => {
     let disposed = false;
-    const refreshNews = () => fetch(`/api/market-brief?t=${Date.now()}`, { cache: "no-store" })
+    const refreshNews = () => fetch(`/api/market-brief?lang=${locale}&t=${Date.now()}`, { cache: "no-store" })
       .then((response) => response.ok ? response.json() : Promise.reject())
       .then((data: { items?: NewsItem[]; updatedAt?: string }) => {
         if (disposed) return;
@@ -148,7 +149,7 @@ export default function Home() {
       disposed = true;
       window.clearInterval(timer);
     };
-  }, []);
+  }, [locale]);
   useEffect(() => {
     try {
       const stored = window.localStorage.getItem("golden-tide-alerts");
@@ -200,7 +201,7 @@ export default function Home() {
     return { grossQian, pureQian, grams: grossQian * 3.75, recycleValue, cost, gain, roi };
   }, [goldWeight, toolUnit, purity, purchasePrice]);
   const selectedAlertMarket = alertMarkets.find((market) => market.id === alertMarket) ?? alertMarkets[0];
-  const filteredNews = news.filter((item) => newsCategory === "全部" || classifyNews(item.title) === newsCategory);
+  const filteredNews = news.filter((item) => !hiddenNews.includes(item.id ? String(item.id) : item.title) && (newsCategory === "全部" || classifyNews(item.title) === newsCategory));
 
   return (
     <main>
@@ -220,7 +221,7 @@ export default function Home() {
 
         {activeTab === "quotes" && <div className="hubPanel" role="tabpanel" id="quotes"><div className="panelHeading"><div><p className="eyebrow">LIVE MARKET</p><h2>{copy.quotes}</h2></div><p>{copy.updated} {quoteUpdated}（GMT+8）</p></div><div className="quoteGrid">{quotes.map((q) => <article className="quoteCard" key={q.label}><div><p>{q.label}</p><span>{q.code}</span></div><strong>{q.price}</strong><div className="quoteFoot"><span>{q.unit}</span><b className={q.up ? "up" : "down"}>{q.up ? "▲" : "▼"} {q.change}</b></div></article>)}</div><div className="marketSummary"><div><span>今日高點</span><strong>4,413.70</strong></div><div><span>今日低點</span><strong>4,340.80</strong></div><div><span>今日振幅</span><strong>1.68%</strong></div><div><span>市場狀態</span><strong>多方回升</strong></div></div><div className="moreQuotesHead"><div><span>PRECIOUS METALS</span><strong>更多國際報價</strong></div><small>美元計價・參考行情</small></div><div className="moreQuotes">{additionalQuotes.map((item) => <article key={item.symbol}><span>{item.symbol}</span><div><p>{item.label}</p><small>{item.unit}</small></div><strong>{item.price}</strong><em>{item.change}</em></article>)}</div><p className="panelNote">黃金參考價每 10 分鐘更新；台灣理論金價由國際金價與匯率換算，實際銀樓價格以各通路公告為準。</p></div>}
 
-        {activeTab === "news" && <div className="hubPanel newsPanel" role="tabpanel"><div className="panelHeading"><div><p className="eyebrow">TODAY&apos;S MARKET FOCUS</p><h2>{copy.news}</h2></div><p>{newsUpdated}</p></div><p className="panelIntro">每日更新並保存前十篇可能影響金價的市場新聞，提供本站重點整理與原始出處。</p><div className="newsFilters" role="tablist" aria-label="新聞分類">{newsCategories.map((category) => <button key={category} className={newsCategory === category ? "active" : ""} onClick={() => setNewsCategory(category)}>{category}</button>)}</div><div className="newsGrid">{filteredNews.slice(0, 10).map((item, i) => { const category = classifyNews(item.title); const cover = categoryCover[category]; return <article key={item.title}><div className="newsVisual hasImage">{<img src={item.image || cover} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(event) => { if (event.currentTarget.src !== cover) event.currentTarget.src = cover; }}/>}<span>{String(i + 1).padStart(2, "0")}</span></div><p><b>{category}</b><time>{item.date}</time></p><h3>{item.title}</h3><a href={item.id ? `/news/${item.id}` : item.url} target={item.id ? undefined : "_blank"} rel={item.id ? undefined : "noreferrer"}>{copy.read}　→</a></article>; })}</div></div>}
+        {activeTab === "news" && <div className="hubPanel newsPanel" role="tabpanel"><div className="panelHeading"><div><p className="eyebrow">TODAY&apos;S MARKET FOCUS</p><h2>{copy.news}</h2></div><p>{newsUpdated}</p></div><p className="panelIntro">僅刊登已驗證來源、語系與原始封面圖片的新聞。</p><div className="newsFilters" role="tablist" aria-label="新聞分類">{newsCategories.map((category) => <button key={category} className={newsCategory === category ? "active" : ""} onClick={() => setNewsCategory(category)}>{category}</button>)}</div><div className="newsGrid">{filteredNews.slice(0, 10).map((item, i) => { const category = classifyNews(item.title); const key = item.id ? String(item.id) : item.title; return <article key={key}><div className="newsVisual hasImage"><img src={item.image} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setHiddenNews((current) => current.includes(key) ? current : [...current, key])}/><span>{String(i + 1).padStart(2, "0")}</span></div><p><b>{category}</b><time>{item.date}</time></p><h3>{item.title}</h3><a href={item.id ? `/news/${item.id}` : item.url} target={item.id ? undefined : "_blank"} rel={item.id ? undefined : "noreferrer"}>{copy.read}　→</a></article>; })}</div></div>}
 
         {activeTab === "history" && <div className="hubPanel historyPanel" role="tabpanel"><div className="historyChart"><div className="chartTop"><div><p className="eyebrow">XAU / USD</p><h2>近一個月價格走勢</h2></div><div><strong>4,424.50</strong><span className="up">▲ 0.42%</span></div></div><div className="chart"><div className="gridLines"/><svg viewBox="0 0 320 170" preserveAspectRatio="none" aria-label="黃金價格走勢圖"><defs><linearGradient id="fill" x1="0" x2="0" y1="0" y2="1"><stop stopColor="#d9a62e" stopOpacity=".38"/><stop offset="1" stopColor="#d9a62e" stopOpacity="0"/></linearGradient></defs><path d={`${path} L320 170 L0 170 Z`} fill="url(#fill)"/><path d={path} fill="none" stroke="#d9a62e" strokeWidth="3" vectorEffect="non-scaling-stroke"/><circle cx="320" cy="18" r="4" fill="#c9951c" stroke="#fff" strokeWidth="2" vectorEffect="non-scaling-stroke"/></svg><div className="chartPriceTag">4,424.50</div><div className="yAxis" aria-hidden="true"><span>4,450</span><span>4,380</span><span>4,310</span><span>4,240</span></div><div className="xAxis" aria-hidden="true"><span>8/10</span><span>8/17</span><span>8/24</span><span>8/31</span><span>9/08</span></div></div><div className="periods">{["1D", "1W", "1M", "1Y"].map((p) => <button className={period === p ? "selected" : ""} onClick={() => setPeriod(p)} key={p}>{p}</button>)}</div></div><div className="historyBlock"><div className="historyHead"><div><p className="eyebrow">30-DAY HISTORY</p><h3>每日參考收盤價</h3></div><span>美元／盎司</span></div><div className="historyList"><div className="historyRow historyLabels"><span>日期</span><span>收盤價</span><span>日變動</span></div>{monthlyGoldHistory.map(([date, price, change]) => <div className="historyRow" key={date}><time>2026/{date}</time><strong>{price}</strong><em className={change.startsWith("−") ? "down" : "up"}>{change}</em></div>)}</div></div><p className="historyNote">近 30 日參考走勢，與即時報價可能略有差異；資料不作交易依據。</p></div>}
 
