@@ -39,7 +39,7 @@ function directArticleUrl(value: string) {
 }
 
 async function fetchRss(url: string): Promise<NewsItem[]> {
-  const response = await fetch(url, { signal: AbortSignal.timeout(7000), headers: { "User-Agent": "GoldenTide/1.0" } });
+  const response = await fetch(url, { headers: { "User-Agent": "99gold.net market-news" } });
   if (!response.ok) throw new Error(`RSS ${response.status}`);
   const xml = await response.text();
   return [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)].map((match) => ({
