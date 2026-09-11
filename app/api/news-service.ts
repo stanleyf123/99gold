@@ -43,6 +43,10 @@ async function articleImage(url: string) {
     const response = await fetch(url, { headers: { "User-Agent": "99gold.net market-news" } });
     if (!response.ok) return "";
     const html = await response.text();
+    const articlePhoto = [...html.matchAll(/<(?:img|source)[^>]+src=["']([^"']+)["']/gi)]
+      .map((match) => match[1])
+      .find((image) => /(?:webphotos|upload|media|image|photo)/i.test(image) && !/(?:pic_fb|logo|icon|ad-)/i.test(image));
+    if (articlePhoto) return articlePhoto.replace(/&amp;/g, "&").replace(/^http:\/\//i, "https://");
     const match = html.match(/<meta[^>]+(?:property|name)=["'](?:og:image|twitter:image)["'][^>]+content=["']([^"']+)["']/i)
       ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["'](?:og:image|twitter:image)["']/i);
     return match?.[1]?.replace(/&amp;/g, "&").replace(/^http:\/\//i, "https://") ?? "";
@@ -58,7 +62,7 @@ async function fetchRss(url: string): Promise<NewsItem[]> {
     url: directArticleUrl(tag(match[1], "link")),
     date: dateLabel(tag(match[1], "pubDate")),
     image: rssImage(match[1]).replace(/^http:\/\//i, "https://"),
-    sourceUrl: match[1].match(/<source[^>]+url=["']([^"']+)["']/i)?.[1] ?? "",
+    sourceUrl: match[1].match(/<source[^>]+url=["']([^"']+)["']/i)?.[1] ?? directArticleUrl(tag(match[1], "link")),
   })).filter((item) => item.title && item.url);
   return Promise.all(items.map(async (item) => item.image ? item : { ...item, image: await articleImage(item.url) }));
 }
@@ -76,6 +80,12 @@ const allowedSourceHosts = {
   ja: ["nhk.or.jp", "nikkei.com", "jiji.com", "reuters.com", "bloomberg.co.jp"],
 } as const;
 
+const directFeeds = {
+  zh: ["https://feeds.feedburner.com/rsscna/intworld", "https://feeds.feedburner.com/rsscna/finance"],
+  en: ["https://www.cnbc.com/id/10001147/device/rss/rss.xml"],
+  ja: ["https://www3.nhk.or.jp/rss/news/cat6.xml"],
+} as const;
+
 function isAllowedSource(url: string | undefined, locale: keyof typeof allowedSourceHosts) {
   try {
     const host = new URL(url || "").hostname.replace(/^www\./, "");
@@ -85,7 +95,10 @@ function isAllowedSource(url: string | undefined, locale: keyof typeof allowedSo
 
 async function fetchLatestTen(locale: keyof typeof newsMarkets) {
   const market = newsMarkets[locale];
-  const sourceResults = await Promise.allSettled([fetchRss(`https://news.google.com/rss/search?q=${encodeURIComponent(market.query)}&hl=${market.hl}&gl=${market.gl}&ceid=${market.ceid}`)]);
+  const sourceResults = await Promise.allSettled([
+    ...directFeeds[locale].map((url) => fetchRss(url)),
+    fetchRss(`https://news.google.com/rss/search?q=${encodeURIComponent(market.query)}&hl=${market.hl}&gl=${market.gl}&ceid=${market.ceid}`),
+  ]);
   const seen = new Set<string>();
   return sourceResults.flatMap((result) => result.status === "fulfilled" ? result.value : []).filter((item) => {
     if (seen.has(item.url)) return false;
