@@ -81,12 +81,6 @@ const allowedSourceHosts = {
   ja: ["nhk.or.jp", "nikkei.com", "jiji.com", "reuters.com", "bloomberg.co.jp"],
 } as const;
 
-const directFeeds = {
-  zh: ["https://feeds.feedburner.com/rsscna/intworld", "https://feeds.feedburner.com/rsscna/finance"],
-  en: ["https://www.cnbc.com/id/10001147/device/rss/rss.xml"],
-  ja: ["https://www3.nhk.or.jp/rss/news/cat6.xml"],
-} as const;
-
 function isAllowedSource(url: string | undefined, locale: keyof typeof allowedSourceHosts) {
   try {
     const host = new URL(url || "").hostname.replace(/^www\./, "");
@@ -97,7 +91,6 @@ function isAllowedSource(url: string | undefined, locale: keyof typeof allowedSo
 async function fetchLatestTen(locale: keyof typeof newsMarkets) {
   const market = newsMarkets[locale];
   const sourceResults = await Promise.allSettled([
-    ...directFeeds[locale].map((url) => fetchRss(url)),
     fetchRss(`https://news.google.com/rss/search?q=${encodeURIComponent(market.query)}&hl=${market.hl}&gl=${market.gl}&ceid=${market.ceid}`),
   ]);
   const seen = new Set<string>();
@@ -121,7 +114,7 @@ async function initialize() {
 export async function getDailyGoldNews(inputLocale = "zh") {
   await initialize();
   const locale = inputLocale === "en" || inputLocale === "ja" ? inputLocale : "zh";
-  const newsDay = `${taipeiDay()}-${locale}-v2`;
+  const newsDay = `${taipeiDay()}-${locale}-v3`;
   const existing = await env.DB.prepare("SELECT id, title, url, article_date, image, fetched_at FROM daily_news WHERE news_day = ? ORDER BY position ASC LIMIT 10").bind(newsDay).all<{ id: number; title: string; url: string; article_date: string; image: string | null; fetched_at: string }>();
   const validExisting = existing.results.filter((item) => Boolean(item.image) && !(locale === "zh" && simplifiedChinese.test(item.title)));
   const uniqueImages = new Set(validExisting.map((item) => item.image));
