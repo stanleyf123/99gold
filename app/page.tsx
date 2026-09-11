@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-const quotes = [
+const initialQuotes = [
   { label: "國際現貨金", code: "XAU / USD", price: "4,408.80", unit: "美元／盎司", change: "+54.10", up: true },
   { label: "銀樓黃金買進", code: "999.9 純金", price: "16,560", unit: "台幣／錢", change: "+30", up: true },
   { label: "銀樓黃金賣出", code: "999.9 純金", price: "17,260", unit: "台幣／錢", change: "+30", up: true },
@@ -25,6 +25,14 @@ const alertMarkets = [
 type SavedAlert = { id: number; market: string; target: number };
 
 type NewsItem = { title: string; date: string; url: string; image?: string };
+type QuoteItem = { label: string; code: string; price: string; unit: string; change: string; up: boolean };
+type Locale = "zh" | "en" | "ja";
+
+const languageCopy = {
+  zh: { navToday: "今日金價", navInternational: "國際金價", navJewelry: "銀樓價格", navRecycle: "黃金回收", navNews: "市場情報", hero: "國際金價・銀樓行情・黃金工具", dashboard: "今日黃金資訊", dashboardText: "報價、走勢、實用工具與市場新聞集中在這裡，點選分頁即可切換。", quotes: "即時報價", history: "歷史金價", tools: "黃金工具", news: "市場新聞", updated: "最後更新", open: "市場開盤中", read: "閱讀原文", footer: "資料供投資與消費參考，不構成任何交易建議。" },
+  en: { navToday: "Gold Prices", navInternational: "International", navJewelry: "Retail Prices", navRecycle: "Gold Recycling", navNews: "Market Insights", hero: "Global gold prices · retail market · gold tools", dashboard: "Today’s Gold Dashboard", dashboardText: "Quotes, price trends, practical tools, and market news in one place.", quotes: "Live Quotes", history: "Price History", tools: "Gold Tools", news: "Market News", updated: "Updated", open: "Market open", read: "Read article", footer: "Information is for reference only and is not investment or trading advice." },
+  ja: { navToday: "本日の金価格", navInternational: "国際金価格", navJewelry: "店頭価格", navRecycle: "金の買取", navNews: "市場情報", hero: "国際金価格・店頭相場・金ツール", dashboard: "本日の金情報", dashboardText: "相場、価格推移、便利なツール、市場ニュースを一か所で確認できます。", quotes: "リアルタイム相場", history: "価格履歴", tools: "金ツール", news: "市場ニュース", updated: "最終更新", open: "市場オープン", read: "記事を読む", footer: "本情報は参考用であり、投資・取引の助言ではありません。" },
+} as const;
 
 const fallbackNews: NewsItem[] = [
   { title: "查看最新黃金市場消息", date: "即時", url: "https://news.google.com/search?q=%E9%BB%83%E9%87%91&hl=zh-TW&gl=TW&ceid=TW%3Azh-Hant", image: "https://images.unsplash.com/photo-1610375461246-83df859d849d?auto=format&fit=crop&w=1200&q=82" },
@@ -61,6 +69,35 @@ export default function Home() {
   const [savedAlerts, setSavedAlerts] = useState<SavedAlert[]>([]);
   const [news, setNews] = useState<NewsItem[]>(fallbackNews);
   const [newsUpdated, setNewsUpdated] = useState("正在取得最新消息");
+  const [quotes, setQuotes] = useState<QuoteItem[]>(initialQuotes);
+  const [quoteUpdated, setQuoteUpdated] = useState("取得中");
+  const [locale, setLocale] = useState<Locale>("zh");
+  const copy = languageCopy[locale];
+  useEffect(() => {
+    const saved = window.localStorage.getItem("golden-tide-locale") as Locale | null;
+    if (saved && saved in languageCopy) {
+      setLocale(saved);
+      document.documentElement.lang = saved === "zh" ? "zh-Hant" : saved;
+      return;
+    }
+    fetch("/api/visitor-locale", { cache: "no-store" }).then((response) => response.ok ? response.json() : null).then((data: { locale?: Locale } | null) => {
+      if (!data?.locale || !(data.locale in languageCopy)) return;
+      setLocale(data.locale);
+      document.documentElement.lang = data.locale === "zh" ? "zh-Hant" : data.locale;
+    }).catch(() => undefined);
+  }, []);
+  useEffect(() => {
+    const refreshQuotes = () => fetch(`/api/market-quotes?t=${Date.now()}`, { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : Promise.reject())
+      .then((data: { items?: QuoteItem[]; updatedAt?: string }) => {
+        if (data.items?.length) setQuotes(data.items);
+        if (data.updatedAt) setQuoteUpdated(data.updatedAt);
+      })
+      .catch(() => setQuoteUpdated("報價來源暫時無法連線，將自動重試"));
+    refreshQuotes();
+    const timer = window.setInterval(refreshQuotes, 600_000);
+    return () => window.clearInterval(timer);
+  }, []);
   useEffect(() => {
     let disposed = false;
     const refreshNews = () => fetch(`/api/market-brief?t=${Date.now()}`, { cache: "no-store" })
@@ -135,22 +172,23 @@ export default function Home() {
 
   return (
     <main>
-      <div className="topline"><span>市場開盤中</span><span>最後更新 2026.09.09　15:56 (GMT+8)</span></div>
+      <div className="topline"><span>{copy.open}</span><span>{copy.updated} {quoteUpdated} (GMT+8)</span></div>
       <nav className="nav">
         <a className="brand" href="/"><i>G</i><span>金澤<br/><em>GOLDEN TIDE</em></span></a>
-        <div className="navlinks"><a className="active" href="/#quotes">今日金價</a><a href="/international">國際金價</a><a href="/jewelry">銀樓價格</a><a href="/recycling">黃金回收</a><a href="/insights">市場情報</a></div>
+        <div className="navlinks"><a className="active" href="/#quotes">{copy.navToday}</a><a href="/international">{copy.navInternational}</a><a href="/jewelry">{copy.navJewelry}</a><a href="/recycling">{copy.navRecycle}</a><a href="/insights">{copy.navNews}</a></div>
+        <div className="languageSwitch" aria-label="Language"><button className={locale === "zh" ? "active" : ""} onClick={() => { setLocale("zh"); window.localStorage.setItem("golden-tide-locale", "zh"); document.documentElement.lang = "zh-Hant"; }}>中</button><button className={locale === "en" ? "active" : ""} onClick={() => { setLocale("en"); window.localStorage.setItem("golden-tide-locale", "en"); document.documentElement.lang = "en"; }}>EN</button><button className={locale === "ja" ? "active" : ""} onClick={() => { setLocale("ja"); window.localStorage.setItem("golden-tide-locale", "ja"); document.documentElement.lang = "ja"; }}>日</button></div>
         <button className="menu" aria-label="開啟功能選單" aria-expanded={menuOpen} aria-controls="mobileMenu" onClick={() => setMenuOpen(true)}>☰</button>
       </nav>
 
       {menuOpen && <div className="menuOverlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setMenuOpen(false); }}><aside className="mobileMenu" id="mobileMenu" aria-label="網站功能"><div className="menuHead"><div><span>金澤</span><small>GOLDEN TIDE</small></div><button onClick={() => setMenuOpen(false)} aria-label="關閉功能選單">×</button></div><div className="menuQuote"><span>國際現貨金</span><strong>4,408.80</strong><small>XAU / USD　<b>+1.24%</b></small></div><nav className="menuFunctions"><button onClick={() => openDashboardSection("quotes")}><span>即時報價<small>LIVE QUOTES</small></span><b>→</b></button><button onClick={() => openDashboardSection("history")}><span>歷史金價<small>PRICE HISTORY</small></span><b>→</b></button><button onClick={() => openDashboardSection("tools")}><span>黃金工具<small>GOLD TOOLKIT</small></span><b>→</b></button><button onClick={() => openDashboardSection("news")}><span>市場新聞<small>MARKET NEWS</small></span><b>→</b></button><button onClick={() => { setMenuOpen(false); window.setTimeout(() => document.getElementById("price-alerts")?.scrollIntoView({ behavior: "smooth" }), 40); }}><span>到價標記<small>MY WATCHLIST</small></span><b>→</b></button></nav><p>報價與試算僅供參考</p></aside></div>}
 
-      <section className="brandHero" aria-labelledby="brandTitle"><img src="/assets/golden-tide-hero.png" alt="金塊與金幣陳列於深色石材上"/><div className="brandHeroShade"/><div className="brandHeroCopy"><p className="eyebrow">TAIWAN GOLD MARKET INTELLIGENCE</p><h1 id="brandTitle">金澤 <span>GOLDEN TIDE</span></h1><p>國際金價・銀樓行情・黃金工具</p><div className="heroBadges"><span>國際現貨</span><span>銀樓牌價</span><span>回收試算</span><span>市場情報</span></div></div><div className="heroLive"><span>市場開盤中</span><strong>4,408.80</strong><small>XAU / USD　<span>+1.24%</span></small></div></section>
+      <section className="brandHero" aria-labelledby="brandTitle"><img src="/assets/golden-tide-hero.png" alt="金塊與金幣陳列於深色石材上"/><div className="brandHeroShade"/><div className="brandHeroCopy"><p className="eyebrow">TAIWAN GOLD MARKET INTELLIGENCE</p><h1 id="brandTitle">金澤 <span>GOLDEN TIDE</span></h1><p>{copy.hero}</p><div className="heroBadges"><span>國際現貨</span><span>銀樓牌價</span><span>回收試算</span><span>市場情報</span></div></div><div className="heroLive"><span>{copy.open}</span><strong>{quotes[0]?.price ?? "—"}</strong><small>{quotes[0]?.code}　<span>{quotes[0]?.change}</span></small></div></section>
 
-      <section className="marketHub" id="top"><div className="hubLead"><div><p className="eyebrow">GOLD MARKET DASHBOARD</p><h1>今日黃金資訊</h1><p>報價、走勢、實用工具與市場新聞集中在這裡，點選分頁即可切換。</p></div><div className="hubPrice"><span>國際現貨金・XAU/USD</span><strong>4,424.50</strong><em className="up">▲ 18.43　0.42%</em></div></div><div className="marketTabs" role="tablist" aria-label="黃金資訊分類"><button role="tab" aria-selected={activeTab === "quotes"} className={activeTab === "quotes" ? "active" : ""} onClick={() => setActiveTab("quotes")}>即時報價</button><button role="tab" aria-selected={activeTab === "history"} className={activeTab === "history" ? "active" : ""} onClick={() => setActiveTab("history")}>歷史金價</button><button role="tab" aria-selected={activeTab === "tools"} className={activeTab === "tools" ? "active" : ""} onClick={() => setActiveTab("tools")}>黃金工具</button><button role="tab" aria-selected={activeTab === "news"} className={activeTab === "news" ? "active" : ""} onClick={() => setActiveTab("news")}>市場新聞</button></div>
+      <section className="marketHub" id="top"><div className="hubLead"><div><p className="eyebrow">GOLD MARKET DASHBOARD</p><h1>{copy.dashboard}</h1><p>{copy.dashboardText}</p></div><div className="hubPrice"><span>{quotes[0]?.label}・{quotes[0]?.code}</span><strong>{quotes[0]?.price ?? "—"}</strong><em className={quotes[0]?.up ? "up" : "down"}>{quotes[0]?.up ? "▲" : "▼"} {quotes[0]?.change}</em></div></div><div className="marketTabs" role="tablist" aria-label="黃金資訊分類"><button role="tab" aria-selected={activeTab === "quotes"} className={activeTab === "quotes" ? "active" : ""} onClick={() => setActiveTab("quotes")}>{copy.quotes}</button><button role="tab" aria-selected={activeTab === "history"} className={activeTab === "history" ? "active" : ""} onClick={() => setActiveTab("history")}>{copy.history}</button><button role="tab" aria-selected={activeTab === "tools"} className={activeTab === "tools" ? "active" : ""} onClick={() => setActiveTab("tools")}>{copy.tools}</button><button role="tab" aria-selected={activeTab === "news"} className={activeTab === "news" ? "active" : ""} onClick={() => setActiveTab("news")}>{copy.news}</button></div>
 
-        {activeTab === "quotes" && <div className="hubPanel" role="tabpanel" id="quotes"><div className="panelHeading"><div><p className="eyebrow">LIVE MARKET</p><h2>即時報價</h2></div><p>最後更新 2026.09.09 15:56（GMT+8）</p></div><div className="quoteGrid">{quotes.map((q) => <article className="quoteCard" key={q.label}><div><p>{q.label}</p><span>{q.code}</span></div><strong>{q.price}</strong><div className="quoteFoot"><span>{q.unit}</span><b className={q.up ? "up" : "down"}>{q.up ? "▲" : "▼"} {q.change}</b></div></article>)}</div><div className="marketSummary"><div><span>今日高點</span><strong>4,413.70</strong></div><div><span>今日低點</span><strong>4,340.80</strong></div><div><span>今日振幅</span><strong>1.68%</strong></div><div><span>市場狀態</span><strong>多方回升</strong></div></div><div className="moreQuotesHead"><div><span>PRECIOUS METALS</span><strong>更多國際報價</strong></div><small>美元計價・參考行情</small></div><div className="moreQuotes">{additionalQuotes.map((item) => <article key={item.symbol}><span>{item.symbol}</span><div><p>{item.label}</p><small>{item.unit}</small></div><strong>{item.price}</strong><em>{item.change}</em></article>)}</div><p className="panelNote">國際行情參考 Kitco 紐約現貨市場；銀樓價格與實際成交價仍以各通路公告為準。</p></div>}
+        {activeTab === "quotes" && <div className="hubPanel" role="tabpanel" id="quotes"><div className="panelHeading"><div><p className="eyebrow">LIVE MARKET</p><h2>{copy.quotes}</h2></div><p>{copy.updated} {quoteUpdated}（GMT+8）</p></div><div className="quoteGrid">{quotes.map((q) => <article className="quoteCard" key={q.label}><div><p>{q.label}</p><span>{q.code}</span></div><strong>{q.price}</strong><div className="quoteFoot"><span>{q.unit}</span><b className={q.up ? "up" : "down"}>{q.up ? "▲" : "▼"} {q.change}</b></div></article>)}</div><div className="marketSummary"><div><span>今日高點</span><strong>4,413.70</strong></div><div><span>今日低點</span><strong>4,340.80</strong></div><div><span>今日振幅</span><strong>1.68%</strong></div><div><span>市場狀態</span><strong>多方回升</strong></div></div><div className="moreQuotesHead"><div><span>PRECIOUS METALS</span><strong>更多國際報價</strong></div><small>美元計價・參考行情</small></div><div className="moreQuotes">{additionalQuotes.map((item) => <article key={item.symbol}><span>{item.symbol}</span><div><p>{item.label}</p><small>{item.unit}</small></div><strong>{item.price}</strong><em>{item.change}</em></article>)}</div><p className="panelNote">黃金參考價每 10 分鐘更新；台灣理論金價由國際金價與匯率換算，實際銀樓價格以各通路公告為準。</p></div>}
 
-        {activeTab === "news" && <div className="hubPanel newsPanel" role="tabpanel"><div className="panelHeading"><div><p className="eyebrow">TODAY&apos;S MARKET FOCUS</p><h2>今日市場焦點</h2></div><p>{newsUpdated}</p></div><p className="panelIntro">整理可能影響金價的三個關鍵面向：黃金行情、美元走勢與聯準會政策。</p><div className="newsGrid">{news.slice(0, 3).map((item, i) => <article key={item.title}><div className={`newsVisual v${i + 1}${item.image ? " hasImage" : ""}`}>{item.image && <img src={item.image} alt="" loading="lazy" referrerPolicy="no-referrer"/>}<span>{String(i + 1).padStart(2, "0")}</span></div><p>{focusLabels[i]}<time>{item.date}</time></p><h3>{item.title}</h3><a href={item.url} target="_blank" rel="noreferrer">閱讀原文　→</a></article>)}</div></div>}
+        {activeTab === "news" && <div className="hubPanel newsPanel" role="tabpanel"><div className="panelHeading"><div><p className="eyebrow">TODAY&apos;S MARKET FOCUS</p><h2>{copy.news}</h2></div><p>{newsUpdated}</p></div><p className="panelIntro">每日更新並保存前十篇可能影響金價的市場新聞。</p><div className="newsGrid">{news.slice(0, 10).map((item, i) => <article key={item.title}><div className={`newsVisual v${(i % 3) + 1}${item.image ? " hasImage" : ""}`}>{item.image && <img src={item.image} alt="" loading="lazy" referrerPolicy="no-referrer"/>}<span>{String(i + 1).padStart(2, "0")}</span></div><p>{focusLabels[i % focusLabels.length]}<time>{item.date}</time></p><h3>{item.title}</h3><a href={item.url} target="_blank" rel="noreferrer">{copy.read}　→</a></article>)}</div></div>}
 
         {activeTab === "history" && <div className="hubPanel historyPanel" role="tabpanel"><div className="historyChart"><div className="chartTop"><div><p className="eyebrow">XAU / USD</p><h2>近一個月價格走勢</h2></div><div><strong>4,424.50</strong><span className="up">▲ 0.42%</span></div></div><div className="chart"><div className="gridLines"/><svg viewBox="0 0 320 170" preserveAspectRatio="none" aria-label="黃金價格走勢圖"><defs><linearGradient id="fill" x1="0" x2="0" y1="0" y2="1"><stop stopColor="#d9a62e" stopOpacity=".38"/><stop offset="1" stopColor="#d9a62e" stopOpacity="0"/></linearGradient></defs><path d={`${path} L320 170 L0 170 Z`} fill="url(#fill)"/><path d={path} fill="none" stroke="#d9a62e" strokeWidth="3" vectorEffect="non-scaling-stroke"/><circle cx="320" cy="18" r="4" fill="#c9951c" stroke="#fff" strokeWidth="2" vectorEffect="non-scaling-stroke"/></svg><div className="chartPriceTag">4,424.50</div><div className="yAxis" aria-hidden="true"><span>4,450</span><span>4,380</span><span>4,310</span><span>4,240</span></div><div className="xAxis" aria-hidden="true"><span>8/10</span><span>8/17</span><span>8/24</span><span>8/31</span><span>9/08</span></div></div><div className="periods">{["1D", "1W", "1M", "1Y"].map((p) => <button className={period === p ? "selected" : ""} onClick={() => setPeriod(p)} key={p}>{p}</button>)}</div></div><div className="historyBlock"><div className="historyHead"><div><p className="eyebrow">30-DAY HISTORY</p><h3>每日參考收盤價</h3></div><span>美元／盎司</span></div><div className="historyList"><div className="historyRow historyLabels"><span>日期</span><span>收盤價</span><span>日變動</span></div>{monthlyGoldHistory.map(([date, price, change]) => <div className="historyRow" key={date}><time>2026/{date}</time><strong>{price}</strong><em className={change.startsWith("−") ? "down" : "up"}>{change}</em></div>)}</div></div><p className="historyNote">近 30 日參考走勢，與即時報價可能略有差異；資料不作交易依據。</p></div>}
 

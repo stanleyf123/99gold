@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
-import { getGoldNews, updatedAt } from "../news-service";
+import { getDailyGoldNews } from "../news-service";
 
 export async function GET() {
-  const { items, isFallback } = await getGoldNews();
-  return NextResponse.json({ items, updatedAt: updatedAt(isFallback) }, { headers: { "Cache-Control": "public, max-age=60, s-maxage=300" } });
+  try {
+    const { items, updatedAt } = await getDailyGoldNews();
+    return NextResponse.json({ items, updatedAt: updatedAt ? `今日新聞更新：${updatedAt}` : "新聞尚未完成更新" }, { headers: { "Cache-Control": "no-store" } });
+  } catch {
+    return NextResponse.json({ items: [], updatedAt: "新聞暫時無法更新" }, { status: 503, headers: { "Cache-Control": "no-store" } });
+  }
 }

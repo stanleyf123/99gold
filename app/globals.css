@@ -129,3 +129,7 @@
   .heroLive strong{font-size:18px;line-height:1}
   .heroLive small{font-size:7px;letter-spacing:.03em}
 }
+ .languageSwitch{display:flex;align-items:center;gap:2px;margin-left:14px;padding:3px;border:1px solid rgba(201,149,28,.22);border-radius:999px;background:rgba(255,255,255,.65)}
+ .languageSwitch button{border:0;background:transparent;color:#6e6659;font:700 11px/1 ui-sans-serif,system-ui,sans-serif;letter-spacing:.02em;padding:6px 7px;border-radius:999px;cursor:pointer}
+ .languageSwitch button.active{background:#2d2922;color:#fff}
+ @media (max-width:760px){.languageSwitch{margin-left:auto;margin-right:8px}.languageSwitch button{padding:5px 6px}}
