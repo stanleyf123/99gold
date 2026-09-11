@@ -191,7 +191,7 @@ export default function Home() {
       <div className="topline"><span>{copy.open}</span><span>{copy.updated} {quoteUpdated} (GMT+8)</span></div>
       <nav className="nav">
         <a className="brand" href="/"><i>99</i><span>{siteSettings.brandName}<br/><em>{siteSettings.englishName}</em></span></a>
-        <div className="navlinks"><a className="active" href="/#quotes">{copy.navToday}</a><a href="/international">{copy.navInternational}</a><a href="/jewelry">{copy.navJewelry}</a><a href="/recycling">{copy.navRecycle}</a><a href="/insights">{copy.navNews}</a></div>
+        <div className="navlinks"><a className="active" href="/#quotes">{copy.navToday}</a><a href="/global">全球報價</a><a href="/international">{copy.navInternational}</a><a href="/jewelry">{copy.navJewelry}</a><a href="/recycling">{copy.navRecycle}</a><a href="/insights">{copy.navNews}</a></div>
         <div className="languageSwitch" aria-label="Language"><button className={locale === "zh" ? "active" : ""} onClick={() => { setLocale("zh"); window.localStorage.setItem("golden-tide-locale", "zh"); document.documentElement.lang = "zh-Hant"; }}>中</button><button className={locale === "en" ? "active" : ""} onClick={() => { setLocale("en"); window.localStorage.setItem("golden-tide-locale", "en"); document.documentElement.lang = "en"; }}>EN</button><button className={locale === "ja" ? "active" : ""} onClick={() => { setLocale("ja"); window.localStorage.setItem("golden-tide-locale", "ja"); document.documentElement.lang = "ja"; }}>日</button></div>
         <button className="menu" aria-label="開啟功能選單" aria-expanded={menuOpen} aria-controls="mobileMenu" onClick={() => setMenuOpen(true)}>☰</button>
       </nav>
