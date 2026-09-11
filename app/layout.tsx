@@ -8,12 +8,12 @@ export const metadata: Metadata = {
   openGraph: {
     title: "玖久黃金報價網｜即時黃金報價",
     description: "真金價值，長久相伴。",
-    images: [{ url: "/og.png", width: 1200, height: 630, alt: "玖久黃金報價網即時黃金報價" }],
+    images: [{ url: "/og.jpg", width: 1200, height: 630, alt: "玖久黃金報價網即時黃金報價" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "玖久黃金報價網｜即時黃金報價",
-    images: ["/og.png"],
+    images: ["/og.jpg"],
   },
   icons: {
     icon: "/favicon.svg",

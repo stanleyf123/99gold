@@ -39,6 +39,9 @@ export async function GET() {
 export async function PUT(request: Request) {
   const user = await getChatGPTUser();
   if (!user) return NextResponse.json({ error: "請先登入管理後台" }, { status: 401 });
+  if (user.email.toLowerCase() !== "stanleys1225@gmail.com") {
+    return NextResponse.json({ error: "你沒有管理權限" }, { status: 403 });
+  }
 
   const body = await request.json() as Partial<typeof defaults>;
   const allowed = Object.keys(defaults) as Array<keyof typeof defaults>;
