@@ -94,12 +94,9 @@ async function fetchLatestTen(locale: keyof typeof newsMarkets) {
     fetchRss(`https://news.google.com/rss/search?q=${encodeURIComponent(market.query)}&hl=${market.hl}&gl=${market.gl}&ceid=${market.ceid}`),
   ]);
   const seen = new Set<string>();
-  const seenImages = new Set<string>();
   return sourceResults.flatMap((result) => result.status === "fulfilled" ? result.value : []).filter((item) => {
     if (seen.has(item.url)) return false;
     seen.add(item.url);
-    if (!item.image || seenImages.has(item.image)) return false;
-    seenImages.add(item.image);
     return isAllowedSource(item.sourceUrl, locale) && !(locale === "zh" && simplifiedChinese.test(item.title));
   }).slice(0, 10);
 }
@@ -114,11 +111,10 @@ async function initialize() {
 export async function getDailyGoldNews(inputLocale = "zh") {
   await initialize();
   const locale = inputLocale === "en" || inputLocale === "ja" ? inputLocale : "zh";
-  const newsDay = `${taipeiDay()}-${locale}-v3`;
+  const newsDay = `${taipeiDay()}-${locale}-v4`;
   const existing = await env.DB.prepare("SELECT id, title, url, article_date, image, fetched_at FROM daily_news WHERE news_day = ? ORDER BY position ASC LIMIT 10").bind(newsDay).all<{ id: number; title: string; url: string; article_date: string; image: string | null; fetched_at: string }>();
-  const validExisting = existing.results.filter((item) => Boolean(item.image) && !(locale === "zh" && simplifiedChinese.test(item.title)));
-  const uniqueImages = new Set(validExisting.map((item) => item.image));
-  if (validExisting.length === 10 && uniqueImages.size === 10) return { items: validExisting.map((item) => ({ id: item.id, title: item.title, url: item.url, date: item.article_date, image: item.image ?? undefined })), updatedAt: validExisting[0].fetched_at };
+  const validExisting = existing.results.filter((item) => !(locale === "zh" && simplifiedChinese.test(item.title)));
+  if (validExisting.length >= 6) return { items: validExisting.map((item) => ({ id: item.id, title: item.title, url: item.url, date: item.article_date, image: item.image ?? undefined })), updatedAt: validExisting[0].fetched_at };
   if (existing.results.length) await env.DB.prepare("DELETE FROM daily_news WHERE news_day = ?").bind(newsDay).run();
 
   const items = await fetchLatestTen(locale);
