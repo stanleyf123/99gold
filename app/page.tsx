@@ -27,9 +27,18 @@ type SavedAlert = { id: number; market: string; target: number };
 type NewsItem = { title: string; date: string; url: string; image?: string };
 type QuoteItem = { label: string; code: string; price: string; unit: string; change: string; up: boolean };
 type Locale = "zh" | "en" | "ja";
+type SiteSettings = { brandName: string; fullName: string; englishName: string; tagline: string; announcement: string };
+
+const defaultSiteSettings: SiteSettings = {
+  brandName: "玖久黃金報價網",
+  fullName: "玖久黃金報價網",
+  englishName: "99GOLD.NET",
+  tagline: "真金價值，長久相伴。",
+  announcement: "",
+};
 
 const languageCopy = {
-  zh: { navToday: "今日金價", navInternational: "國際金價", navJewelry: "銀樓價格", navRecycle: "黃金回收", navNews: "市場情報", hero: "國際金價・銀樓行情・黃金工具", dashboard: "今日黃金資訊", dashboardText: "報價、走勢、實用工具與市場新聞集中在這裡，點選分頁即可切換。", quotes: "即時報價", history: "歷史金價", tools: "黃金工具", news: "市場新聞", updated: "最後更新", open: "市場開盤中", read: "閱讀原文", footer: "資料供投資與消費參考，不構成任何交易建議。" },
+  zh: { navToday: "今日金價", navInternational: "國際金價", navJewelry: "銀樓價格", navRecycle: "黃金回收", navNews: "市場情報", hero: "真金價值，長久相伴。", dashboard: "今日黃金資訊", dashboardText: "報價、走勢、實用工具與市場新聞集中在這裡，點選分頁即可切換。", quotes: "即時報價", history: "歷史金價", tools: "黃金工具", news: "市場新聞", updated: "最後更新", open: "市場開盤中", read: "閱讀原文", footer: "資料供投資與消費參考，不構成任何交易建議。" },
   en: { navToday: "Gold Prices", navInternational: "International", navJewelry: "Retail Prices", navRecycle: "Gold Recycling", navNews: "Market Insights", hero: "Global gold prices · retail market · gold tools", dashboard: "Today’s Gold Dashboard", dashboardText: "Quotes, price trends, practical tools, and market news in one place.", quotes: "Live Quotes", history: "Price History", tools: "Gold Tools", news: "Market News", updated: "Updated", open: "Market open", read: "Read article", footer: "Information is for reference only and is not investment or trading advice." },
   ja: { navToday: "本日の金価格", navInternational: "国際金価格", navJewelry: "店頭価格", navRecycle: "金の買取", navNews: "市場情報", hero: "国際金価格・店頭相場・金ツール", dashboard: "本日の金情報", dashboardText: "相場、価格推移、便利なツール、市場ニュースを一か所で確認できます。", quotes: "リアルタイム相場", history: "価格履歴", tools: "金ツール", news: "市場ニュース", updated: "最終更新", open: "市場オープン", read: "記事を読む", footer: "本情報は参考用であり、投資・取引の助言ではありません。" },
 } as const;
@@ -72,7 +81,14 @@ export default function Home() {
   const [quotes, setQuotes] = useState<QuoteItem[]>(initialQuotes);
   const [quoteUpdated, setQuoteUpdated] = useState("取得中");
   const [locale, setLocale] = useState<Locale>("zh");
+  const [siteSettings, setSiteSettings] = useState(defaultSiteSettings);
   const copy = languageCopy[locale];
+  useEffect(() => {
+    fetch("/api/site-settings", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data: Partial<SiteSettings> | null) => data && setSiteSettings({ ...defaultSiteSettings, ...data }))
+      .catch(() => undefined);
+  }, []);
   useEffect(() => {
     const saved = window.localStorage.getItem("golden-tide-locale") as Locale | null;
     if (saved && saved in languageCopy) {
@@ -174,15 +190,15 @@ export default function Home() {
     <main>
       <div className="topline"><span>{copy.open}</span><span>{copy.updated} {quoteUpdated} (GMT+8)</span></div>
       <nav className="nav">
-        <a className="brand" href="/"><i>G</i><span>金澤<br/><em>GOLDEN TIDE</em></span></a>
+        <a className="brand" href="/"><i>99</i><span>{siteSettings.brandName}<br/><em>{siteSettings.englishName}</em></span></a>
         <div className="navlinks"><a className="active" href="/#quotes">{copy.navToday}</a><a href="/international">{copy.navInternational}</a><a href="/jewelry">{copy.navJewelry}</a><a href="/recycling">{copy.navRecycle}</a><a href="/insights">{copy.navNews}</a></div>
         <div className="languageSwitch" aria-label="Language"><button className={locale === "zh" ? "active" : ""} onClick={() => { setLocale("zh"); window.localStorage.setItem("golden-tide-locale", "zh"); document.documentElement.lang = "zh-Hant"; }}>中</button><button className={locale === "en" ? "active" : ""} onClick={() => { setLocale("en"); window.localStorage.setItem("golden-tide-locale", "en"); document.documentElement.lang = "en"; }}>EN</button><button className={locale === "ja" ? "active" : ""} onClick={() => { setLocale("ja"); window.localStorage.setItem("golden-tide-locale", "ja"); document.documentElement.lang = "ja"; }}>日</button></div>
         <button className="menu" aria-label="開啟功能選單" aria-expanded={menuOpen} aria-controls="mobileMenu" onClick={() => setMenuOpen(true)}>☰</button>
       </nav>
 
-      {menuOpen && <div className="menuOverlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setMenuOpen(false); }}><aside className="mobileMenu" id="mobileMenu" aria-label="網站功能"><div className="menuHead"><div><span>金澤</span><small>GOLDEN TIDE</small></div><button onClick={() => setMenuOpen(false)} aria-label="關閉功能選單">×</button></div><div className="menuQuote"><span>國際現貨金</span><strong>4,408.80</strong><small>XAU / USD　<b>+1.24%</b></small></div><nav className="menuFunctions"><button onClick={() => openDashboardSection("quotes")}><span>即時報價<small>LIVE QUOTES</small></span><b>→</b></button><button onClick={() => openDashboardSection("history")}><span>歷史金價<small>PRICE HISTORY</small></span><b>→</b></button><button onClick={() => openDashboardSection("tools")}><span>黃金工具<small>GOLD TOOLKIT</small></span><b>→</b></button><button onClick={() => openDashboardSection("news")}><span>市場新聞<small>MARKET NEWS</small></span><b>→</b></button><button onClick={() => { setMenuOpen(false); window.setTimeout(() => document.getElementById("price-alerts")?.scrollIntoView({ behavior: "smooth" }), 40); }}><span>到價標記<small>MY WATCHLIST</small></span><b>→</b></button></nav><p>報價與試算僅供參考</p></aside></div>}
+      {menuOpen && <div className="menuOverlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setMenuOpen(false); }}><aside className="mobileMenu" id="mobileMenu" aria-label="網站功能"><div className="menuHead"><div><span>{siteSettings.brandName}</span><small>{siteSettings.englishName}</small></div><button onClick={() => setMenuOpen(false)} aria-label="關閉功能選單">×</button></div><div className="menuQuote"><span>國際現貨金</span><strong>4,408.80</strong><small>XAU / USD　<b>+1.24%</b></small></div><nav className="menuFunctions"><button onClick={() => openDashboardSection("quotes")}><span>即時報價<small>LIVE QUOTES</small></span><b>→</b></button><button onClick={() => openDashboardSection("history")}><span>歷史金價<small>PRICE HISTORY</small></span><b>→</b></button><button onClick={() => openDashboardSection("tools")}><span>黃金工具<small>GOLD TOOLKIT</small></span><b>→</b></button><button onClick={() => openDashboardSection("news")}><span>市場新聞<small>MARKET NEWS</small></span><b>→</b></button><button onClick={() => { setMenuOpen(false); window.setTimeout(() => document.getElementById("price-alerts")?.scrollIntoView({ behavior: "smooth" }), 40); }}><span>到價標記<small>MY WATCHLIST</small></span><b>→</b></button></nav><p>報價與試算僅供參考</p></aside></div>}
 
-      <section className="brandHero" aria-labelledby="brandTitle"><img src="/assets/golden-tide-hero.png" alt="金塊與金幣陳列於深色石材上"/><div className="brandHeroShade"/><div className="brandHeroCopy"><p className="eyebrow">TAIWAN GOLD MARKET INTELLIGENCE</p><h1 id="brandTitle">金澤 <span>GOLDEN TIDE</span></h1><p>{copy.hero}</p><div className="heroBadges"><span>國際現貨</span><span>銀樓牌價</span><span>回收試算</span><span>市場情報</span></div></div><div className="heroLive"><span>{copy.open}</span><strong>{quotes[0]?.price ?? "—"}</strong><small>{quotes[0]?.code}　<span>{quotes[0]?.change}</span></small></div></section>
+      <section className="brandHero" aria-labelledby="brandTitle"><img src="/assets/golden-tide-hero.png" alt="金塊與金幣陳列於深色石材上"/><div className="brandHeroShade"/><div className="brandHeroCopy"><p className="eyebrow">TAIWAN GOLD MARKET INTELLIGENCE</p><h1 id="brandTitle">{siteSettings.fullName} <span>{siteSettings.englishName}</span></h1><p>{locale === "zh" ? siteSettings.tagline : copy.hero}</p>{siteSettings.announcement && <div className="siteAnnouncement">{siteSettings.announcement}</div>}<div className="heroBadges"><span>國際現貨</span><span>銀樓牌價</span><span>回收試算</span><span>市場情報</span></div></div><div className="heroLive"><span>{copy.open}</span><strong>{quotes[0]?.price ?? "—"}</strong><small>{quotes[0]?.code}　<span>{quotes[0]?.change}</span></small></div></section>
 
       <section className="marketHub" id="top"><div className="hubLead"><div><p className="eyebrow">GOLD MARKET DASHBOARD</p><h1>{copy.dashboard}</h1><p>{copy.dashboardText}</p></div><div className="hubPrice"><span>{quotes[0]?.label}・{quotes[0]?.code}</span><strong>{quotes[0]?.price ?? "—"}</strong><em className={quotes[0]?.up ? "up" : "down"}>{quotes[0]?.up ? "▲" : "▼"} {quotes[0]?.change}</em></div></div><div className="marketTabs" role="tablist" aria-label="黃金資訊分類"><button role="tab" aria-selected={activeTab === "quotes"} className={activeTab === "quotes" ? "active" : ""} onClick={() => setActiveTab("quotes")}>{copy.quotes}</button><button role="tab" aria-selected={activeTab === "history"} className={activeTab === "history" ? "active" : ""} onClick={() => setActiveTab("history")}>{copy.history}</button><button role="tab" aria-selected={activeTab === "tools"} className={activeTab === "tools" ? "active" : ""} onClick={() => setActiveTab("tools")}>{copy.tools}</button><button role="tab" aria-selected={activeTab === "news"} className={activeTab === "news" ? "active" : ""} onClick={() => setActiveTab("news")}>{copy.news}</button></div>
 
@@ -200,7 +216,7 @@ export default function Home() {
 
       <section className="alertCenter"><div className="alertIntro"><p className="eyebrow">PERSONAL WATCHLIST</p><h2>我的到價標記</h2><p>設定你關注的價格，網站會保存在這台裝置，回來時可快速查看距離目標還有多少。</p></div><div className="alertComposer"><label><span>關注項目</span><select value={alertMarket} onChange={(event) => setAlertMarket(event.target.value as typeof alertMarket)}>{alertMarkets.map((market) => <option value={market.id} key={market.id}>{market.label}</option>)}</select></label><label><span>目標價格</span><div><input type="number" inputMode="decimal" min="0" value={alertTarget} onChange={(event) => setAlertTarget(event.target.value)}/><small>{selectedAlertMarket.unit}</small></div></label><button onClick={savePriceAlert}>加入關注</button></div><div className="savedAlerts">{savedAlerts.length === 0 ? <div className="alertEmpty"><span>尚未設定</span><p>輸入目標價後即可建立你的個人關注清單。</p></div> : savedAlerts.map((item) => { const market = alertMarkets.find((entry) => entry.id === item.market) ?? alertMarkets[0]; const gap = item.target - market.value; return <article key={item.id}><div><span>{market.label}</span><small>目前 {market.value.toLocaleString("en-US")} {market.unit}</small></div><strong>{item.target.toLocaleString("en-US")}</strong><em className={gap >= 0 ? "watchUp" : "watchReached"}>{gap > 0 ? `距離目標 ${gap.toLocaleString("en-US")}` : "已達目標"}</em><button aria-label={`移除${market.label}到價標記`} onClick={() => removePriceAlert(item.id)}>×</button></article>; })}</div><p className="alertDisclaimer">此功能為裝置內的價格標記，不會發送系統推播；行情更新後可回到本站查看。</p></section>
 
-      <footer><a className="brand" href="#top"><i>G</i><span>金澤<br/><em>GOLDEN TIDE</em></span></a><p>資料供投資與消費參考，不構成任何交易建議。</p><span>© 2026 GOLDEN TIDE</span></footer>
+      <footer><a className="brand" href="#top"><i>99</i><span>{siteSettings.brandName}<br/><em>{siteSettings.englishName}</em></span></a><p>真金價值，長久相伴。</p><span>© 2026 {siteSettings.fullName}</span></footer>
     </main>
   );
 }

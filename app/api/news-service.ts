@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 
-export type NewsItem = { title: string; date: string; url: string; image?: string };
+export type NewsItem = { id?: number; title: string; date: string; url: string; image?: string };
 
 function dateLabel(value?: string) {
   if (!value) return "今日";
@@ -82,12 +82,13 @@ async function initialize() {
 export async function getDailyGoldNews() {
   await initialize();
   const newsDay = taipeiDay();
-  const existing = await env.DB.prepare("SELECT title, url, article_date, image, fetched_at FROM daily_news WHERE news_day = ? ORDER BY position ASC LIMIT 10").bind(newsDay).all<{ title: string; url: string; article_date: string; image: string | null; fetched_at: string }>();
-  if (existing.results.length) return { items: existing.results.map((item) => ({ title: item.title, url: item.url, date: item.article_date, image: item.image ?? undefined })), updatedAt: existing.results[0].fetched_at };
+  const existing = await env.DB.prepare("SELECT id, title, url, article_date, image, fetched_at FROM daily_news WHERE news_day = ? ORDER BY position ASC LIMIT 10").bind(newsDay).all<{ id: number; title: string; url: string; article_date: string; image: string | null; fetched_at: string }>();
+  if (existing.results.length) return { items: existing.results.map((item) => ({ id: item.id, title: item.title, url: item.url, date: item.article_date, image: item.image ?? undefined })), updatedAt: existing.results[0].fetched_at };
 
   const items = await fetchLatestTen();
   if (!items.length) return { items: [], updatedAt: "" };
   const fetchedAt = new Intl.DateTimeFormat("zh-TW", { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Taipei", hour12: false }).format(new Date());
   await env.DB.batch(items.map((item, position) => env.DB.prepare("INSERT INTO daily_news (news_day, position, title, url, article_date, image, fetched_at) VALUES (?, ?, ?, ?, ?, ?, ?)").bind(newsDay, position + 1, item.title, item.url, item.date, item.image || null, fetchedAt)));
-  return { items, updatedAt: fetchedAt };
+  const saved = await env.DB.prepare("SELECT id, title, url, article_date, image FROM daily_news WHERE news_day = ? ORDER BY position ASC LIMIT 10").bind(newsDay).all<{ id: number; title: string; url: string; article_date: string; image: string | null }>();
+  return { items: saved.results.map((item) => ({ id: item.id, title: item.title, url: item.url, date: item.article_date, image: item.image ?? undefined })), updatedAt: fetchedAt };
 }

@@ -10,3 +10,10 @@ export const dailyNews = sqliteTable("daily_news", {
   image: text("image"),
   fetchedAt: text("fetched_at").notNull(),
 });
+
+export const siteSettings = sqliteTable("site_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: text("updated_at").notNull(),
+  updatedBy: text("updated_by").notNull(),
+});

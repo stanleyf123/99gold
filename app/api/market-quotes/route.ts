@@ -9,16 +9,18 @@ function taipeiTimestamp() {
 
 export async function GET() {
   try {
-    const [goldResponse, fxResponse] = await Promise.all([
-      fetch("https://api.coingecko.com/api/v3/simple/price?ids=pax-gold&vs_currencies=usd&include_24hr_change=true", { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(8000) }),
-      fetch("https://open.er-api.com/v6/latest/USD", { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(8000) }),
+    const [goldResult, fxResult] = await Promise.allSettled([
+      fetch("https://api.coingecko.com/api/v3/simple/price?ids=pax-gold&vs_currencies=usd&include_24hr_change=true", { headers: { Accept: "application/json", "User-Agent": "99GoldQuoteBot/1.0" } }),
+      fetch("https://open.er-api.com/v6/latest/USD", { headers: { Accept: "application/json" } }),
     ]);
-    if (!goldResponse.ok || !fxResponse.ok) throw new Error("quote source unavailable");
+    if (goldResult.status !== "fulfilled" || !goldResult.value.ok) throw new Error("gold quote unavailable");
+    const goldResponse = goldResult.value;
+    const fxResponse = fxResult.status === "fulfilled" && fxResult.value.ok ? fxResult.value : null;
     const gold = await goldResponse.json() as CoinGeckoResponse;
-    const fx = await fxResponse.json() as ExchangeResponse;
+    const fx = fxResponse ? await fxResponse.json() as ExchangeResponse : undefined;
     const goldUsd = gold["pax-gold"]?.usd;
-    const usdTwd = fx.rates?.TWD;
-    if (!goldUsd || !usdTwd) throw new Error("quote data missing");
+    const usdTwd = fx?.rates?.TWD ?? 31.7;
+    if (!goldUsd) throw new Error("gold quote data missing");
     const goldChange = gold["pax-gold"]?.usd_24h_change ?? 0;
     const twdPerQian = goldUsd * usdTwd * 3.75 / 31.1034768;
     return NextResponse.json({
