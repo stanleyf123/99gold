@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 
-export type NewsItem = { id?: number; title: string; date: string; url: string; image?: string };
+export type NewsItem = { id?: number; title: string; date: string; url: string; image?: string; sourceUrl?: string };
 
 function dateLabel(value?: string) {
   if (!value) return "今日";
@@ -38,16 +38,29 @@ function directArticleUrl(value: string) {
   } catch { return value; }
 }
 
+async function articleImage(url: string) {
+  try {
+    const response = await fetch(url, { headers: { "User-Agent": "99gold.net market-news" } });
+    if (!response.ok) return "";
+    const html = await response.text();
+    const match = html.match(/<meta[^>]+(?:property|name)=["'](?:og:image|twitter:image)["'][^>]+content=["']([^"']+)["']/i)
+      ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["'](?:og:image|twitter:image)["']/i);
+    return match?.[1]?.replace(/&amp;/g, "&").replace(/^http:\/\//i, "https://") ?? "";
+  } catch { return ""; }
+}
+
 async function fetchRss(url: string): Promise<NewsItem[]> {
   const response = await fetch(url, { headers: { "User-Agent": "99gold.net market-news" } });
   if (!response.ok) throw new Error(`RSS ${response.status}`);
   const xml = await response.text();
-  return [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)].map((match) => ({
+  const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)].map((match) => ({
     title: tag(match[1], "title"),
     url: directArticleUrl(tag(match[1], "link")),
     date: dateLabel(tag(match[1], "pubDate")),
     image: rssImage(match[1]).replace(/^http:\/\//i, "https://"),
+    sourceUrl: match[1].match(/<source[^>]+url=["']([^"']+)["']/i)?.[1] ?? "",
   })).filter((item) => item.title && item.url);
+  return Promise.all(items.map(async (item) => item.image ? item : { ...item, image: await articleImage(item.url) }));
 }
 
 const newsMarkets = {
@@ -57,6 +70,18 @@ const newsMarkets = {
 } as const;
 
 const simplifiedChinese = /[这国们为从个们后发经济市场货币银行证监会国务院新华社中新网人民网黄金价格联储数据时钟]/;
+const allowedSourceHosts = {
+  zh: ["cna.com.tw", "money.udn.com", "ctee.com.tw", "reuters.com", "bloomberg.com"],
+  en: ["reuters.com", "apnews.com", "cnbc.com", "wsj.com", "bloomberg.com"],
+  ja: ["nhk.or.jp", "nikkei.com", "jiji.com", "reuters.com", "bloomberg.co.jp"],
+} as const;
+
+function isAllowedSource(url: string | undefined, locale: keyof typeof allowedSourceHosts) {
+  try {
+    const host = new URL(url || "").hostname.replace(/^www\./, "");
+    return allowedSourceHosts[locale].some((allowed) => host === allowed || host.endsWith(`.${allowed}`));
+  } catch { return false; }
+}
 
 async function fetchLatestTen(locale: keyof typeof newsMarkets) {
   const market = newsMarkets[locale];
@@ -65,7 +90,7 @@ async function fetchLatestTen(locale: keyof typeof newsMarkets) {
   return sourceResults.flatMap((result) => result.status === "fulfilled" ? result.value : []).filter((item) => {
     if (seen.has(item.url)) return false;
     seen.add(item.url);
-    return Boolean(item.image) && !(locale === "zh" && simplifiedChinese.test(item.title));
+    return Boolean(item.image) && isAllowedSource(item.sourceUrl, locale) && !(locale === "zh" && simplifiedChinese.test(item.title));
   }).slice(0, 10);
 }
 
