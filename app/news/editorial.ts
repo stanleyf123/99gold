@@ -1,3 +1,4 @@
+import { batchSeptember13 } from "./batch-20260913";
 import { batchSeptember12 } from "./batch-20260912";
 import type { NewsCategory } from "./categories";
 export type NewsLocale = "zh" | "en" | "ja";
@@ -18,6 +19,7 @@ const common = {
   sources: [{ title: "U.S. Bureau of Labor Statistics · August 2026 CPI", url: "https://www.bls.gov/news.release/archives/cpi_09112026.htm", date: "2026-09-11" }],
 };
 export const editorials: Editorial[] = [
+  ...batchSeptember13,
   ...batchSeptember12,
   {
     ...common, id: common.group + "-zh", locale: "zh",
