@@ -7,14 +7,15 @@ function tag(s:string,n:string) { return plain(s.match(new RegExp("<"+n+"[^>]*>(
 async function text(url:string) { const r=await fetch(url,{signal:AbortSignal.timeout(8000),redirect:"follow"}); if(!r.ok)throw new Error("Source "+r.status); const final=new URL(r.url||url); if(final.protocol!=="https:"||final.hostname!=="www.federalreserve.gov")throw new Error("Unexpected source redirect"); return r.text(); }
 async function translate(value:string,locale:Locale) {
  if(locale==="en")return value;
- const parts=value.match(/[\s\S]{1,900}(?:\s|$)|[\s\S]{1,900}/g)??[];
+ const parts=value.match(/[\s\S]{1,420}(?:\s|$)|[\s\S]{1,420}/g)??[];
  const results:string[]=[];
  for(const p of parts) {
-  const url=new URL("https://translate.googleapis.com/translate_a/single");
-  url.search=new URLSearchParams({client:"gtx",sl:"en",tl:locale==="zh"?"zh-TW":"ja",dt:"t",q:p}).toString();
-  const r=await fetch(url,{signal:AbortSignal.timeout(8000)}); if(!r.ok)throw new Error("Translation unavailable");
-  const d=await r.json() as string[][][];
-  const translated=d?.[0]?.map(x=>x[0]).join("").trim();
+  const url=new URL("https://api.mymemory.translated.net/get");
+  url.search=new URLSearchParams({q:p,langpair:`en|${locale==="zh"?"zh-TW":"ja"}`}).toString();
+  const r=await fetch(url,{signal:AbortSignal.timeout(10000)}); if(!r.ok)throw new Error("Translation status "+r.status);
+  const d=await r.json() as {responseStatus?:number;responseData?:{translatedText?:string}};
+  const translated=d.responseData?.translatedText?.trim();
+  if(d.responseStatus&&d.responseStatus!==200)throw new Error("Translation rejected "+d.responseStatus);
   if(!translated||translated===p.trim())throw new Error("Translation incomplete");
   results.push(translated);
  }
