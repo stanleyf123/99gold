@@ -62,7 +62,7 @@ function directArticleUrl(value: string) {
 
 async function articleMetadata(url: string) {
   try {
-    const response = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; 99gold.net news crawler/1.0)" }, redirect: "follow" });
+    const response = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; 99gold.net news crawler/1.0)" }, redirect: "follow", signal: AbortSignal.timeout(3500) });
     if (!response.ok) return { image: "", summary: "" };
     const html = await response.text();
     const description = html.match(/<meta[^>]+(?:property|name)=["'](?:og:description|description|twitter:description)["'][^>]+content=["']([^"']+)["']/i)
@@ -71,10 +71,17 @@ async function articleMetadata(url: string) {
       .map((match) => match[1])
       .filter((image) => /(?:webphotos|upload|media|image|photo)/i.test(image) && !/(?:pic_fb|logo|icon|ad-)/i.test(image));
     const articlePhoto = articlePhotos.reverse().find((image) => /(?:WebCover|webphotos)/i.test(image)) ?? articlePhotos[0];
-    if (articlePhoto) return { image: articlePhoto.replace(/&amp;/g, "&").replace(/^http:\/\//i, "https://"), summary: decode(description?.[1] ?? "") };
+    const paragraphs = [...html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, "").matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)]
+      .map((match) => decode(match[1]))
+      .filter((text) => text.length >= 60)
+      .slice(0, 2)
+      .join(" ")
+      .slice(0, 900);
+    const articleSummary = decode(description?.[1] ?? "") || paragraphs;
+    if (articlePhoto) return { image: articlePhoto.replace(/&amp;/g, "&").replace(/^http:\/\//i, "https://"), summary: articleSummary };
     const match = html.match(/<meta[^>]+(?:property|name)=["'](?:og:image|twitter:image)["'][^>]+content=["']([^"']+)["']/i)
       ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["'](?:og:image|twitter:image)["']/i);
-    return { image: match?.[1]?.replace(/&amp;/g, "&").replace(/^http:\/\//i, "https://") ?? "", summary: decode(description?.[1] ?? "") };
+    return { image: match?.[1]?.replace(/&amp;/g, "&").replace(/^http:\/\//i, "https://") ?? "", summary: articleSummary };
   } catch { return { image: "", summary: "" }; }
 }
 
@@ -98,11 +105,7 @@ async function fetchRss(url: string): Promise<NewsItem[]> {
       sourceLanguage: "en",
     };
   }).filter((item) => item.title && item.url);
-  return Promise.all(items.map(async (item) => {
-    if (item.image && item.summary && item.summary !== item.title) return item;
-    const metadata = await articleMetadata(item.url);
-    return { ...item, image: item.image || metadata.image, summary: metadata.summary || item.summary };
-  }));
+  return items;
 }
 
 const crawlerFeed = {
@@ -128,7 +131,7 @@ async function translateText(value: string, locale: "zh" | "en" | "ja") {
   try {
     const endpoint = new URL("https://translate.googleapis.com/translate_a/single");
     endpoint.search = new URLSearchParams({ client: "gtx", sl: "en", tl: target, dt: "t", q: value.slice(0, 1200) }).toString();
-    const response = await fetch(endpoint, { headers: { "User-Agent": "99gold.net translation service" } });
+    const response = await fetch(endpoint, { headers: { "User-Agent": "99gold.net translation service" }, signal: AbortSignal.timeout(3500) });
     if (!response.ok) return value;
     const data = await response.json() as Array<Array<Array<string>>>;
     return data?.[0]?.map((part) => part?.[0] ?? "").join("").trim() || value;
@@ -148,22 +151,27 @@ async function fetchLatestTen(locale: "zh" | "en" | "ja") {
     fetchRss(`https://news.google.com/rss/search?q=${encodeURIComponent(market.query)}&hl=${market.hl}&gl=${market.gl}&ceid=${market.ceid}`),
   ]);
   const seen = new Set<string>();
-  const crawled = sourceResults.flatMap((result) => result.status === "fulfilled" ? result.value : []).filter((item) => {
+  const selected = sourceResults.flatMap((result) => result.status === "fulfilled" ? result.value : []).filter((item) => {
     if (seen.has(item.url)) return false;
     seen.add(item.url);
     return isAllowedSource(item.sourceUrl);
-  }).slice(0, 10);
-  return Promise.all(crawled.map((item) => localizeItem(item, locale)));
+  }).slice(0, 6);
+  const enriched = await Promise.all(selected.map(async (item) => {
+    const metadata = await articleMetadata(item.url);
+    const rssSummary = item.summary && item.summary !== item.title ? item.summary : "";
+    return { ...item, image: item.image || metadata.image, summary: metadata.summary || rssSummary };
+  }));
+  return Promise.all(enriched.map((item) => localizeItem(item, locale)));
 }
 
 export async function getDailyGoldNews(inputLocale = "zh") {
   const locale = inputLocale === "en" || inputLocale === "ja" ? inputLocale : "zh";
   type NewsRow = { id: number; title: string; original_title: string | null; summary: string | null; url: string; source_name: string | null; source_url: string | null; source_language: string | null; article_date: string; image: string | null; fetched_at: string };
-  const newsDay = `${crawlWindow()}-${locale}-translated-v1`;
+  const newsDay = `${crawlWindow()}-${locale}-translated-v2`;
   const existing = await env.DB.prepare("SELECT id, title, original_title, summary, url, source_name, source_url, source_language, article_date, image, fetched_at FROM daily_news WHERE news_day = ? ORDER BY position ASC LIMIT 10").bind(newsDay).all<NewsRow>();
   const existingRows = existing.results as NewsRow[];
   const validExisting = existingRows.filter((item) => !(locale === "zh" && simplifiedChinese.test(item.title)));
-  if (validExisting.length >= 6) return { items: validExisting.map((item) => ({ id: item.id, title: item.title, originalTitle: item.original_title ?? undefined, summary: item.summary ?? undefined, url: item.url, sourceName: item.source_name ?? undefined, sourceUrl: item.source_url ?? undefined, sourceLanguage: item.source_language ?? undefined, date: item.article_date, image: item.image ?? undefined, translated: locale !== "en" && item.original_title !== item.title })), updatedAt: validExisting[0].fetched_at };
+  if (validExisting.length >= 3) return { items: validExisting.map((item) => ({ id: item.id, title: item.title, originalTitle: item.original_title ?? undefined, summary: item.summary ?? undefined, url: item.url, sourceName: item.source_name ?? undefined, sourceUrl: item.source_url ?? undefined, sourceLanguage: item.source_language ?? undefined, date: item.article_date, image: item.image ?? undefined, translated: locale !== "en" && item.original_title !== item.title })), updatedAt: validExisting[0].fetched_at };
   if (existingRows.length) await env.DB.prepare("DELETE FROM daily_news WHERE news_day = ?").bind(newsDay).run();
 
   const items = await fetchLatestTen(locale);
