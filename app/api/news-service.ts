@@ -54,6 +54,8 @@ export async function refreshArticles(locale:Locale) {
 export async function getDailyGoldNews(inputLocale="zh") {
  const locale:Locale=inputLocale==="en"||inputLocale==="ja"?inputLocale:"zh";
  try{await refreshArticles(locale);}catch(error){console.error("News unavailable",String(error));}
- const rows=await readArticles(locale);
- return {items:rows.map(r=>({id:r.id,title:r.title,summary:r.body.slice(0,180),date:r.published_at.slice(0,10),url:"/news/"+r.id,sourceName:"Federal Reserve",translated:locale!=="en"})),updatedAt:rows[0]?.fetched_at??""};
+ let rows=await readArticles(locale);
+ let isTranslated=locale!=="en";
+ if(!rows.length&&locale!=="en"){rows=await readArticles("en");isTranslated=false;}
+ return {items:rows.map(r=>({id:r.id,title:r.title,summary:r.body.slice(0,180),date:r.published_at.slice(0,10),url:"/news/"+r.id,sourceName:isTranslated?"Federal Reserve · machine translation":"Federal Reserve · English original",translated:isTranslated})),updatedAt:rows[0]?.fetched_at??""};
 }
