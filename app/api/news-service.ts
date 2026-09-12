@@ -52,6 +52,12 @@ function rssSummary(xml: string) {
   return decode(description).replace(/\s+-\s+[^-]{2,60}$/i, "").trim();
 }
 
+function usefulSummary(value?: string) {
+  if (!value) return "";
+  if (/comprehensive up-to-date news coverage|aggregated from sources all over the world/i.test(value)) return "";
+  return value;
+}
+
 function directArticleUrl(value: string) {
   try {
     const url = new URL(value);
@@ -148,7 +154,7 @@ async function translateText(value: string, locale: "zh" | "en" | "ja") {
 
 async function localizeItem(item: NewsItem, locale: "zh" | "en" | "ja") {
   const originalTitle = item.originalTitle || item.title;
-  const rawSummary = item.summary && item.summary !== originalTitle ? item.summary : "";
+  const rawSummary = usefulSummary(item.summary && item.summary !== originalTitle ? item.summary : "");
   const [title, summary] = await Promise.all([translateText(originalTitle, locale), translateText(rawSummary, locale)]);
   return { ...item, originalTitle, title, summary, translated: locale !== "en" && title !== originalTitle };
 }
@@ -156,8 +162,8 @@ async function localizeItem(item: NewsItem, locale: "zh" | "en" | "ja") {
 async function fetchLatestTen(locale: "zh" | "en" | "ja") {
   const market = crawlerFeed;
   const sourceResults = await Promise.allSettled([
-    fetchRss(`https://news.google.com/rss/search?q=${encodeURIComponent(market.query)}&hl=${market.hl}&gl=${market.gl}&ceid=${market.ceid}`),
     fetchRss(`https://www.bing.com/news/search?q=${encodeURIComponent("gold price Federal Reserve US dollar Reuters CNBC Bloomberg AP")}&format=rss&mkt=en-US`),
+    fetchRss(`https://news.google.com/rss/search?q=${encodeURIComponent(market.query)}&hl=${market.hl}&gl=${market.gl}&ceid=${market.ceid}`),
   ]);
   const seen = new Set<string>();
   const selected = sourceResults.flatMap((result) => result.status === "fulfilled" ? result.value : []).filter((item) => {
@@ -168,7 +174,7 @@ async function fetchLatestTen(locale: "zh" | "en" | "ja") {
   const enriched = await Promise.all(selected.map(async (item) => {
     const metadata = await articleMetadata(item.url);
     const rssSummary = item.summary && item.summary !== item.title ? item.summary : "";
-    return { ...item, image: item.image || metadata.image, summary: metadata.summary || rssSummary };
+    return { ...item, image: item.image || metadata.image, summary: usefulSummary(metadata.summary) || usefulSummary(rssSummary) };
   }));
   return Promise.all(enriched.map((item) => localizeItem(item, locale)));
 }
@@ -184,9 +190,14 @@ export async function getDailyGoldNews(inputLocale = "zh") {
   if (existingRows.length) await env.DB.prepare("DELETE FROM daily_news WHERE news_day = ?").bind(newsDay).run();
 
   const items = await fetchLatestTen(locale);
-  if (!items.length) return { items: [], updatedAt: "" };
+  let localizedItems = items;
+  if (!localizedItems.length && locale !== "en") {
+    const fallback = await env.DB.prepare("SELECT id, title, original_title, summary, url, source_name, source_url, source_language, article_date, image, fetched_at FROM daily_news WHERE source_language = 'en' AND original_title IS NOT NULL ORDER BY id DESC LIMIT 6").all<NewsRow>();
+    localizedItems = await Promise.all((fallback.results as NewsRow[]).reverse().map((item) => localizeItem({ title: item.original_title || item.title, originalTitle: item.original_title || item.title, summary: usefulSummary(item.summary ?? ""), url: item.url, sourceName: item.source_name ?? undefined, sourceUrl: item.source_url ?? undefined, sourceLanguage: "en", date: item.article_date, image: item.image ?? undefined }, locale)));
+  }
+  if (!localizedItems.length) return { items: [], updatedAt: "" };
   const fetchedAt = new Intl.DateTimeFormat("zh-TW", { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Taipei", hour12: false }).format(new Date());
-  await env.DB.batch(items.map((item, position) => env.DB.prepare("INSERT INTO daily_news (news_day, position, title, original_title, summary, url, source_name, source_url, source_language, article_date, image, fetched_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(newsDay, position + 1, item.title, item.originalTitle || item.title, item.summary || null, item.url, item.sourceName || null, item.sourceUrl || null, item.sourceLanguage || "en", item.date, item.image || null, fetchedAt)));
+  await env.DB.batch(localizedItems.map((item, position) => env.DB.prepare("INSERT OR REPLACE INTO daily_news (news_day, position, title, original_title, summary, url, source_name, source_url, source_language, article_date, image, fetched_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(newsDay, position + 1, item.title, item.originalTitle || item.title, item.summary || null, item.url, item.sourceName || null, item.sourceUrl || null, item.sourceLanguage || "en", item.date, item.image || null, fetchedAt)));
   const saved = await env.DB.prepare("SELECT id, title, original_title, summary, url, source_name, source_url, source_language, article_date, image, fetched_at FROM daily_news WHERE news_day = ? ORDER BY position ASC LIMIT 10").bind(newsDay).all<NewsRow>();
   return { items: (saved.results as NewsRow[]).map((item) => ({ id: item.id, title: item.title, originalTitle: item.original_title ?? undefined, summary: item.summary ?? undefined, url: item.url, sourceName: item.source_name ?? undefined, sourceUrl: item.source_url ?? undefined, sourceLanguage: item.source_language ?? undefined, date: item.article_date, image: item.image ?? undefined, translated: locale !== "en" && item.original_title !== item.title })), updatedAt: fetchedAt };
 }
