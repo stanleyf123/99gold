@@ -60,6 +60,12 @@ function directArticleUrl(value: string) {
   } catch { return value; }
 }
 
+function publisherLabel(value: string) {
+  try {
+    return new URL(value).hostname.replace(/^www\./, "").split(".")[0].replace(/^./, (letter) => letter.toUpperCase());
+  } catch { return "International News"; }
+}
+
 async function articleMetadata(url: string) {
   try {
     const response = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; 99gold.net news crawler/1.0)" }, redirect: "follow", signal: AbortSignal.timeout(3500) });
@@ -90,18 +96,20 @@ async function fetchRss(url: string): Promise<NewsItem[]> {
   if (!response.ok) throw new Error(`RSS ${response.status}`);
   const xml = await response.text();
   const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)].map((match) => {
-    const sourceName = tag(match[1], "source") || "International News";
+    const url = directArticleUrl(tag(match[1], "link"));
+    const sourceUrl = match[1].match(/<source[^>]+url=["']([^"']+)["']/i)?.[1] ?? url;
+    const sourceName = tag(match[1], "source") || publisherLabel(sourceUrl);
     const rawTitle = tag(match[1], "title");
     const title = rawTitle.replace(new RegExp(`\\s+-\\s+${sourceName.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}$`, "i"), "").trim();
     return {
       title,
       originalTitle: title,
-      url: directArticleUrl(tag(match[1], "link")),
+      url,
       date: dateLabel(tag(match[1], "pubDate")),
       image: rssImage(match[1]).replace(/^http:\/\//i, "https://"),
       summary: rssSummary(match[1]),
       sourceName,
-      sourceUrl: match[1].match(/<source[^>]+url=["']([^"']+)["']/i)?.[1] ?? directArticleUrl(tag(match[1], "link")),
+      sourceUrl,
       sourceLanguage: "en",
     };
   }).filter((item) => item.title && item.url);
@@ -149,6 +157,7 @@ async function fetchLatestTen(locale: "zh" | "en" | "ja") {
   const market = crawlerFeed;
   const sourceResults = await Promise.allSettled([
     fetchRss(`https://news.google.com/rss/search?q=${encodeURIComponent(market.query)}&hl=${market.hl}&gl=${market.gl}&ceid=${market.ceid}`),
+    fetchRss(`https://www.bing.com/news/search?q=${encodeURIComponent("gold price Federal Reserve US dollar Reuters CNBC Bloomberg AP")}&format=rss&mkt=en-US`),
   ]);
   const seen = new Set<string>();
   const selected = sourceResults.flatMap((result) => result.status === "fulfilled" ? result.value : []).filter((item) => {
@@ -167,7 +176,7 @@ async function fetchLatestTen(locale: "zh" | "en" | "ja") {
 export async function getDailyGoldNews(inputLocale = "zh") {
   const locale = inputLocale === "en" || inputLocale === "ja" ? inputLocale : "zh";
   type NewsRow = { id: number; title: string; original_title: string | null; summary: string | null; url: string; source_name: string | null; source_url: string | null; source_language: string | null; article_date: string; image: string | null; fetched_at: string };
-  const newsDay = `${crawlWindow()}-${locale}-translated-v2`;
+  const newsDay = `${crawlWindow()}-${locale}-translated-v3`;
   const existing = await env.DB.prepare("SELECT id, title, original_title, summary, url, source_name, source_url, source_language, article_date, image, fetched_at FROM daily_news WHERE news_day = ? ORDER BY position ASC LIMIT 10").bind(newsDay).all<NewsRow>();
   const existingRows = existing.results as NewsRow[];
   const validExisting = existingRows.filter((item) => !(locale === "zh" && simplifiedChinese.test(item.title)));
