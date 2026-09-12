@@ -4,7 +4,7 @@ export type Article = { id:string; locale:Locale; title:string; body:string; sou
 const feed = "https://www.federalreserve.gov/feeds/press_monetary.xml";
 function plain(s:string) { return s.replace(/<!\[CDATA\[|\]\]>/g,"").replace(/<[^>]*>/g,"").replace(/&amp;/g,"&").replace(/&nbsp;/g," ").replace(/&quot;/g,'"').replace(/&#39;|&apos;/g,"'").trim(); }
 function tag(s:string,n:string) { return plain(s.match(new RegExp("<"+n+"[^>]*>([\\s\\S]*?)</"+n+">","i"))?.[1]??""); }
-async function text(url:string) { const r=await fetch(url,{signal:AbortSignal.timeout(8000),redirect:"error"}); if(!r.ok)throw new Error("Source "+r.status); return r.text(); }
+async function text(url:string) { const r=await fetch(url,{signal:AbortSignal.timeout(8000),redirect:"follow"}); if(!r.ok)throw new Error("Source "+r.status); const final=new URL(r.url||url); if(final.protocol!=="https:"||final.hostname!=="www.federalreserve.gov")throw new Error("Unexpected source redirect"); return r.text(); }
 async function translate(value:string,locale:Locale) {
  if(locale==="en")return value;
  const parts=value.match(/[\s\S]{1,900}(?:\s|$)|[\s\S]{1,900}/g)??[];
@@ -37,8 +37,9 @@ export async function refreshArticles(locale:Locale) {
    const html=await text(url);
    const start=html.search(/id=["']article["']/i);
    if(start<0)throw new Error("Missing article");
-   const content=html.slice(start).split(/<!--\s*END|<div[^>]*class=["'][^"']*share/i)[0];
-   const paragraphs=[...content.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)].map(m=>plain(m[1])).filter(p=>p.length>25&&!/Last Update:|For media inquiries|Stay Connected/i.test(p));
+   const end=html.indexOf('id="lastUpdate"',start);
+   const content=html.slice(start,end>start?end:undefined);
+   const paragraphs=[...content.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)].map(m=>plain(m[1])).filter(p=>p.length>25&&!/Last Update:|For media inquiries|Stay Connected|For release at/i.test(p));
    const body=paragraphs.join("\n\n");
    if(body.length<300)throw new Error("Incomplete article");
    const date=new Date(tag(entry[1],"pubDate")).toISOString();
