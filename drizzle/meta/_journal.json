@@ -15,6 +15,13 @@
       "when": 1789096264092,
       "tag": "0001_daffy_the_anarchist",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789173342964,
+      "tag": "0002_green_kid_colt",
+      "breakpoints": true
     }
   ]
 }
