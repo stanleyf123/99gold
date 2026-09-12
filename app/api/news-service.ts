@@ -9,5 +9,5 @@ export async function getDailyGoldNews(inputLocale="zh") {
  const locale:Locale=inputLocale==="en"||inputLocale==="ja"?inputLocale:"zh";
  const rows=recentEditorials(locale);
  const names={zh:"本站撰文 · AI協作",en:"Original editorial · AI-assisted",ja:"独自記事 · AI協働"};
- return {items:rows.map(r=>({id:r.id,title:r.title,summary:r.description,date:r.eventDate,url:"/news/"+r.id,image:r.image,sourceName:names[locale],translated:false})),updatedAt:rows[0]?.publishedAt??""};
+ return {items:rows.map(r=>({id:r.id,title:r.title,summary:r.description,date:r.eventDate,category:r.category??"macro",url:"/news/"+r.id,image:r.image,sourceName:names[locale],translated:false})),updatedAt:rows[0]?.publishedAt??""};
 }

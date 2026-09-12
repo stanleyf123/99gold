@@ -1,7 +1,9 @@
+import { batchSeptember12 } from "./batch-20260912";
+import type { NewsCategory } from "./categories";
 export type NewsLocale = "zh" | "en" | "ja";
 export type Editorial = {
   id: string; group: string; locale: NewsLocale; title: string; description: string;
-  publishedAt: string; eventDate: string; image: string; imageAlt: string;
+  publishedAt: string; eventDate: string; image: string; imageAlt: string; category?: NewsCategory;
   sections: { heading: string; paragraphs: string[]; source?: number }[];
   sources: { title: string; url: string; date: string }[];
 };
@@ -16,6 +18,7 @@ const common = {
   sources: [{ title: "U.S. Bureau of Labor Statistics · August 2026 CPI", url: "https://www.bls.gov/news.release/archives/cpi_09112026.htm", date: "2026-09-11" }],
 };
 export const editorials: Editorial[] = [
+  ...batchSeptember12,
   {
     ...common, id: common.group + "-zh", locale: "zh",
     title: "通膨月增回升，黃金為何不能只看避險？",

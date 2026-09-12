@@ -1,4 +1,5 @@
 import { editorials, type Editorial } from "./editorial";
+import { categories } from "./categories";
 
 export const editorialLabels = {
   zh: { home:"返回首頁", all:"市場新聞", by:"99GOLD.NET｜AI協作撰文", published:"本文發布", event:"事件日期", image:"AI生成示意圖，非新聞現場照片", references:"參考資料", facts:"資料來源", archived:"歷史文章：事件距今超過7天", noNews:"最近7天暫無新文章。", more:"閱讀全文", introduction:"查核近期資料後重新撰寫，分開呈現新聞事實與本站分析。", disclaimer:"資訊與分析不構成個人投資建議。" },
@@ -12,7 +13,7 @@ export default function EditorialView({article:a}:{article:Editorial}) {
   const json={"@context":"https://schema.org","@type":"NewsArticle",headline:a.title,description:a.description,datePublished:a.publishedAt,dateModified:a.publishedAt,inLanguage:a.locale==="zh"?"zh-Hant":a.locale,image:["https://99gold.net"+a.image],author:{"@type":"Organization",name:"99GOLD.NET"},publisher:{"@type":"Organization",name:"99GOLD.NET"},mainEntityOfPage:"https://99gold.net/news/"+a.id,citation:a.sources.map(s=>s.url)};
   return <main className="articlePage editorialPage" lang={a.locale==="zh"?"zh-Hant":a.locale}>
     <nav className="articleNav"><a href="/">99GOLD.NET</a><a href={`/news?lang=${a.locale}`}>{t.all}</a><div className="editorialLanguages" aria-label="Language">{alternatives.map(r=><a key={r.id} href={`/news/${r.id}`} hrefLang={r.locale==="zh"?"zh-Hant":r.locale} aria-current={r.locale===a.locale?"page":undefined}>{r.locale==="zh"?"繁中":r.locale==="ja"?"日本語":"English"}</a>)}</div></nav>
-    <article><p className="articleKicker">{t.by}</p><h1>{a.title}</h1><p className="editorialLead">{a.description}</p>
+    <article><p className="articleKicker">{t.by} · <a href={`/news?lang=${a.locale}&category=${a.category??"macro"}`}>{categories[a.category??"macro"][a.locale]}</a></p><h1>{a.title}</h1><p className="editorialLead">{a.description}</p>
       <div className="editorialDates"><span>{t.event}: <time dateTime={a.eventDate}>{a.eventDate}</time></span><span>{t.published}: <time dateTime={a.publishedAt}>{new Date(a.publishedAt).toLocaleString(a.locale==="zh"?"zh-TW":a.locale,{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false})} UTC+8</time></span></div>
       {Date.now()-Date.parse(a.eventDate)>7*86400000&&<p className="editorialArchive">{t.archived}</p>}
       <figure className="editorialFigure"><img src={a.image} alt={a.imageAlt} width="1536" height="1024"/><figcaption>{t.image}</figcaption></figure>

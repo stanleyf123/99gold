@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { categories, type NewsCategory } from "./news/categories";
 
 const initialQuotes: QuoteItem[] = [];
 
@@ -14,8 +15,7 @@ const alertMarkets = [
 
 type SavedAlert = { id: number; market: string; target: number };
 
-type NewsCategory = "黃金市場" | "美元與匯率" | "利率與央行" | "國際財經";
-type NewsItem = { id?: number | string; title: string; originalTitle?: string; summary?: string; date: string; url: string; image?: string; sourceName?: string; translated?: boolean };
+type NewsItem = { id?: number | string; title: string; category?:NewsCategory; originalTitle?: string; summary?: string; date: string; url: string; image?: string; sourceName?: string; translated?: boolean };
 type QuoteItem = { label: string; code: string; price: string; unit: string; change: string; up: boolean };
 type Locale = "zh" | "en" | "ja";
 type SiteSettings = { brandName: string; fullName: string; englishName: string; tagline: string; announcement: string };
@@ -38,20 +38,7 @@ const fallbackNews: NewsItem[] = [];
 
 const monthlyGoldHistory: string[][] = [];
 
-const newsCategories: Array<NewsCategory | "全部"> = ["全部", "黃金市場", "美元與匯率", "利率與央行", "國際財經"];
-const categoryCover: Record<NewsCategory, string> = {
-  "黃金市場": "https://images.unsplash.com/photo-1610375461246-83df859d849d?auto=format&fit=crop&w=1200&q=82",
-  "美元與匯率": "https://images.unsplash.com/photo-1580519542036-c47de6196ba5?auto=format&fit=crop&w=1200&q=82",
-  "利率與央行": "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?auto=format&fit=crop&w=1200&q=82",
-  "國際財經": "https://images.unsplash.com/photo-1444653614773-995cb1ef9efa?auto=format&fit=crop&w=1200&q=82",
-};
-function classifyNews(title: string): NewsCategory {
-  const text = title.toLowerCase();
-  if (/聯準會|fed|利率|央行|降息|升息|貨幣政策/.test(text)) return "利率與央行";
-  if (/美元|匯率|外匯|美債|dollar|currency/.test(text)) return "美元與匯率";
-  if (/黃金|金價|金市|xau|gold/.test(text)) return "黃金市場";
-  return "國際財經";
-}
+const newsCategories = Object.keys(categories) as (NewsCategory | "all")[];
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<"quotes" | "news" | "history" | "tools">("quotes");
@@ -66,7 +53,7 @@ export default function Home() {
   const [alertTarget, setAlertTarget] = useState("18000");
   const [savedAlerts, setSavedAlerts] = useState<SavedAlert[]>([]);
   const [news, setNews] = useState<NewsItem[]>(fallbackNews);
-  const [newsCategory, setNewsCategory] = useState<NewsCategory | "全部">("全部");
+  const [newsCategory, setNewsCategory] = useState<NewsCategory | "all">("all");
   const [newsUpdated, setNewsUpdated] = useState("正在取得最新消息");
   const [quotes, setQuotes] = useState<QuoteItem[]>(initialQuotes);
   const [quoteUpdated, setQuoteUpdated] = useState("取得中");
@@ -176,7 +163,7 @@ export default function Home() {
     return { grossQian, pureQian, grams: grossQian * 3.75, recycleValue, cost, gain, roi };
   }, [goldWeight, toolUnit, purity, purchasePrice, manualPrice]);
   const selectedAlertMarket = alertMarkets.find((market) => market.id === alertMarket) ?? alertMarkets[0];
-  const filteredNews = news.filter((item) => newsCategory === "全部" || classifyNews(item.title) === newsCategory);
+  const filteredNews = news.filter((item) => newsCategory === "all" || (item.category??"macro") === newsCategory);
 
   return (
     <main>
@@ -196,7 +183,7 @@ export default function Home() {
 
         {activeTab === "quotes" && <div className="hubPanel" role="tabpanel" id="quotes"><div className="panelHeading"><div><p className="eyebrow">LIVE MARKET</p><h2>{copy.quotes}</h2></div><p>{copy.updated} {quoteUpdated}（GMT+8）</p></div><div className="quoteGrid">{quotes.map((q) => <article className="quoteCard" key={q.label}><div><p>{q.label}</p><span>{q.code}</span></div><strong>{q.price}</strong><div className="quoteFoot"><span>{q.unit}</span><b className={q.up ? "up" : "down"}>{q.up ? "▲" : "▼"} {q.change}</b></div></article>)}</div><p className="panelNote">行情僅在來源返回有效資料時顯示；沒有銀樓牌告來源，因此不顯示銀樓買賣價。</p><div className="moreQuotesHead"><div><span>PRECIOUS METALS</span><strong>更多國際報價</strong></div><small>美元計價・參考行情</small></div><div className="moreQuotes">{additionalQuotes.map((item) => <article key={item.symbol}><span>{item.symbol}</span><div><p>{item.label}</p><small>{item.unit}</small></div><strong>{item.price}</strong><em>{item.change}</em></article>)}</div><p className="panelNote">黃金參考價每 10 分鐘更新；台灣理論金價由國際金價與匯率換算，實際銀樓價格以各通路公告為準。</p></div>}
 
-        {activeTab === "news" && <div className="hubPanel newsPanel" role="tabpanel"><div className="panelHeading"><div><p className="eyebrow">TODAY&apos;S MARKET FOCUS</p><h2>{copy.news}</h2></div><p>{newsUpdated}</p></div><p className="panelIntro">{locale === "zh" ? "查核近期資料後重新撰文，新聞事實與本站分析分開呈現；配圖為AI生成示意。" : locale === "ja" ? "最近の資料を確認して独自に執筆。事実と分析を区別し、AI生成のイメージ画像を添えています。" : "Original articles based on checked recent sources, separating facts from analysis. Images are AI-generated illustrations."}</p><p><a href={`/news?lang=${locale}`}>{locale === "zh" ? "開啟新聞專區 →" : locale === "ja" ? "ニュース一覧 →" : "News library →"}</a></p><div className="newsFilters" role="tablist" aria-label="新聞分類">{newsCategories.map((category) => <button key={category} className={newsCategory === category ? "active" : ""} onClick={() => setNewsCategory(category)}>{category}</button>)}</div><div className="newsGrid">{filteredNews.slice(0, 10).map((item) => { const category = classifyNews(item.title); const key = String(item.id ?? item.url); const cover = item.image || categoryCover[category]; return <article key={key}><div className="newsVisual hasImage"><img src={cover} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(event) => { if (event.currentTarget.src !== categoryCover[category]) event.currentTarget.src = categoryCover[category]; else event.currentTarget.style.display = "none"; }}/></div><p><b>{category}</b><time>{item.date}</time></p><div className="newsSource"><span>{item.sourceName || "國際新聞"}</span>{item.translated && <em>自動翻譯</em>}</div><h3>{item.title}</h3>{item.summary && <p className="newsSynopsis">{item.summary}</p>}<small className="newsIllustrationLabel">{locale === "zh" ? "AI生成示意圖" : locale === "ja" ? "AI生成イメージ" : "AI-generated illustration"}</small><a href={`/news/${item.id}`}>{copy.read}　→</a></article>; })}</div>{filteredNews.length === 0 && <p className="newsEmpty">{locale === "zh" ? "最近7天此分類暫無新文章。" : locale === "ja" ? "過去7日間、この分類に新しい記事はありません。" : "No new articles in this category in the last 7 days."}</p>}</div>}
+        {activeTab === "news" && <div className="hubPanel newsPanel" role="tabpanel"><div className="panelHeading"><div><p className="eyebrow">TODAY&apos;S MARKET FOCUS</p><h2>{copy.news}</h2></div><p>{newsUpdated}</p></div><p className="panelIntro">{locale === "zh" ? "查核近期資料後重新撰文，新聞事實與本站分析分開呈現；配圖為AI生成示意。" : locale === "ja" ? "最近の資料を確認して独自に執筆。事実と分析を区別し、AI生成のイメージ画像を添えています。" : "Original articles based on checked recent sources, separating facts from analysis. Images are AI-generated illustrations."}</p><p><a href={`/news?lang=${locale}`}>{locale === "zh" ? "開啟新聞專區 →" : locale === "ja" ? "ニュース一覧 →" : "News library →"}</a></p><div className="newsFilters" aria-label={locale==="zh"?"新聞分類":locale==="ja"?"ニュース分類":"News categories"}>{newsCategories.map((category) => <button key={category} className={newsCategory === category ? "active" : ""} aria-pressed={newsCategory === category} onClick={() => setNewsCategory(category)}>{categories[category][locale]}</button>)}</div><div className="newsGrid">{filteredNews.slice(0, 10).map((item) => { const category = item.category??"macro"; const key = String(item.id ?? item.url); const cover = item.image; return <article key={key}><div className="newsVisual hasImage"><img src={cover} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.display = "none"; }}/></div><p><b>{categories[category][locale]}</b><time>{item.date}</time></p><div className="newsSource"><span>{item.sourceName || "國際新聞"}</span>{item.translated && <em>自動翻譯</em>}</div><h3>{item.title}</h3>{item.summary && <p className="newsSynopsis">{item.summary}</p>}<small className="newsIllustrationLabel">{locale === "zh" ? "AI生成示意圖" : locale === "ja" ? "AI生成イメージ" : "AI-generated illustration"}</small><a href={`/news/${item.id}`}>{copy.read}　→</a></article>; })}</div>{filteredNews.length === 0 && <p className="newsEmpty">{locale === "zh" ? "最近7天此分類暫無新文章。" : locale === "ja" ? "過去7日間、この分類に新しい記事はありません。" : "No new articles in this category in the last 7 days."}</p>}</div>}
 
         {activeTab === "history" && <div className="hubPanel historyPanel" role="tabpanel"><p className="panelNote">尚未接通可驗證的歷史資料，已停止顯示示意走勢。No verified historical data available.</p><div className="historyBlock"><div className="historyHead"><div><p className="eyebrow">30-DAY HISTORY</p><h3>每日參考收盤價</h3></div><span>美元／盎司</span></div><div className="historyList"><div className="historyRow historyLabels"><span>日期</span><span>收盤價</span><span>日變動</span></div>{monthlyGoldHistory.map(([date, price, change]) => <div className="historyRow" key={date}><time>2026/{date}</time><strong>{price}</strong><em className={change.startsWith("−") ? "down" : "up"}>{change}</em></div>)}</div></div><p className="historyNote">近 30 日參考走勢，與即時報價可能略有差異；資料不作交易依據。</p></div>}
 
