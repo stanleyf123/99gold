@@ -19,10 +19,11 @@ const alertMarkets = [
 
 type SavedAlert = { id: number; market: string; target: number };
 
-type NewsItem = { id?: number | string; title: string; category?:NewsCategory; originalTitle?: string; summary?: string; date: string; url: string; image?: string; sourceName?: string; translated?: boolean };
-type QuoteItem = { label: string; code: string; price: string; unit: string; change: string; up: boolean };
+type NewsItem = { id?: number | string; title: string; category?:NewsCategory; originalTitle?: string; summary?: string; date: string; url: string; image?: string; sourceName?: string; translated?: boolean; external?: boolean };
+type QuoteItem = { label: string; code: string; price: string; unit: string; change: string; up: boolean | null };
 type Locale = "zh" | "en" | "ja";
 type HistoryPeriod = "1D" | "1W" | "1M" | "3M" | "1Y";
+type MarketStatus = "checking" | "open" | "delayed" | "daily-break" | "weekend-closed" | "unavailable";
 type GlobalMetal = {
   id: string;
   symbol: string;
@@ -40,6 +41,7 @@ type GlobalMetal = {
   series: MarketChartPoint[];
   basis: "futures" | "spot";
   source: string;
+  quotedAt?: string;
 };
 type HistoryStats = { open: number; close: number; high: number; low: number; change: number; changePercent: number };
 type SiteSettings = { brandName: string; fullName: string; englishName: string; tagline: string; announcement: string };
@@ -86,6 +88,7 @@ const unavailableGold: GlobalMetal = {
   series: [],
   basis: "futures",
   source: "—",
+  quotedAt: "",
 };
 
 function normalizeMetal(metal: GlobalMetal): GlobalMetal {
@@ -118,15 +121,22 @@ export default function Home() {
   const [news, setNews] = useState<NewsItem[]>(fallbackNews);
   const [newsCategory, setNewsCategory] = useState<NewsCategory | "all">("all");
   const [newsUpdated, setNewsUpdated] = useState("正在取得最新消息");
+  const [newsCheckedAt, setNewsCheckedAt] = useState("");
+  const [newsScheduleStatus, setNewsScheduleStatus] = useState<"healthy" | "delayed" | "error" | "pending">("pending");
   const [quotes, setQuotes] = useState<QuoteItem[]>(initialQuotes);
-  const [quoteUpdated, setQuoteUpdated] = useState("取得中");
+  const [quoteAt, setQuoteAt] = useState("");
+  const [quoteRetrievedAt, setQuoteRetrievedAt] = useState("");
+  const [quoteAttemptedAt, setQuoteAttemptedAt] = useState("");
+  const [fxQuotedAt, setFxQuotedAt] = useState("");
+  const [marketStatus, setMarketStatus] = useState<MarketStatus>("checking");
+  const [quoteCheckFailed, setQuoteCheckFailed] = useState(false);
   const [quoteSource, setQuoteSource] = useState("Yahoo Finance GC 黃金期貨與公開匯率資料");
   const [globalMetals, setGlobalMetals] = useState<GlobalMetal[]>([]);
   const [currencies, setCurrencies] = useState<Record<string, number>>({ USD: 1 });
-  const [globalUpdated, setGlobalUpdated] = useState("取得中");
   const [historyPoints, setHistoryPoints] = useState<MarketChartPoint[]>([]);
   const [historyStats, setHistoryStats] = useState<HistoryStats>(emptyHistoryStats);
-  const [historyUpdated, setHistoryUpdated] = useState("取得中");
+  const [historyQuotedAt, setHistoryQuotedAt] = useState("");
+  const [historyRetrievedAt, setHistoryRetrievedAt] = useState("");
   const [historySource, setHistorySource] = useState("COMEX GC 黃金期貨參考");
   const [historyLoading, setHistoryLoading] = useState(true);
   const [locale, setLocale] = useState<Locale>("zh");
@@ -134,8 +144,8 @@ export default function Home() {
   const copy = languageCopy[locale];
   useEffect(() => {
     fetch("/api/site-settings", { cache: "no-store" })
-      .then((response) => response.ok ? response.json() : null)
-      .then((data: Partial<SiteSettings> | null) => data && setSiteSettings({ ...defaultSiteSettings, ...data }))
+      .then((response) => response.ok ? response.json() as Promise<Partial<SiteSettings>> : null)
+      .then((data) => data && setSiteSettings({ ...defaultSiteSettings, ...data }))
       .catch(() => undefined);
   }, []);
   useEffect(() => {
@@ -145,73 +155,98 @@ export default function Home() {
       window.setTimeout(() => setLocale(saved), 0);
       return;
     }
-    fetch("/api/visitor-locale", { cache: "no-store" }).then((response) => response.ok ? response.json() : null).then((data: { locale?: Locale } | null) => {
+    fetch("/api/visitor-locale", { cache: "no-store" }).then((response) => response.ok ? response.json() as Promise<{ locale?: Locale }> : null).then((data) => {
       if (!data?.locale || !(data.locale in languageCopy)) return;
       setLocale(data.locale);
       document.documentElement.lang = data.locale === "zh" ? "zh-Hant" : data.locale;
     }).catch(() => undefined);
   }, []);
   useEffect(() => {
-    const refreshQuotes = () => fetch(`/api/market-quotes?t=${Date.now()}`, { cache: "no-store" })
-      .then((response) => response.ok ? response.json() : Promise.reject())
-      .then((data: { items?: QuoteItem[]; updatedAt?: string; source?: string }) => {
-        setQuotes(data.items ?? []);
-        if (data.updatedAt) setQuoteUpdated(data.updatedAt);
-        if (data.source) setQuoteSource(data.source);
-      })
-      .catch(() => { setQuotes([]); setQuoteUpdated("報價來源暫時無法連線，將自動重試"); });
-    refreshQuotes();
-    const timer = window.setInterval(refreshQuotes, 180_000);
-    return () => window.clearInterval(timer);
-  }, []);
-  useEffect(() => {
     let disposed = false;
-    const refreshGlobalQuotes = () => fetch(`/api/global-quotes?t=${Date.now()}`, { cache: "no-store" })
-      .then((response) => response.ok ? response.json() : Promise.reject())
-      .then((data: { metals?: GlobalMetal[]; currencies?: Record<string, number>; updatedAt?: string }) => {
+    let inFlight = false;
+    const controller = new AbortController();
+    const refreshQuotes = async () => {
+      if (disposed || inFlight || document.visibilityState === "hidden") return;
+      inFlight = true;
+      try {
+        const response = await fetch("/api/global-quotes?v=2", { signal: controller.signal });
+        if (!response.ok) throw new Error("Quote source unavailable");
+        const data = await response.json() as {
+          items?: QuoteItem[];
+          metals?: GlobalMetal[];
+          currencies?: Record<string, number>;
+          quotedAt?: string;
+          updatedAt?: string;
+          retrievedAt?: string;
+          fxQuotedAt?: string | null;
+          marketStatus?: MarketStatus;
+          quoteSource?: string;
+          source?: string;
+        };
         if (disposed) return;
+        setQuotes(data.items ?? []);
         setGlobalMetals((data.metals ?? []).map(normalizeMetal));
         setCurrencies(data.currencies ?? { USD: 1 });
-        if (data.updatedAt) setGlobalUpdated(new Intl.DateTimeFormat("zh-TW", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Taipei" }).format(new Date(data.updatedAt)));
-      })
-      .catch(() => {
-        if (disposed) return;
-        setGlobalMetals([]);
-        setCurrencies({ USD: 1 });
-        setGlobalUpdated("行情來源暫時無法連線");
-      });
-    refreshGlobalQuotes();
-    const timer = window.setInterval(refreshGlobalQuotes, 180_000);
-    return () => { disposed = true; window.clearInterval(timer); };
+        setQuoteAt(data.quotedAt ?? data.updatedAt ?? "");
+        setQuoteRetrievedAt(data.retrievedAt ?? "");
+        setQuoteAttemptedAt(data.retrievedAt ?? new Date().toISOString());
+        setFxQuotedAt(data.fxQuotedAt ?? "");
+        setMarketStatus(data.marketStatus ?? "delayed");
+        setQuoteCheckFailed(false);
+        if (data.quoteSource || data.source) setQuoteSource(data.quoteSource ?? data.source ?? "");
+      } catch (error) {
+        if (!disposed && !(error instanceof DOMException && error.name === "AbortError")) {
+          setQuoteAttemptedAt(new Date().toISOString());
+          setQuoteCheckFailed(true);
+        }
+      } finally {
+        inFlight = false;
+      }
+    };
+    void refreshQuotes();
+    const timer = window.setInterval(() => void refreshQuotes(), 180_000);
+    const refreshWhenVisible = () => { if (document.visibilityState === "visible") void refreshQuotes(); };
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      disposed = true;
+      controller.abort();
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, []);
   useEffect(() => {
+    if (activeTab !== "history") return;
     let disposed = false;
-    fetch(`/api/gold-history?period=${period}&t=${Date.now()}`, { cache: "no-store" })
-      .then((response) => response.ok ? response.json() : Promise.reject())
-      .then((data: { points?: MarketChartPoint[]; stats?: HistoryStats; updatedAt?: string; source?: string }) => {
+    fetch(`/api/gold-history?period=${period}`)
+      .then((response) => response.ok ? response.json() as Promise<{ points?: MarketChartPoint[]; stats?: HistoryStats; quotedAt?: string; updatedAt?: string; retrievedAt?: string; source?: string }> : Promise.reject(new Error("History unavailable")))
+      .then((data) => {
         if (disposed) return;
         setHistoryPoints(data.points ?? []);
         setHistoryStats(data.stats ?? emptyHistoryStats);
         if (data.source) setHistorySource(data.source);
-        if (data.updatedAt) setHistoryUpdated(new Intl.DateTimeFormat("zh-TW", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Taipei" }).format(new Date(data.updatedAt)));
+        setHistoryQuotedAt(data.quotedAt ?? data.updatedAt ?? "");
+        setHistoryRetrievedAt(data.retrievedAt ?? "");
       })
       .catch(() => {
         if (disposed) return;
         setHistoryPoints([]);
         setHistoryStats(emptyHistoryStats);
-        setHistoryUpdated("歷史行情來源暫時無法連線");
+        setHistoryQuotedAt("");
+        setHistoryRetrievedAt("");
       })
       .finally(() => { if (!disposed) setHistoryLoading(false); });
     return () => { disposed = true; };
-  }, [period]);
+  }, [activeTab, period]);
   useEffect(() => {
     let disposed = false;
-    const refreshNews = () => fetch(`/api/market-brief?lang=${locale}&t=${Date.now()}`, { cache: "no-store" })
-      .then((response) => response.ok ? response.json() : Promise.reject())
-      .then((data: { items?: NewsItem[]; updatedAt?: string }) => {
+    const refreshNews = () => fetch(`/api/market-brief?lang=${locale}`, { cache: "no-store" })
+      .then((response) => response.ok ? response.json() as Promise<{ items?: NewsItem[]; updatedAt?: string; checkedAt?: string; scheduleStatus?: "healthy" | "delayed" | "error" | "pending" }> : Promise.reject(new Error("News unavailable")))
+      .then((data) => {
         if (disposed) return;
         setNews(data.items ?? []);
         if (data.updatedAt) setNewsUpdated(data.updatedAt);
+        setNewsCheckedAt(data.checkedAt ?? "");
+        setNewsScheduleStatus(data.scheduleStatus ?? "pending");
       })
       .catch(() => {
         if (!disposed) setNewsUpdated("新聞來源暫時無法連線，將自動重試");
@@ -249,8 +284,12 @@ export default function Home() {
     document.body.style.overflow = "hidden";
     return () => { document.removeEventListener("keydown", closeOnEscape); document.body.style.overflow = ""; };
   }, [menuOpen]);
-  const openDashboardSection = (tab: typeof activeTab) => {
+  const selectDashboardTab = (tab: typeof activeTab) => {
+    if (tab === "history" && activeTab !== "history") setHistoryLoading(true);
     setActiveTab(tab);
+  };
+  const openDashboardSection = (tab: typeof activeTab) => {
+    selectDashboardTab(tab);
     setMenuOpen(false);
     window.setTimeout(() => document.getElementById("top")?.scrollIntoView({ behavior: "smooth" }), 40);
   };
@@ -291,10 +330,48 @@ export default function Home() {
   });
   const historyAvailable = historyPoints.length > 1 && Number.isFinite(historyStats.close);
   const t = (zh: string, en: string, ja = en) => locale === "zh" ? zh : locale === "ja" ? ja : en;
+  const formatSiteTime = (value: string) => {
+    const date = new Date(value);
+    if (!value || Number.isNaN(date.getTime())) return t("取得中", "Checking", "確認中");
+    return new Intl.DateTimeFormat(locale === "zh" ? "zh-TW" : locale === "ja" ? "ja-JP" : "en-GB", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+      timeZone: "Asia/Taipei",
+    }).format(date);
+  };
+  const marketStatusLabel = quoteCheckFailed
+    ? quotes.length
+      ? t("本次檢查失敗 · 保留最後有效行情", "Latest check failed · showing last valid quote", "今回の確認失敗・最終有効値を表示")
+      : t("行情暫不可用 · 每 3 分鐘重試", "QUOTE UNAVAILABLE · RETRYING EVERY 3 MIN", "相場取得不可・3分ごとに再試行")
+    : marketStatus === "checking"
+      ? t("正在檢查行情來源", "CHECKING MARKET SOURCE", "相場情報源を確認中")
+      : marketStatus === "open"
+      ? t("市場交易中", "MARKET OPEN", "市場取引中")
+      : marketStatus === "daily-break"
+        ? t("每日休市 · 最後有效行情", "DAILY BREAK · LAST VALID QUOTE", "日次休場・最終有効値")
+        : marketStatus === "weekend-closed"
+          ? t("週末休市 · 最後有效行情", "WEEKEND CLOSED · LAST VALID QUOTE", "週末休場・最終有効値")
+          : marketStatus === "delayed"
+            ? t("行情可能延遲 · 自動重試", "QUOTE MAY BE DELAYED · RETRYING", "相場遅延の可能性・再試行中")
+            : t("行情狀態無法確認 · 自動重試", "MARKET STATUS UNAVAILABLE · RETRYING", "相場状態を確認できません・再試行中");
+  const quoteStatusClass = quoteCheckFailed ? "delayed" : marketStatus;
+  const quoteTimeLabel = formatSiteTime(quoteAt);
+  const quoteCheckTimeLabel = formatSiteTime(quoteAttemptedAt || quoteRetrievedAt);
+  const quoteLastSuccessLabel = quoteCheckFailed && quoteRetrievedAt ? formatSiteTime(quoteRetrievedAt) : "";
+  const historyQuoteTimeLabel = formatSiteTime(historyQuotedAt);
+  const historyCheckTimeLabel = formatSiteTime(historyRetrievedAt);
+  const newsScheduleLabel = newsCheckedAt
+    ? `${newsScheduleStatus === "healthy" ? t("官方來源已檢查", "OFFICIAL SOURCES CHECKED", "公式情報源確認済み") : newsScheduleStatus === "error" ? t("來源檢查失敗，保留既有內容", "SOURCE CHECK FAILED; CONTENT RETAINED", "情報源確認失敗・既存内容を保持") : t("來源檢查可能延遲", "SOURCE CHECK MAY BE DELAYED", "情報源確認が遅延中")} ${formatSiteTime(newsCheckedAt)}`
+    : t("新聞排程等待首次執行", "NEWS SCHEDULE AWAITING FIRST RUN", "ニュース予定の初回実行待ち");
 
   return (
     <main>
-      <div className="topline"><span>{copy.open}</span><span>{copy.updated} {quoteUpdated} (GMT+8)</span></div>
+      <div className="topline"><span>{marketStatusLabel}</span><span>{t("行情時間", "Quote time", "相場時刻")} {quoteTimeLabel} · {t("本站檢查", "Site check", "サイト確認")} {quoteCheckTimeLabel}{quoteLastSuccessLabel ? ` · ${t("上次成功", "Last success", "最終成功")} ${quoteLastSuccessLabel}` : ""} (GMT+8)</span></div>
       <nav className="nav">
         <Link className="brand" href="/"><i>99</i><span>{siteSettings.brandName}<br/><em>{siteSettings.englishName}</em></span></Link>
         <div className="navlinks"><Link className="active" href="/#quotes">{copy.navToday}</Link><Link href="/global">全球報價</Link><Link href="/international">{copy.navInternational}</Link><Link href="/jewelry">{copy.navJewelry}</Link><Link href="/recycling">{copy.navRecycle}</Link><Link href={`/news?lang=${locale}`}>{copy.navNews}</Link></div>
@@ -306,7 +383,7 @@ export default function Home() {
 
       <section className="brandHero brandCover" aria-label={`${siteSettings.fullName}｜${siteSettings.tagline}`}><Image src="/og.jpg" alt={`${siteSettings.fullName}，${siteSettings.tagline}`} fill priority unoptimized sizes="100vw" /></section>
 
-      <section className="marketHub" id="top"><div className="hubLead"><div><p className="eyebrow">GOLD MARKET DASHBOARD</p><h1>{copy.dashboard}</h1><p>{copy.dashboardText}</p></div><div className="hubPrice"><span>{quotes[0] ? `${quotes[0].label}・${quotes[0].code}` : t("等待有效行情", "Waiting for valid quote", "有効な相場を待っています")}</span><strong>{quotes[0]?.price ?? "—"}</strong><em className={quotes[0] ? (quotes[0].up ? "up" : "down") : undefined}>{quotes[0] ? `${quotes[0].up ? "▲" : "▼"} ${quotes[0].change}` : t("來源暫不可用", "SOURCE UNAVAILABLE", "データ取得不可")}</em></div></div><div className="marketTabs" role="tablist" aria-label="黃金資訊分類"><button role="tab" aria-selected={activeTab === "quotes"} className={activeTab === "quotes" ? "active" : ""} onClick={() => setActiveTab("quotes")}>{copy.quotes}</button><button role="tab" aria-selected={activeTab === "history"} className={activeTab === "history" ? "active" : ""} onClick={() => setActiveTab("history")}>{copy.history}</button><button role="tab" aria-selected={activeTab === "tools"} className={activeTab === "tools" ? "active" : ""} onClick={() => setActiveTab("tools")}>{copy.tools}</button><button role="tab" aria-selected={activeTab === "news"} className={activeTab === "news" ? "active" : ""} onClick={() => setActiveTab("news")}>{copy.news}</button></div>
+      <section className="marketHub" id="top"><div className="hubLead"><div><p className="eyebrow">GOLD MARKET DASHBOARD</p><h1>{copy.dashboard}</h1><p>{copy.dashboardText}</p></div><div className="hubPrice"><span>{quotes[0] ? `${quotes[0].label}・${quotes[0].code}` : t("等待有效行情", "Waiting for valid quote", "有効な相場を待っています")}</span><strong>{quotes[0]?.price ?? "—"}</strong><em className={quotes[0] ? (quotes[0].up === null ? "neutral" : quotes[0].up ? "up" : "down") : undefined}>{quotes[0] ? `${quotes[0].up === null ? "•" : quotes[0].up ? "▲" : "▼"} ${quotes[0].change}` : t("來源暫不可用", "SOURCE UNAVAILABLE", "データ取得不可")}</em></div></div><div className="marketTabs" role="tablist" aria-label="黃金資訊分類"><button role="tab" aria-selected={activeTab === "quotes"} className={activeTab === "quotes" ? "active" : ""} onClick={() => selectDashboardTab("quotes")}>{copy.quotes}</button><button role="tab" aria-selected={activeTab === "history"} className={activeTab === "history" ? "active" : ""} onClick={() => selectDashboardTab("history")}>{copy.history}</button><button role="tab" aria-selected={activeTab === "tools"} className={activeTab === "tools" ? "active" : ""} onClick={() => selectDashboardTab("tools")}>{copy.tools}</button><button role="tab" aria-selected={activeTab === "news"} className={activeTab === "news" ? "active" : ""} onClick={() => selectDashboardTab("news")}>{copy.news}</button></div>
 
         {activeTab === "quotes" && (
           <div className="hubPanel proQuotePanel" role="tabpanel" id="quotes">
@@ -317,9 +394,9 @@ export default function Home() {
                 <p>{t("國際參考、台灣換算、期貨與主要貴金屬集中比較", "Reference gold, Taiwan conversions, futures and key metals in one view", "国際参考価格・台湾換算・先物・主要貴金属を一覧")}</p>
               </div>
               <div className="quoteFreshness">
-                <span><i /> {t("參考行情", "REFERENCE DATA", "参考データ")}</span>
-                <strong>{copy.updated} {quoteUpdated}</strong>
-                <small>GMT+8 · AUTO REFRESH 3 MIN</small>
+                <span className={quoteStatusClass}><i /> {marketStatusLabel}</span>
+                <strong>{t("行情時間", "QUOTE TIME", "相場時刻")} {quoteTimeLabel}</strong>
+                <small>{t("本站檢查", "SITE CHECK", "サイト確認")} {quoteCheckTimeLabel}{quoteLastSuccessLabel ? ` · ${t("上次成功", "LAST SUCCESS", "最終成功")} ${quoteLastSuccessLabel}` : ""} · {t("每 3 分鐘檢查", "CHECKS EVERY 3 MIN", "3分ごとに確認")}</small>
               </div>
             </div>
 
@@ -341,7 +418,8 @@ export default function Home() {
                 </div>
                 <dl className="quoteDefinitionList">
                   <div><dt>{t("資料來源", "Source", "データ元")}</dt><dd>{quoteSource}</dd></div>
-                  <div><dt>{t("更新頻率", "Refresh", "更新頻度")}</dt><dd>3 min</dd></div>
+                  <div><dt>{t("檢查頻率", "Check interval", "確認頻度")}</dt><dd>{t("每 3 分鐘；休市時價格不變", "Every 3 min; price holds while closed", "3分ごと・休場中は価格据え置き")}</dd></div>
+                  <div><dt>{t("匯率時間", "FX time", "為替時刻")}</dt><dd>{fxQuotedAt ? formatSiteTime(fxQuotedAt) : t("來源未提供", "Not supplied", "提供なし")}</dd></div>
                   <div><dt>{t("重量基準", "Weight basis", "重量基準")}</dt><dd>1 oz = 31.1034768 g</dd></div>
                 </dl>
               </section>
@@ -372,7 +450,7 @@ export default function Home() {
                   <div><dt>{t("前收", "Previous close", "前日終値")}</dt><dd>{priceFormatter.format(globalGold.previousClose)}</dd></div>
                   <div><dt>{t("今日振幅", "Day range", "日中値幅")}</dt><dd>{percentFormatter((intradayRange / Math.max(globalGold.previousClose, 1)) * 100).replace("+", "")}</dd></div>
                   <div><dt>{t("市場", "Venue", "市場")}</dt><dd>{globalGold.venue || "COMEX"}</dd></div>
-                  <div><dt>{t("更新", "Updated", "更新")}</dt><dd>{globalUpdated}</dd></div>
+                  <div><dt>{t("行情時間", "Quote time", "相場時刻")}</dt><dd>{quoteTimeLabel}</dd></div>
                 </dl>
                 <Link href="/global">{t("開啟全球報價矩陣", "Open global quote matrix", "世界相場一覧を開く")} <b>→</b></Link>
               </aside>
@@ -387,14 +465,14 @@ export default function Home() {
                   <div className="conversionFoot"><span>{quote.unit}</span><b>{quote.change}</b></div>
                 </article>
               ))}
-              {quotes.length === 0 && <p className="dataUnavailable">{t("等待有效行情後提供換算", "Conversions appear when valid data is available", "有効な相場取得後に換算値を表示します")}</p>}
+              {quotes.length <= 1 && <p className="dataUnavailable">{t("匯率來源暫時無法連線，台灣換算將自動重試", "The FX source is unavailable; Taiwan conversions will retry automatically", "為替情報源に接続できないため、台湾換算を自動再試行します")}</p>}
             </div>
 
-            <div className="globalQuotesHeader"><div><span>GLOBAL METALS</span><strong>{t("全球貴金屬比較", "Global metals comparison", "世界の貴金属比較")}</strong></div><small>{copy.updated} {globalUpdated} · 3 MIN CACHE</small></div>
+            <div className="globalQuotesHeader"><div><span>GLOBAL METALS</span><strong>{t("全球貴金屬比較", "Global metals comparison", "世界の貴金属比較")}</strong></div><small>{t("行情時間", "QUOTE TIME", "相場時刻")} {quoteTimeLabel} · {t("每 3 分鐘檢查", "CHECKS EVERY 3 MIN", "3分ごとに確認")}</small></div>
             <div className="proQuoteTableScroll">
               <table className="proQuoteTable">
-                <thead><tr><th>{t("商品", "Instrument", "商品")}</th><th>{t("最新價", "Last", "最新値")}</th><th>{t("漲跌", "Change", "騰落")}</th><th>{t("開盤", "Open", "始値")}</th><th>{t("最高", "High", "高値")}</th><th>{t("最低", "Low", "安値")}</th><th>{t("市場", "Venue", "市場")}</th></tr></thead>
-                <tbody>{globalMetals.map((metal) => { const hasChange = Number.isFinite(metal.changePercent); return <tr key={metal.id}><td><strong>{metal.symbol}</strong><span>{locale === "en" ? metal.englishName : metal.name}</span></td><td>{priceFormatter.format(metal.price)}</td><td><b className={hasChange ? metal.changePercent >= 0 ? "up" : "down" : undefined}>{hasChange ? `${metal.changePercent >= 0 ? "▲" : "▼"} ${percentFormatter(metal.changePercent)}` : "—"}</b></td><td>{priceFormatter.format(metal.open)}</td><td>{priceFormatter.format(metal.high)}</td><td>{priceFormatter.format(metal.low)}</td><td>{metal.venue}</td></tr>; })}{globalMetals.length === 0 && <tr><td colSpan={7} className="tableUnavailable">{t("行情來源暫時無法連線", "Market data source is temporarily unavailable", "市場データソースに接続できません")}</td></tr>}</tbody>
+                <thead><tr><th>{t("商品", "Instrument", "商品")}</th><th>{t("最新價", "Last", "最新値")}</th><th>{t("漲跌", "Change", "騰落")}</th><th>{t("開盤", "Open", "始値")}</th><th>{t("最高", "High", "高値")}</th><th>{t("最低", "Low", "安値")}</th><th>{t("市場", "Venue", "市場")}</th><th>{t("行情時間", "Quote time", "相場時刻")}</th></tr></thead>
+                <tbody>{globalMetals.map((metal) => { const hasChange = Number.isFinite(metal.changePercent); return <tr key={metal.id}><td><strong>{metal.symbol}</strong><span>{locale === "en" ? metal.englishName : metal.name}</span></td><td>{priceFormatter.format(metal.price)}</td><td><b className={hasChange ? metal.changePercent >= 0 ? "up" : "down" : undefined}>{hasChange ? `${metal.changePercent >= 0 ? "▲" : "▼"} ${percentFormatter(metal.changePercent)}` : "—"}</b></td><td>{priceFormatter.format(metal.open)}</td><td>{priceFormatter.format(metal.high)}</td><td>{priceFormatter.format(metal.low)}</td><td>{metal.venue}</td><td><time dateTime={metal.quotedAt}>{metal.quotedAt ? formatSiteTime(metal.quotedAt) : "—"}</time></td></tr>; })}{globalMetals.length === 0 && <tr><td colSpan={8} className="tableUnavailable">{t("行情來源暫時無法連線", "Market data source is temporarily unavailable", "市場データソースに接続できません")}</td></tr>}</tbody>
               </table>
             </div>
 
@@ -406,7 +484,37 @@ export default function Home() {
           </div>
         )}
 
-        {activeTab === "news" && <div className="hubPanel newsPanel" role="tabpanel"><div className="panelHeading"><div><p className="eyebrow">TODAY&apos;S MARKET FOCUS</p><h2>{copy.news}</h2></div><p>{newsUpdated}</p></div><p className="panelIntro">{locale === "zh" ? "查核近期資料後重新撰文，新聞事實與本站分析分開呈現；配圖為AI生成示意。" : locale === "ja" ? "最近の資料を確認して独自に執筆。事実と分析を区別し、AI生成のイメージ画像を添えています。" : "Original articles based on checked recent sources, separating facts from analysis. Images are AI-generated illustrations."}</p><p><a href={`/news?lang=${locale}`}>{locale === "zh" ? "開啟新聞專區 →" : locale === "ja" ? "ニュース一覧 →" : "News library →"}</a></p><div className="newsFilters" aria-label={locale==="zh"?"新聞分類":locale==="ja"?"ニュース分類":"News categories"}>{newsCategories.map((category) => <button key={category} className={newsCategory === category ? "active" : ""} aria-pressed={newsCategory === category} onClick={() => setNewsCategory(category)}>{categories[category][locale]}</button>)}</div><div className="newsGrid">{filteredNews.slice(0, 10).map((item) => { const category = item.category??"macro"; const key = String(item.id ?? item.url); const cover = item.image; return <article key={key}><div className="newsVisual hasImage"><img src={cover} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.display = "none"; }}/></div><p><b>{categories[category][locale]}</b><time>{item.date}</time></p><div className="newsSource"><span>{item.sourceName || "國際新聞"}</span>{item.translated && <em>自動翻譯</em>}</div><h3>{item.title}</h3>{item.summary && <p className="newsSynopsis">{item.summary}</p>}<small className="newsIllustrationLabel">{locale === "zh" ? "AI生成示意圖" : locale === "ja" ? "AI生成イメージ" : "AI-generated illustration"}</small><a href={`/news/${item.id}`}>{copy.read}　→</a></article>; })}</div>{filteredNews.length === 0 && <p className="newsEmpty">{locale === "zh" ? "最近7天此分類暫無新文章。" : locale === "ja" ? "過去7日間、この分類に新しい記事はありません。" : "No new articles in this category in the last 7 days."}</p>}</div>}
+        {activeTab === "news" && (
+          <div className="hubPanel newsPanel" role="tabpanel">
+            <div className="panelHeading">
+              <div><p className="eyebrow">TODAY&apos;S MARKET FOCUS</p><h2>{copy.news}</h2></div>
+              <p>{newsUpdated}<small className={`newsScheduleState ${newsScheduleStatus}`}>{newsScheduleLabel} · {t("每 30 分鐘", "EVERY 30 MIN", "30分ごと")}</small></p>
+            </div>
+            <p className="panelIntro">{t(
+              "官方來源每 30 分鐘檢查，候選內容經管理者核准後由排程發布；本站分析文章則分開查核與撰寫。",
+              "Official sources are checked every 30 minutes. Approved items are published by schedule, while original analysis is researched and written separately.",
+              "公式情報源を30分ごとに確認し、承認済み項目を予定公開します。独自分析記事は別途調査・執筆します。",
+            )}</p>
+            <p><Link href={`/news?lang=${locale}`}>{locale === "zh" ? "開啟新聞專區 →" : locale === "ja" ? "ニュース一覧 →" : "News library →"}</Link></p>
+            <div className="newsFilters" aria-label={locale === "zh" ? "新聞分類" : locale === "ja" ? "ニュース分類" : "News categories"}>{newsCategories.map((category) => <button key={category} className={newsCategory === category ? "active" : ""} aria-pressed={newsCategory === category} onClick={() => setNewsCategory(category)}>{categories[category][locale]}</button>)}</div>
+            <div className="newsGrid">{filteredNews.slice(0, 10).map((item) => {
+              const category = item.category ?? "macro";
+              const key = String(item.id ?? item.url);
+              const cover = item.image;
+              const href = item.external ? item.url : `/news/${item.id}`;
+              return <article key={key}>
+                <div className={cover ? "newsVisual hasImage" : "newsVisual officialSourceVisual"}>{cover ? <img src={cover} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.display = "none"; }}/> : <div className="newsSourceMark"><b>99</b><small>OFFICIAL SOURCE</small></div>}</div>
+                <p><b>{categories[category][locale]}</b><time>{item.date}</time></p>
+                <div className="newsSource"><span>{item.sourceName || "國際新聞"}</span>{item.translated && <em>自動翻譯</em>}</div>
+                <h3>{item.title}</h3>
+                {item.summary && <p className="newsSynopsis">{item.summary}</p>}
+                {cover && <small className="newsIllustrationLabel">{locale === "zh" ? "AI生成示意圖" : locale === "ja" ? "AI生成イメージ" : "AI-generated illustration"}</small>}
+                <a href={href} target={item.external ? "_blank" : undefined} rel={item.external ? "noreferrer" : undefined}>{item.external ? t("前往官方來源", "Open official source", "公式情報源を開く") : copy.read}　→</a>
+              </article>;
+            })}</div>
+            {filteredNews.length === 0 && <p className="newsEmpty">{locale === "zh" ? "最近7天此分類暫無新文章。" : locale === "ja" ? "過去7日間、この分類に新しい記事はありません。" : "No new articles in this category in the last 7 days."}</p>}
+          </div>
+        )}
 
         {activeTab === "history" && (
           <div className="hubPanel historyProPanel" role="tabpanel">
@@ -417,9 +525,9 @@ export default function Home() {
                 <p>{t("實際期間切換、區間統計與逐筆歷史資料", "Live period switching, range statistics and historical observations", "期間切替・レンジ統計・履歴データ")}</p>
               </div>
               <div className="historyStatus">
-                <span className={historyLoading ? "loading" : historyAvailable ? "ready" : "unavailable"}><i />{historyLoading ? t("更新中", "UPDATING", "更新中") : historyAvailable ? t("資料就緒", "DATA READY", "データ準備完了") : t("來源暫不可用", "SOURCE UNAVAILABLE", "データ取得不可")}</span>
-                <strong>{historyUpdated}</strong>
-                <small>ASIA/TAIPEI · USD / TROY OZ</small>
+                <span className={historyLoading ? "loading" : historyAvailable ? "ready" : "unavailable"}><i />{historyLoading ? t("檢查中", "CHECKING", "確認中") : historyAvailable ? t("資料就緒", "DATA READY", "データ準備完了") : t("來源暫不可用", "SOURCE UNAVAILABLE", "データ取得不可")}</span>
+                <strong>{t("資料截至", "DATA THROUGH", "データ時刻")} {historyQuoteTimeLabel}</strong>
+                <small>{t("本站取得", "SITE RETRIEVED", "サイト取得")} {historyCheckTimeLabel} · USD / TROY OZ</small>
               </div>
             </div>
 
@@ -473,7 +581,7 @@ export default function Home() {
         {activeTab === "tools" && <div className="hubPanel proToolsPanel" role="tabpanel"><div className="panelHeading"><div><p className="eyebrow">GOLD TOOLKIT</p><h2>黃金工具中心</h2></div><p>支援台灣常用重量與純度</p></div><div className="toolWorkspace"><section className="toolForm"><div className="fieldGroup"><label htmlFor="manualPrice">店家提供的回收報價（NT$／錢）</label><input id="manualPrice" type="number" min="0" placeholder="請輸入實際報價" value={manualPrice} onChange={e=>setManualPrice(e.target.value)}/></div><div className="fieldGroup"><label htmlFor="toolWeight">黃金重量</label><div className="inputPair"><input id="toolWeight" type="number" min="0" step="0.01" inputMode="decimal" value={goldWeight} onChange={(event) => setGoldWeight(event.target.value)}/><select aria-label="重量單位" value={toolUnit} onChange={(event) => setToolUnit(event.target.value as typeof toolUnit)}><option value="qian">錢</option><option value="gram">公克</option><option value="tael">台兩</option><option value="ounce">金衡盎司</option></select></div></div><div className="fieldGroup"><label htmlFor="purity">黃金純度</label><select id="purity" value={purity} onChange={(event) => setPurity(event.target.value)}><option value="0.9999">9999 純金</option><option value="0.999">999 純金</option><option value="0.916">916／22K</option><option value="0.75">750／18K</option><option value="0.585">585／14K</option></select></div><div className="fieldGroup"><label htmlFor="purchasePrice">你的買入價（每錢）</label><div className="moneyInput"><span>NT$</span><input id="purchasePrice" type="number" min="0" step="100" inputMode="numeric" value={purchasePrice} onChange={(event) => setPurchasePrice(event.target.value)}/></div></div><p className="toolHint">純度換算採理論含金量，實際回收仍依店家檢測、耗損與手續費為準。</p></section><section className="toolResults" aria-live="polite"><div className="primaryResult"><span>預估回收價值</span><strong>NT$ {manualPrice ? toolResult.recycleValue.toLocaleString("zh-TW") : "—"}</strong><small>依你輸入的回收報價試算，不是本站牌告</small></div><div className="resultMetrics"><div><span>換算重量</span><strong>{toolResult.grams.toFixed(2)} g</strong></div><div><span>純金重量</span><strong>{toolResult.pureQian.toFixed(3)} 錢</strong></div><div><span>購入成本</span><strong>NT$ {toolResult.cost.toLocaleString("zh-TW")}</strong></div><div><span>目前損益</span><strong className={toolResult.gain >= 0 ? "up" : "down"}>{toolResult.gain >= 0 ? "+" : "−"}NT$ {Math.abs(toolResult.gain).toLocaleString("zh-TW")}</strong><small className={toolResult.gain >= 0 ? "up" : "down"}>{toolResult.roi >= 0 ? "+" : ""}{toolResult.roi.toFixed(2)}%</small></div></div></section></div></div>}
       </section>
 
-      <section className="tools marketRadar"><div><p className="eyebrow">MARKET RADAR</p><h2>今日市場<br/>快速判讀</h2></div><div className="tool"><span>{quotes[0]?.label ?? "國際黃金參考"}</span><strong>US$ {quotes[0]?.price ?? "—"}</strong><small>{quotes[0]?.unit ?? "美元／金衡盎司"}</small></div><div className="tool"><span>{quotes[1]?.label ?? "台灣理論金價"}</span><strong>NT$ {quotes[1]?.price ?? "—"}</strong><small>{quotes[1]?.unit ?? "台幣／錢"}</small></div><div className="tool"><span>USD / TWD</span><strong>{quotes[3]?.price ?? currencies.TWD?.toFixed(4) ?? "—"}</strong><small>{copy.updated} {quoteUpdated}</small></div><button onClick={() => { setActiveTab("history"); window.scrollTo({ top: 92, behavior: "smooth" }); }}>查看歷史走勢 <b>→</b></button></section>
+      <section className="tools marketRadar"><div><p className="eyebrow">MARKET RADAR</p><h2>今日市場<br/>快速判讀</h2></div><div className="tool"><span>{quotes[0]?.label ?? "國際黃金參考"}</span><strong>US$ {quotes[0]?.price ?? "—"}</strong><small>{quotes[0]?.unit ?? "美元／金衡盎司"}</small></div><div className="tool"><span>{quotes[1]?.label ?? "台灣理論金價"}</span><strong>NT$ {quotes[1]?.price ?? "—"}</strong><small>{quotes[1]?.unit ?? "台幣／錢"}</small></div><div className="tool"><span>USD / TWD</span><strong>{quotes[3]?.price ?? currencies.TWD?.toFixed(4) ?? "—"}</strong><small>{t("匯率時間", "FX time", "為替時刻")} {fxQuotedAt ? formatSiteTime(fxQuotedAt) : "—"}</small></div><button onClick={() => { selectDashboardTab("history"); window.scrollTo({ top: 92, behavior: "smooth" }); }}>查看歷史走勢 <b>→</b></button></section>
       <div id="price-alerts" className="scrollAnchor"/>
 
       <section className="alertCenter"><div className="alertIntro"><p className="eyebrow">PERSONAL WATCHLIST</p><h2>我的到價標記</h2><p>設定你關注的價格，網站會保存在這台裝置，回來時可快速查看距離目標還有多少。</p></div><div className="alertComposer"><label><span>關注項目</span><select value={alertMarket} onChange={(event) => setAlertMarket(event.target.value as typeof alertMarket)}>{liveAlertMarkets.map((market) => <option value={market.id} key={market.id}>{market.label}</option>)}</select></label><label><span>目標價格</span><div><input type="number" inputMode="decimal" min="0" value={alertTarget} onChange={(event) => setAlertTarget(event.target.value)}/><small>{selectedAlertMarket.unit}</small></div></label><button onClick={savePriceAlert}>加入關注</button></div><div className="savedAlerts">{savedAlerts.length === 0 ? <div className="alertEmpty"><span>尚未設定</span><p>輸入目標價後即可建立你的個人關注清單。</p></div> : savedAlerts.map((item) => { const market = liveAlertMarkets.find((entry) => entry.id === item.market) ?? liveAlertMarkets[0]; const gap = item.target - market.value; return <article key={item.id}><div><span>{market.label}</span><small>目前 {Number.isFinite(market.value) ? market.value.toLocaleString("en-US") : "—"} {market.unit}</small></div><strong>{item.target.toLocaleString("en-US")}</strong><em className={gap >= 0 ? "watchUp" : "watchReached"}>{!Number.isFinite(gap) ? "尚無有效行情，無法判定" : gap > 0 ? `距離目標 ${gap.toLocaleString("en-US")}` : "已達目標"}</em><button aria-label={`移除${market.label}到價標記`} onClick={() => removePriceAlert(item.id)}>×</button></article>; })}</div><p className="alertDisclaimer">此功能為裝置內的價格標記，不會發送系統推播；行情更新後可回到本站查看。</p></section>

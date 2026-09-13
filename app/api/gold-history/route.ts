@@ -52,12 +52,18 @@ export async function GET(request: Request) {
     const low = Math.min(...values);
     const change = close - open;
     const changePercent = open ? (change / open) * 100 : 0;
+    const finalPoint = points.at(-1);
+    if (!finalPoint) throw new Error("history timestamp missing");
+    const quotedAt = new Date(finalPoint.timestamp * 1000).toISOString();
+    const retrievedAt = new Date().toISOString();
 
     return NextResponse.json({
       period,
       points,
       stats: { open, close, high, low, change, changePercent },
-      updatedAt: new Date().toISOString(),
+      quotedAt,
+      updatedAt: quotedAt,
+      retrievedAt,
       source: `${result?.meta?.exchangeName ?? "COMEX"} GC futures via Yahoo Finance`,
       currency: result?.meta?.currency ?? "USD",
     }, { headers: { "Cache-Control": `public, max-age=${config.cacheSeconds}, s-maxage=${config.cacheSeconds}` } });

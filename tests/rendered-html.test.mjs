@@ -39,10 +39,38 @@ test("keeps quote history, data transparency and responsive styles wired", async
   assert.match(quoteApi, /sessionOpen/);
   assert.match(quoteApi, /api\.gold-api\.com\/price/);
   assert.match(quoteApi, /Resolve gold first/);
+  assert.match(quoteApi, /quotedAt: gold\.quotedAt/);
+  assert.match(quoteApi, /retrievedAt/);
+  assert.match(page, /行情時間/);
+  assert.match(page, /本站檢查/);
+  assert.match(page, /週末休市/);
+  assert.doesNotMatch(page, /api\/market-quotes\?t=|api\/global-quotes\?t=|api\/gold-history\?period=\$\{period\}&t=/);
   assert.match(historyApi, /GC%3DF/);
   assert.match(historyApi, /periodConfig/);
+  assert.match(historyApi, /quotedAt/);
+  assert.match(historyApi, /retrievedAt/);
   assert.doesNotMatch(page, /fallbackHistory|fallbackMetals/);
   assert.match(styles, /@media\(max-width:520px\)/);
   assert.match(styles, /prefers-reduced-motion/);
   assert.match(layout, /og-quotes-v2\.png/);
+});
+
+test("ships a scheduled, approval-gated news pipeline", async () => {
+  const [worker, vite, service, pipeline, migration, admin] = await Promise.all([
+    readFile(new URL("../worker/index.ts", import.meta.url), "utf8"),
+    readFile(new URL("../vite.config.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/news-service.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/news/pipeline.ts", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0004_news_pipeline.sql", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/admin/news/route.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(worker, /async scheduled/);
+  assert.match(vite, /\*\/30 \* \* \* \*/);
+  assert.match(pipeline, /status = 'published'/);
+  assert.match(pipeline, /status = 'approved'/);
+  assert.match(pipeline, /news_pipeline_completed/);
+  assert.match(migration, /CREATE TABLE `news_candidates`/);
+  assert.match(migration, /CREATE TABLE `news_runs`/);
+  assert.match(admin, /requireAdmin/);
+  assert.doesNotMatch(service, /fetch\(/);
 });

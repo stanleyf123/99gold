@@ -1,6 +1,7 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
+import { runNewsPipeline } from "../lib/news/pipeline";
 
 interface Env {
   ASSETS: Fetcher;
@@ -17,6 +18,11 @@ interface Env {
 interface ExecutionContext {
   waitUntil(promise: Promise<unknown>): void;
   passThroughOnException(): void;
+}
+
+interface NewsScheduleController {
+  scheduledTime: number;
+  cron: string;
 }
 
 // Image security config. SVG sources with .svg extension auto-skip the
@@ -41,6 +47,18 @@ const worker = {
     }
 
     return handler.fetch(request, env, ctx);
+  },
+  async scheduled(controller: NewsScheduleController, env: Env, ctx: ExecutionContext) {
+    const scheduledFor = new Date(controller.scheduledTime);
+    ctx.waitUntil(runNewsPipeline(env.DB, scheduledFor, "cron").catch((error) => {
+      console.error(JSON.stringify({
+        event: "news_pipeline_failed",
+        cron: controller.cron,
+        scheduledFor: scheduledFor.toISOString(),
+        error: error instanceof Error ? error.message : String(error),
+      }));
+      throw error;
+    }));
   },
 };
 

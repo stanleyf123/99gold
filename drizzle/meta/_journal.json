@@ -29,6 +29,13 @@
       "when": 1789176684471,
       "tag": "0003_cool_starhawk",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1789319333990,
+      "tag": "0004_news_pipeline",
+      "breakpoints": true
     }
   ]
 }

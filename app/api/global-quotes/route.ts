@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
+import { getGoldMarketStatus } from "../quote-timing";
 
-type FxResponse = { rates?: Record<string, number> };
+type FxResponse = {
+  rates?: Record<string, number>;
+  time_last_update_unix?: number;
+};
 type GoldApiResponse = {
   currency?: string;
   name?: string;
@@ -54,6 +58,15 @@ type MetalQuote = {
   source: string;
 };
 
+type MarketQuoteItem = {
+  label: string;
+  code: string;
+  price: string;
+  unit: string;
+  change: string;
+  up: boolean | null;
+};
+
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
@@ -64,16 +77,44 @@ async function getCurrencies() {
     const response = await fetch("https://open.er-api.com/v6/latest/USD", {
       headers: { Accept: "application/json" },
     });
-    if (!response.ok) return currencies;
+    if (!response.ok) return { currencies, quotedAt: null as string | null };
     const data = await response.json() as FxResponse;
     for (const code of ["TWD", "HKD", "CNY", "JPY", "EUR"]) {
       const rate = data.rates?.[code];
       if (isFiniteNumber(rate) && rate > 0) currencies[code] = rate;
     }
+    const quotedAt = isFiniteNumber(data.time_last_update_unix)
+      ? new Date(data.time_last_update_unix * 1000).toISOString()
+      : null;
+    return { currencies, quotedAt };
   } catch {
     // FX is optional for the international quote. Taiwan conversions fail closed downstream.
+    return { currencies, quotedAt: null as string | null };
   }
-  return currencies;
+}
+
+function buildMarketItems(gold: MetalQuote, usdTwd: number | null): MarketQuoteItem[] {
+  const changeAvailable = isFiniteNumber(gold.changePercent);
+  const numericChange = changeAvailable ? gold.changePercent as number : 0;
+  const direction = numericChange >= 0 ? "+" : "−";
+  const changeLabel = changeAvailable ? `${direction}${Math.abs(numericChange).toFixed(2)}%` : "有效參考價";
+  const up = changeAvailable ? (numericChange > 0 ? true : numericChange < 0 ? false : null) : null;
+  const referenceLabel = gold.basis === "futures" ? "COMEX 黃金期貨參考" : "國際黃金現貨參考";
+  const referenceCode = `${gold.symbol} · ${gold.basis === "futures" ? "Yahoo Finance" : "Gold API"}`;
+  const conversionCode = `${gold.symbol} × USD/TWD`;
+
+  const items: MarketQuoteItem[] = [
+    { label: referenceLabel, code: referenceCode, price: gold.price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), unit: "美元／金衡盎司", change: `${changeLabel} · ${gold.basis === "futures" ? "期貨參考" : "現貨參考"}`, up },
+  ];
+  if (usdTwd === null) return items;
+
+  const twdPerGram = gold.price * usdTwd / 31.1034768;
+  const twdPerQian = twdPerGram * 3.75;
+  return [...items,
+    { label: "台灣理論金價", code: conversionCode, price: Math.round(twdPerQian).toLocaleString("en-US"), unit: "新台幣／錢", change: "參考換算", up },
+    { label: "黃金每公克", code: conversionCode, price: Math.round(twdPerGram).toLocaleString("en-US"), unit: "新台幣／公克", change: "參考換算", up },
+    { label: "美元參考匯率", code: "USD / TWD · ExchangeRate-API", price: usdTwd.toFixed(4), unit: "新台幣", change: "非銀行即期牌告", up: null },
+  ];
 }
 
 async function getYahooQuote(instrument: Instrument): Promise<MetalQuote | null> {
@@ -176,23 +217,30 @@ async function getQuote(instrument: Instrument) {
 export async function GET() {
   try {
     // Resolve gold first so optional symbols cannot cause Yahoo burst limits to hide the main quote.
-    const [gold, currencies] = await Promise.all([getQuote(instruments[0]), getCurrencies()]);
+    const [gold, fx] = await Promise.all([getQuote(instruments[0]), getCurrencies()]);
     if (!gold) throw new Error("Gold quote missing");
+    const usdTwd = isFiniteNumber(fx.currencies.TWD) && fx.currencies.TWD > 0 ? fx.currencies.TWD : null;
 
     const optionalMetals = await Promise.all(instruments.slice(1).map(getQuote));
     const metals = [gold, ...optionalMetals.filter((metal): metal is MetalQuote => metal !== null)];
     const sources = [...new Set(metals.map((metal) => metal.source))];
+    const retrievedAt = new Date().toISOString();
 
     return NextResponse.json({
       metals,
-      currencies,
+      currencies: fx.currencies,
+      items: buildMarketItems(gold, usdTwd),
+      quotedAt: gold.quotedAt,
       updatedAt: gold.quotedAt,
-      retrievedAt: new Date().toISOString(),
-      source: `${sources.join(" + ")} · open.er-api.com FX`,
+      retrievedAt,
+      fxQuotedAt: fx.quotedAt,
+      marketStatus: getGoldMarketStatus(new Date(retrievedAt), gold.quotedAt),
+      quoteSource: gold.source,
+      source: `${sources.join(" + ")}${usdTwd === null ? "" : " · open.er-api.com FX"}`,
     }, { headers: { "Cache-Control": "public, max-age=180, s-maxage=180" } });
   } catch {
     return NextResponse.json(
-      { error: "global quotes unavailable" },
+      { error: "global quotes unavailable", retrievedAt: new Date().toISOString(), marketStatus: "unavailable" },
       { status: 503, headers: { "Cache-Control": "no-store" } },
     );
   }
