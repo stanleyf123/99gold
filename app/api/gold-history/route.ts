@@ -13,7 +13,7 @@ type YahooHistoryResponse = {
 };
 
 const periodConfig: Record<HistoryPeriod, { range: string; interval: string; cacheSeconds: number }> = {
-  "1D": { range: "1d", interval: "5m", cacheSeconds: 180 },
+  "1D": { range: "5d", interval: "5m", cacheSeconds: 180 },
   "1W": { range: "5d", interval: "30m", cacheSeconds: 300 },
   "1M": { range: "1mo", interval: "1d", cacheSeconds: 900 },
   "3M": { range: "3mo", interval: "1d", cacheSeconds: 1800 },
@@ -35,9 +35,13 @@ export async function GET(request: Request) {
     const result = data.chart?.result?.[0];
     const timestamps = result?.timestamp ?? [];
     const closes = result?.indicators?.quote?.[0]?.close ?? [];
-    const points = timestamps
+    const allPoints = timestamps
       .map((timestamp, index) => ({ timestamp, close: closes[index] }))
       .filter((point): point is { timestamp: number; close: number } => Number.isFinite(point.close));
+    const latestTimestamp = allPoints.at(-1)?.timestamp;
+    const points = period === "1D" && latestTimestamp
+      ? allPoints.filter((point) => point.timestamp >= latestTimestamp - 86_400)
+      : allPoints;
 
     if (points.length < 2) throw new Error("history data missing");
 

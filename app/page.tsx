@@ -12,7 +12,7 @@ import { categories, type NewsCategory } from "./news/categories";
 const initialQuotes: QuoteItem[] = [];
 
 const alertMarkets = [
-  { id: "spot", label: "COMEX 黃金期貨參考", value: Number.NaN, unit: "USD／盎司" },
+  { id: "spot", label: "國際黃金參考", value: Number.NaN, unit: "USD／盎司" },
   { id: "qian", label: "台灣理論金價", value: Number.NaN, unit: "TWD／錢" },
   { id: "gram", label: "黃金每公克", value: Number.NaN, unit: "TWD／公克" },
 ] as const;
@@ -38,6 +38,8 @@ type GlobalMetal = {
   currency: string;
   venue: string;
   series: MarketChartPoint[];
+  basis: "futures" | "spot";
+  source: string;
 };
 type HistoryStats = { open: number; close: number; high: number; low: number; change: number; changePercent: number };
 type SiteSettings = { brandName: string; fullName: string; englishName: string; tagline: string; announcement: string };
@@ -82,7 +84,24 @@ const unavailableGold: GlobalMetal = {
   currency: "USD",
   venue: "—",
   series: [],
+  basis: "futures",
+  source: "—",
 };
+
+function normalizeMetal(metal: GlobalMetal): GlobalMetal {
+  const numberOrNaN = (value: number) => Number.isFinite(value) ? value : Number.NaN;
+  return {
+    ...metal,
+    price: numberOrNaN(metal.price),
+    previousClose: numberOrNaN(metal.previousClose),
+    open: numberOrNaN(metal.open),
+    high: numberOrNaN(metal.high),
+    low: numberOrNaN(metal.low),
+    change: numberOrNaN(metal.change),
+    changePercent: numberOrNaN(metal.changePercent),
+    series: Array.isArray(metal.series) ? metal.series : [],
+  };
+}
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<"quotes" | "news" | "history" | "tools">("quotes");
@@ -151,7 +170,7 @@ export default function Home() {
       .then((response) => response.ok ? response.json() : Promise.reject())
       .then((data: { metals?: GlobalMetal[]; currencies?: Record<string, number>; updatedAt?: string }) => {
         if (disposed) return;
-        setGlobalMetals(data.metals ?? []);
+        setGlobalMetals((data.metals ?? []).map(normalizeMetal));
         setCurrencies(data.currencies ?? { USD: 1 });
         if (data.updatedAt) setGlobalUpdated(new Intl.DateTimeFormat("zh-TW", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Taipei" }).format(new Date(data.updatedAt)));
       })
@@ -255,6 +274,7 @@ export default function Home() {
   const filteredNews = news.filter((item) => newsCategory === "all" || (item.category ?? "macro") === newsCategory);
   const globalGold = globalMetals.find((metal) => metal.id === "gold") ?? unavailableGold;
   const globalAvailable = Number.isFinite(globalGold.price);
+  const globalChangeAvailable = Number.isFinite(globalGold.changePercent) && Number.isFinite(globalGold.change);
   const intradayPoints = globalGold.series.length > 1 ? globalGold.series : [];
   const intradayRange = globalGold.high - globalGold.low;
   const intradayPosition = globalAvailable && Number.isFinite(intradayRange) && intradayRange > 0
@@ -326,12 +346,12 @@ export default function Home() {
                 </dl>
               </section>
 
-              <section className="terminalChartBlock" aria-label={t("COMEX 黃金期貨日內走勢", "COMEX gold futures intraday chart", "COMEX金先物の日中チャート")}>
+              <section className="terminalChartBlock" aria-label={t("黃金盤中參考走勢", "Gold intraday reference chart", "金価格の日中参考チャート")}>
                 <div className="terminalChartHead">
-                  <div><span>COMEX · GC=F</span><h3>{t("黃金期貨日內走勢", "Gold futures intraday", "金先物の日中推移")}</h3></div>
-                  <div><strong>{priceFormatter.format(globalGold.price)}</strong><span className={globalAvailable ? (globalGold.changePercent >= 0 ? "up" : "down") : undefined}>{globalAvailable ? (globalGold.changePercent >= 0 ? "▲" : "▼") : ""} {percentFormatter(globalGold.changePercent)}</span></div>
+                  <div><span>{globalGold.venue} · {globalGold.symbol}</span><h3>{t("黃金盤中參考走勢", "Gold intraday reference", "金価格の日中参考推移")}</h3></div>
+                  <div><strong>{priceFormatter.format(globalGold.price)}</strong><span className={globalChangeAvailable ? (globalGold.changePercent >= 0 ? "up" : "down") : undefined}>{globalChangeAvailable ? (globalGold.changePercent >= 0 ? "▲" : "▼") : ""} {percentFormatter(globalGold.changePercent)}</span></div>
                 </div>
-                {intradayPoints.length > 1 ? <MarketLineChart key={`intraday-${intradayPoints.length}-${intradayPoints[intradayPoints.length - 1]?.timestamp ?? 0}`} points={intradayPoints} positive={globalGold.changePercent >= 0} locale={locale} period="1D" currency="USD" ariaLabel={t("COMEX 黃金期貨日內參考價格走勢", "COMEX gold futures intraday reference chart", "COMEX金先物の日中参考価格チャート")} /> : <div className="marketChartUnavailable">{t("等待有效日內行情", "Waiting for valid intraday data", "有効な日中データを待っています")}</div>}
+                {intradayPoints.length > 1 ? <MarketLineChart key={`intraday-${intradayPoints.length}-${intradayPoints[intradayPoints.length - 1]?.timestamp ?? 0}`} points={intradayPoints} positive={globalChangeAvailable && globalGold.changePercent >= 0} locale={locale} period="1D" currency="USD" ariaLabel={t("黃金盤中參考價格走勢", "Gold intraday reference chart", "金価格の日中参考チャート")} /> : <div className="marketChartUnavailable">{t("此來源未提供可驗證的盤中序列", "No verified intraday series from this source", "この情報源には検証可能な日中データがありません")}</div>}
                 <div className="chartMicroStats">
                   <span>O <b>{priceFormatter.format(globalGold.open)}</b></span>
                   <span>H <b>{priceFormatter.format(globalGold.high)}</b></span>
@@ -342,7 +362,7 @@ export default function Home() {
 
               <aside className="quoteSnapshot">
                 <div className="snapshotTitle"><span>MARKET SNAPSHOT</span><strong>{t("今日市場狀態", "Today’s market", "本日の市場")}</strong></div>
-                <div className="marketDirection"><span className={globalAvailable ? (globalGold.changePercent >= 0 ? "up" : "down") : undefined}>{globalAvailable ? (globalGold.changePercent >= 0 ? "▲" : "▼") : "—"}</span><div><strong>{!globalAvailable ? t("行情暫不可用", "Quote unavailable", "相場データなし") : globalGold.changePercent >= 0 ? t("多方上行", "Advancing", "上昇") : t("空方回落", "Declining", "下落")}</strong><small>{percentFormatter(globalGold.changePercent)} · {priceFormatter.format(globalGold.change)}</small></div></div>
+                <div className="marketDirection"><span className={globalChangeAvailable ? (globalGold.changePercent >= 0 ? "up" : "down") : undefined}>{globalChangeAvailable ? (globalGold.changePercent >= 0 ? "▲" : "▼") : "—"}</span><div><strong>{!globalAvailable ? t("行情暫不可用", "Quote unavailable", "相場データなし") : !globalChangeAvailable ? t("有效參考價", "Valid reference", "有効な参考値") : globalGold.changePercent >= 0 ? t("多方上行", "Advancing", "上昇") : t("空方回落", "Declining", "下落")}</strong><small>{globalChangeAvailable ? `${percentFormatter(globalGold.changePercent)} · ${priceFormatter.format(globalGold.change)}` : t("來源未提供前收比較", "Previous-close comparison unavailable", "前日終値比較なし")}</small></div></div>
                 <div className="dayRange">
                   <div><span>{t("日內位置", "DAY POSITION", "日中位置")}</span><strong>{Number.isFinite(intradayPosition) ? `${intradayPosition.toFixed(0)}%` : "—"}</strong></div>
                   <div className="dayRangeTrack"><i style={{ width: `${Number.isFinite(intradayPosition) ? intradayPosition : 0}%` }} /></div>
@@ -358,7 +378,7 @@ export default function Home() {
               </aside>
             </div>
 
-            <div className="conversionHeader"><div><span>TAIWAN GOLD CONVERSION</span><strong>{t("台灣黃金換算", "Taiwan gold conversions", "台湾金換算")}</strong></div><small>{t("依 GC 黃金期貨參考與 USD/TWD 換算", "Calculated from GC futures reference and USD/TWD", "GC金先物参考値とUSD/TWDで換算")}</small></div>
+            <div className="conversionHeader"><div><span>TAIWAN GOLD CONVERSION</span><strong>{t("台灣黃金換算", "Taiwan gold conversions", "台湾金換算")}</strong></div><small>{t("依有效國際黃金參考價與 USD/TWD 換算", "Calculated from a valid international gold reference and USD/TWD", "有効な国際金参考値とUSD/TWDで換算")}</small></div>
             <div className="conversionCards">
               {quotes.slice(1).map((quote) => (
                 <article key={quote.label}>
@@ -374,7 +394,7 @@ export default function Home() {
             <div className="proQuoteTableScroll">
               <table className="proQuoteTable">
                 <thead><tr><th>{t("商品", "Instrument", "商品")}</th><th>{t("最新價", "Last", "最新値")}</th><th>{t("漲跌", "Change", "騰落")}</th><th>{t("開盤", "Open", "始値")}</th><th>{t("最高", "High", "高値")}</th><th>{t("最低", "Low", "安値")}</th><th>{t("市場", "Venue", "市場")}</th></tr></thead>
-                <tbody>{globalMetals.map((metal) => <tr key={metal.id}><td><strong>{metal.symbol}</strong><span>{locale === "en" ? metal.englishName : metal.name}</span></td><td>{priceFormatter.format(metal.price)}</td><td><b className={metal.changePercent >= 0 ? "up" : "down"}>{metal.changePercent >= 0 ? "▲" : "▼"} {percentFormatter(metal.changePercent)}</b></td><td>{priceFormatter.format(metal.open)}</td><td>{priceFormatter.format(metal.high)}</td><td>{priceFormatter.format(metal.low)}</td><td>{metal.venue}</td></tr>)}{globalMetals.length === 0 && <tr><td colSpan={7} className="tableUnavailable">{t("行情來源暫時無法連線", "Market data source is temporarily unavailable", "市場データソースに接続できません")}</td></tr>}</tbody>
+                <tbody>{globalMetals.map((metal) => { const hasChange = Number.isFinite(metal.changePercent); return <tr key={metal.id}><td><strong>{metal.symbol}</strong><span>{locale === "en" ? metal.englishName : metal.name}</span></td><td>{priceFormatter.format(metal.price)}</td><td><b className={hasChange ? metal.changePercent >= 0 ? "up" : "down" : undefined}>{hasChange ? `${metal.changePercent >= 0 ? "▲" : "▼"} ${percentFormatter(metal.changePercent)}` : "—"}</b></td><td>{priceFormatter.format(metal.open)}</td><td>{priceFormatter.format(metal.high)}</td><td>{priceFormatter.format(metal.low)}</td><td>{metal.venue}</td></tr>; })}{globalMetals.length === 0 && <tr><td colSpan={7} className="tableUnavailable">{t("行情來源暫時無法連線", "Market data source is temporarily unavailable", "市場データソースに接続できません")}</td></tr>}</tbody>
               </table>
             </div>
 
@@ -382,7 +402,7 @@ export default function Home() {
               <span>FX REFERENCE</span>
               {["TWD", "HKD", "CNY", "JPY", "EUR"].map((code) => <div key={code}><small>USD / {code}</small><strong>{currencies[code]?.toLocaleString("en-US", { minimumFractionDigits: code === "JPY" ? 2 : 4, maximumFractionDigits: 4 }) ?? "—"}</strong></div>)}
             </div>
-            <p className="quoteMethodology"><b>{t("讀價說明：", "How to read these prices: ", "価格の見方：")}</b>{t("GC=F 為 COMEX 黃金期貨參考，不是現貨 XAU/USD 或銀樓可成交牌價。台灣理論價未含銀樓溢價、工費、稅費與即時買賣價差；來源無有效資料時本站不顯示估造價格。", "GC=F is a COMEX gold futures reference, not spot XAU/USD or an executable retail quote. Taiwan conversions exclude dealer premiums, workmanship, taxes and live spreads; no estimated price is shown when sources are unavailable.", "GC=FはCOMEX金先物の参考値で、現物XAU/USDや店頭取引価格ではありません。台湾換算値に店頭プレミアム、加工費、税金、スプレッドは含まず、データ取得不可時は推定値を表示しません。")}</p>
+            <p className="quoteMethodology"><b>{t("讀價說明：", "How to read these prices: ", "価格の見方：")}</b>{t("報價優先採 Yahoo Finance GC=F 期貨參考；來源受限時改列 Gold API XAU/USD 公開現貨參考，商品代碼、來源與缺少欄位會如實標示。台灣理論價未含銀樓溢價、工費、稅費與即時買賣價差；無有效來源時不顯示估造價格。", "Quotes prefer the Yahoo Finance GC=F futures reference. If it is limited, the site clearly switches to the public Gold API XAU/USD spot reference and leaves unsupported fields blank. Taiwan conversions exclude dealer premiums, workmanship, taxes and live spreads; no estimated price is shown without a valid source.", "相場はYahoo FinanceのGC=F先物を優先し、制限時はGold APIのXAU/USD公開現物参考値へ明示的に切り替え、未提供項目は空欄にします。台湾換算値に店頭プレミアム、加工費、税金、スプレッドは含まず、有効な情報源がない場合は推定値を表示しません。")}</p>
           </div>
         )}
 
@@ -432,7 +452,7 @@ export default function Home() {
                   <div className="dayRangeTrack"><i style={{ width: `${historyAvailable && historyStats.high > historyStats.low ? Math.max(0, Math.min(100, ((historyStats.close - historyStats.low) / (historyStats.high - historyStats.low)) * 100)) : 0}%` }} /></div>
                   <div><small>{priceFormatter.format(historyStats.low)}</small><small>{priceFormatter.format(historyStats.high)}</small></div>
                 </div>
-                <div className="historyMethod"><b>{t("期間定義", "Period definition", "期間定義")}</b><p>{period === "1D" ? t("當日 5 分鐘級別", "Today · 5-minute intervals", "当日・5分足") : period === "1W" ? t("近 5 個交易日 · 30 分鐘級別", "5 trading days · 30-minute intervals", "5営業日・30分足") : period === "1M" ? t("近 1 個月 · 日線", "1 month · daily close", "1か月・日足") : period === "3M" ? t("近 3 個月 · 日線", "3 months · daily close", "3か月・日足") : t("近 1 年 · 週線", "1 year · weekly close", "1年・週足")}</p></div>
+                <div className="historyMethod"><b>{t("期間定義", "Period definition", "期間定義")}</b><p>{period === "1D" ? t("最近完整交易時段 · 5 分鐘級別", "Latest complete session · 5-minute intervals", "直近の取引セッション・5分足") : period === "1W" ? t("近 5 個交易日 · 30 分鐘級別", "5 trading days · 30-minute intervals", "5営業日・30分足") : period === "1M" ? t("近 1 個月 · 日線", "1 month · daily close", "1か月・日足") : period === "3M" ? t("近 3 個月 · 日線", "3 months · daily close", "3か月・日足") : t("近 1 年 · 週線", "1 year · weekly close", "1年・週足")}</p></div>
               </aside>
             </div>
 

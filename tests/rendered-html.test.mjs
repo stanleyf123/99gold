@@ -31,12 +31,14 @@ test("keeps quote history, data transparency and responsive styles wired", async
 
   assert.match(page, /\["1D", "1W", "1M", "3M", "1Y"\]/);
   assert.match(page, /非可成交報價/);
-  assert.match(page, /不是現貨 XAU\/USD/);
+  assert.match(page, /來源受限時改列 Gold API XAU\/USD/);
   assert.match(page, /不顯示估造價格/);
   assert.match(chart, /ResizeObserver/);
   assert.match(chart, /role="img"/);
   assert.match(quoteApi, /regularMarketDayHigh/);
   assert.match(quoteApi, /sessionOpen/);
+  assert.match(quoteApi, /api\.gold-api\.com\/price/);
+  assert.match(quoteApi, /Resolve gold first/);
   assert.match(historyApi, /GC%3DF/);
   assert.match(historyApi, /periodConfig/);
   assert.doesNotMatch(page, /fallbackHistory|fallbackMetals/);
