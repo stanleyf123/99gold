@@ -36,6 +36,7 @@ test("keeps quote history, data transparency and responsive styles wired", async
   assert.match(chart, /ResizeObserver/);
   assert.match(chart, /role="img"/);
   assert.match(quoteApi, /regularMarketDayHigh/);
+  assert.match(quoteApi, /sessionOpen/);
   assert.match(historyApi, /GC%3DF/);
   assert.match(historyApi, /periodConfig/);
   assert.doesNotMatch(page, /fallbackHistory|fallbackMetals/);

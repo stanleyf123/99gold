@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { env } from "cloudflare:workers";
 import { editorials } from "../editorial";
@@ -27,5 +28,5 @@ export default async function NewsArticle({params}:{params:Promise<{id:string}>}
  const row=await getArticle(id);if(!row)notFound();const t=labels[row.locale];
  const related=(await env.DB.prepare("SELECT id,locale FROM news_articles WHERE source_url = ?").bind(row.source_url).all<{id:string;locale:string}>()).results;
  const structured={"@context":"https://schema.org","@type":"NewsArticle",headline:row.title,datePublished:row.published_at,inLanguage:row.locale==="zh"?"zh-Hant":row.locale,isBasedOn:row.source_url};
- return <main className="articlePage" lang={row.locale==="zh"?"zh-Hant":row.locale}><nav className="articleNav"><a href="/">99GOLD.NET</a><a href="/">{t.home}</a>{related.map(r=><a key={r.id} href={"/news/"+r.id} hrefLang={r.locale}>{r.locale==="zh"?"繁中":r.locale==="ja"?"日本語":"English"}</a>)}</nav><article><p className="articleKicker">FEDERAL RESERVE · {row.published_at.slice(0,10)}</p><h1>{row.title}</h1><p>{t.note}</p>{row.body.split(/\n\n+/).map((p,i)=><p key={i} style={{lineHeight:1.9,marginBottom:"1.25rem"}}>{p}</p>)}<p className="articleSource">{t.saved}: {row.fetched_at}<br/><a href={row.source_url} target="_blank" rel="noreferrer">{t.source} ↗</a></p></article><script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify(structured).replace(/</g,"\\u003c")}}/></main>;
+ return <main className="articlePage" lang={row.locale==="zh"?"zh-Hant":row.locale}><nav className="articleNav"><Link href="/">99GOLD.NET</Link><Link href="/">{t.home}</Link>{related.map(r=><Link key={r.id} href={"/news/"+r.id} hrefLang={r.locale}>{r.locale==="zh"?"繁中":r.locale==="ja"?"日本語":"English"}</Link>)}</nav><article><p className="articleKicker">FEDERAL RESERVE · {row.published_at.slice(0,10)}</p><h1>{row.title}</h1><p>{t.note}</p>{row.body.split(/\n\n+/).map((p,i)=><p key={i} style={{lineHeight:1.9,marginBottom:"1.25rem"}}>{p}</p>)}<p className="articleSource">{t.saved}: {row.fetched_at}<br/><a href={row.source_url} target="_blank" rel="noreferrer">{t.source} ↗</a></p></article><script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify(structured).replace(/</g,"\\u003c")}}/></main>;
 }

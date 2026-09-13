@@ -7,7 +7,6 @@ type YahooResponse = {
       meta?: {
         regularMarketPrice?: number;
         previousClose?: number;
-        regularMarketOpen?: number;
         regularMarketDayHigh?: number;
         regularMarketDayLow?: number;
         regularMarketTime?: number;
@@ -15,7 +14,7 @@ type YahooResponse = {
         exchangeName?: string;
       };
       timestamp?: number[];
-      indicators?: { quote?: Array<{ close?: Array<number | null> }> };
+      indicators?: { quote?: Array<{ open?: Array<number | null>; close?: Array<number | null> }> };
     }>;
   };
 };
@@ -55,14 +54,16 @@ export async function GET() {
       if (
         !isFiniteNumber(meta?.regularMarketPrice)
         || !isFiniteNumber(meta?.previousClose)
-        || !isFiniteNumber(meta?.regularMarketOpen)
         || !isFiniteNumber(meta?.regularMarketDayHigh)
         || !isFiniteNumber(meta?.regularMarketDayLow)
         || !isFiniteNumber(meta?.regularMarketTime)
       ) return null;
 
       const timestamps = result?.timestamp ?? [];
-      const closes = result?.indicators?.quote?.[0]?.close ?? [];
+      const quote = result?.indicators?.quote?.[0];
+      const closes = quote?.close ?? [];
+      const sessionOpen = quote?.open?.find(isFiniteNumber);
+      if (!isFiniteNumber(sessionOpen)) return null;
       const series = index === 0
         ? timestamps
           .map((timestamp, pointIndex) => ({ timestamp, close: closes[pointIndex] }))
@@ -78,7 +79,7 @@ export async function GET() {
         englishName: instruments[index][3],
         price,
         previousClose,
-        open: meta.regularMarketOpen,
+        open: sessionOpen,
         high: meta.regularMarketDayHigh,
         low: meta.regularMarketDayLow,
         change: price - previousClose,
