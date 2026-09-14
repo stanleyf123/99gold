@@ -1,14 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { t, useSiteLocale } from "./locale";
+import { LOCALE_STORAGE_KEY, t, type Locale } from "./locale";
+
+function localeFromDevice(): Locale {
+  try {
+    const stored = window.localStorage.getItem(LOCALE_STORAGE_KEY);
+    if (stored === "en" || stored === "ja" || stored === "zh") return stored;
+  } catch {
+    /* ignore */
+  }
+  return "zh";
+}
 
 export default function PwaRegister() {
-  const { locale } = useSiteLocale();
+  const [locale, setLocale] = useState<Locale>("zh");
   const [offline, setOffline] = useState(false);
   const [cachedQuotes, setCachedQuotes] = useState(false);
 
   useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setLocale(localeFromDevice()));
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => undefined);
     }
@@ -17,6 +28,7 @@ export default function PwaRegister() {
     window.addEventListener("online", update);
     window.addEventListener("offline", update);
     return () => {
+      window.cancelAnimationFrame(frame);
       window.removeEventListener("online", update);
       window.removeEventListener("offline", update);
     };
