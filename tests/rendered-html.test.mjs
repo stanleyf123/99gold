@@ -86,6 +86,10 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.doesNotMatch(page, /marketHub[\s\S]*marketRadar/);
   assert.doesNotMatch(page, /brandCover|aspect-ratio:1200\/630/);
   assert.doesNotMatch(section, /<SiteHeader/);
+  assert.match(section, /getGlobalQuotes/);
+  assert.match(section, /buildSectionView/);
+  assert.match(section, /redirect\("\/news"\)/);
+  assert.doesNotMatch(section, /此頁尚無可驗證的即時資料/);
   assert.doesNotMatch(globalPage, /<SiteHeader/);
   assert.doesNotMatch(globalPage, /globalNav/);
   assert.doesNotMatch(news, /<SiteHeader/);
@@ -99,9 +103,10 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
 });
 
 test("keeps quote history, data transparency and responsive styles wired", async () => {
-  const [page, chart, quoteApi, historyApi, styles, layout] = await Promise.all([
+  const [page, chart, quoteApi, quoteRoute, historyApi, styles, layout] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/MarketLineChart.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../lib/quotes.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/global-quotes/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/gold-history/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/quotes.css", import.meta.url), "utf8"),
@@ -120,6 +125,8 @@ test("keeps quote history, data transparency and responsive styles wired", async
   assert.match(quoteApi, /Resolve gold first/);
   assert.match(quoteApi, /quotedAt: gold\.quotedAt/);
   assert.match(quoteApi, /retrievedAt/);
+  assert.match(quoteRoute, /getGlobalQuotes/);
+  assert.match(quoteRoute, /lib\/quotes/);
   assert.match(page, /行情時間/);
   assert.match(page, /本站檢查/);
   assert.match(page, /週末休市/);
