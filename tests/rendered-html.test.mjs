@@ -273,15 +273,22 @@ test("ships a scheduled auto-publish news pipeline", async () => {
   assert.match(translations, /title_zh/);
   assert.match(translations, /translation_provider/);
   assert.match(admin, /requireAdmin/);
+  assert.match(admin, /reviewNewsCandidate/);
   assert.match(admin, /currentSourceHealth/);
   assert.match(sources, /ons-release-calendar/);
   assert.match(sources, /hm-treasury-news/);
   assert.doesNotMatch(sources, /bank-of-england-speeches/);
   assert.doesNotMatch(service, /fetch\(/);
   assert.match(service, /localizedBriefFields/);
+  assert.match(service, /briefLabels/);
+  assert.doesNotMatch(service, /sourceName:r\.source_name/);
   assert.match(newsPage, /無需人工核准/);
+  assert.match(newsPage, /市場快訊/);
   assert.doesNotMatch(newsPage, /經管理者核准/);
+  assert.doesNotMatch(newsPage, /官方來源快訊/);
   assert.match(homeView, /自動檢查、翻譯並上架/);
+  assert.match(homeView, /MARKET BRIEF/);
+  assert.doesNotMatch(homeView, /<small>OFFICIAL SOURCE<\/small>/);
 });
 
 test("wires 30-90 day charts, metal comparison, browser alerts, OG route and PWA shell", async () => {

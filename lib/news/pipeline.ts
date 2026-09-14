@@ -1,7 +1,14 @@
 import { inspectFeedResponse, newsFeedHeaders } from "./feed-client";
 import { canonicalizeUrl, normalizedTitle, parseFeed, sha256 } from "./normalize";
 import { newsSources, sourceAcceptsTitle } from "./source-config";
-import { AUTO_PIPELINE_REVIEWER, translateOfficialBrief } from "./translate";
+import {
+  AUTO_PIPELINE_REVIEWER,
+  cleanSourceText,
+  looksLikeTargetLocale,
+  translateOfficialBrief,
+  type LocalizedBrief,
+  type TranslationProvider,
+} from "./translate";
 
 type StatementResult = { meta?: { changes?: number } };
 type NewsStatement = {
@@ -82,46 +89,135 @@ type PublishableCandidate = {
   title: string;
   summary: string | null;
   source_language: string;
+  title_zh?: string | null;
+  title_en?: string | null;
+  title_ja?: string | null;
+  summary_zh?: string | null;
+  summary_en?: string | null;
+  summary_ja?: string | null;
+  translation_provider?: string | null;
 };
 
-async function autoPublishReadyCandidates(db: NewsDatabase, now: string) {
-  const pending = await db.prepare(`SELECT id, title, summary, source_language
+const candidateSelect = `id, title, summary, source_language,
+  title_zh, title_en, title_ja, summary_zh, summary_en, summary_ja, translation_provider`;
+
+async function translationsFor(candidate: PublishableCandidate): Promise<LocalizedBrief> {
+  if (
+    looksLikeTargetLocale(candidate.title_zh ?? "", "zh", candidate.title)
+    && looksLikeTargetLocale(candidate.title_ja ?? "", "ja", candidate.title)
+  ) {
+    return {
+      titles: {
+        zh: candidate.title_zh ?? candidate.title,
+        en: candidate.title_en?.trim() || cleanSourceText(candidate.title),
+        ja: candidate.title_ja ?? candidate.title,
+      },
+      summaries: {
+        zh: candidate.summary_zh ?? null,
+        en: candidate.summary_en ?? candidate.summary,
+        ja: candidate.summary_ja ?? null,
+      },
+      provider: (candidate.translation_provider as TranslationProvider) || "source",
+      translated: true,
+    };
+  }
+  return translateOfficialBrief(candidate.title, candidate.summary, candidate.source_language || "en");
+}
+
+async function markCandidatePublished(
+  db: NewsDatabase,
+  candidate: PublishableCandidate,
+  now: string,
+  reviewedBy: string,
+  scheduledFor = now,
+) {
+  const translated = await translationsFor(candidate);
+  const result = await db.prepare(`UPDATE news_candidates SET
+    title_zh = ?, title_en = ?, title_ja = ?,
+    summary_zh = ?, summary_en = ?, summary_ja = ?,
+    translation_provider = ?, translated_at = ?,
+    status = 'published', scheduled_for = ?, reviewed_at = ?,
+    reviewed_by = ?, published_at = ?
+    WHERE id = ? AND status IN ('pending', 'approved')`)
+    .bind(
+      translated.titles.zh,
+      translated.titles.en,
+      translated.titles.ja,
+      translated.summaries.zh,
+      translated.summaries.en,
+      translated.summaries.ja,
+      translated.provider,
+      now,
+      scheduledFor,
+      now,
+      reviewedBy,
+      now,
+      candidate.id,
+    ).run();
+  return result.meta?.changes ?? 0;
+}
+
+export async function publishReadyCandidates(db: NewsDatabase, now = new Date().toISOString()) {
+  const pending = await db.prepare(`SELECT ${candidateSelect}
     FROM news_candidates
-    WHERE status IN ('pending', 'approved')
-    ORDER BY source_published_at DESC`).all<PublishableCandidate>();
-  const rows = pending?.results ?? [];
+    WHERE status = 'pending'
+       OR (status = 'approved' AND (scheduled_for IS NULL OR scheduled_for <= ?))
+    ORDER BY source_published_at DESC`)
+    .bind(now).all<PublishableCandidate>();
   let publishedCount = 0;
-  for (const candidate of rows) {
-    const translated = await translateOfficialBrief(
-      candidate.title,
-      candidate.summary,
-      candidate.source_language || "en",
-    );
-    const result = await db.prepare(`UPDATE news_candidates SET
-      title_zh = ?, title_en = ?, title_ja = ?,
-      summary_zh = ?, summary_en = ?, summary_ja = ?,
-      translation_provider = ?, translated_at = ?,
-      status = 'published', scheduled_for = ?, reviewed_at = ?,
-      reviewed_by = ?, published_at = ?
-      WHERE id = ? AND status IN ('pending', 'approved')`)
-      .bind(
-        translated.titles.zh,
-        translated.titles.en,
-        translated.titles.ja,
-        translated.summaries.zh,
-        translated.summaries.en,
-        translated.summaries.ja,
-        translated.provider,
-        now,
-        now,
-        now,
-        AUTO_PIPELINE_REVIEWER,
-        now,
-        candidate.id,
-      ).run();
-    publishedCount += result.meta?.changes ?? 0;
+  for (const candidate of pending?.results ?? []) {
+    publishedCount += await markCandidatePublished(db, candidate, now, AUTO_PIPELINE_REVIEWER);
   }
   return publishedCount;
+}
+
+export type NewsReviewResult = {
+  id: string;
+  status: "published" | "approved" | "rejected";
+  scheduledFor?: string;
+  publishedAt?: string;
+};
+
+export async function reviewNewsCandidate(
+  db: NewsDatabase,
+  input: {
+    id: string;
+    action: "approve" | "reject";
+    scheduledFor?: Date;
+    reviewedBy: string;
+    now?: Date;
+  },
+): Promise<NewsReviewResult | null> {
+  const now = input.now ?? new Date();
+  const nowIso = now.toISOString();
+  if (input.action === "reject") {
+    const result = await db.prepare(`UPDATE news_candidates SET
+      status = 'rejected', reviewed_at = ?, reviewed_by = ?, scheduled_for = NULL
+      WHERE id = ? AND status IN ('pending', 'approved')`)
+      .bind(nowIso, input.reviewedBy, input.id).run();
+    if (!(result.meta?.changes ?? 0)) return null;
+    return { id: input.id, status: "rejected" };
+  }
+
+  const scheduled = input.scheduledFor ?? now;
+  if (Number.isNaN(scheduled.getTime())) throw new Error("invalid-schedule");
+  const row = await db.prepare(`SELECT ${candidateSelect}
+    FROM news_candidates
+    WHERE id = ? AND status IN ('pending', 'approved')`)
+    .bind(input.id).first<PublishableCandidate>();
+  if (!row) return null;
+  if (scheduled.getTime() <= now.getTime()) {
+    const changes = await markCandidatePublished(db, row, nowIso, input.reviewedBy, scheduled.toISOString());
+    if (!changes) return null;
+    return { id: input.id, status: "published", scheduledFor: scheduled.toISOString(), publishedAt: nowIso };
+  }
+
+  const result = await db.prepare(`UPDATE news_candidates SET
+    status = 'approved', scheduled_for = ?, reviewed_at = ?, reviewed_by = ?
+    WHERE id = ? AND status IN ('pending', 'approved')`)
+    .bind(scheduled.toISOString(), nowIso, input.reviewedBy, input.id).run();
+  if (!(result.meta?.changes ?? 0)) return null;
+  return { id: input.id, status: "approved", scheduledFor: scheduled.toISOString() };
 }
 
 export async function runNewsPipeline(
@@ -239,7 +335,7 @@ export async function runNewsPipeline(
     }
   }
 
-  const publishedCount = await autoPublishReadyCandidates(db, new Date().toISOString());
+  const publishedCount = await publishReadyCandidates(db, scheduledFor.toISOString());
   const status: NewsRunSummary["status"] = errorCount === 0 ? "succeeded" : errorCount < newsSources.length ? "partial" : "failed";
   const finishedAt = new Date().toISOString();
   await db.prepare(`UPDATE news_runs SET

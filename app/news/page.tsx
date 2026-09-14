@@ -95,14 +95,14 @@ export default async function NewsIndex({ searchParams }: { searchParams: Promis
     })}</div>
 
     {officialRows.length > 0 && <section className="officialBriefs">
-      <p className="articleKicker">SCHEDULED OFFICIAL SOURCES</p>
-      <h2>{locale === "zh" ? "官方來源快訊" : locale === "ja" ? "公式情報源速報" : "Official-source briefs"}</h2>
+      <p className="articleKicker">MARKET BRIEFS</p>
+      <h2>{locale === "zh" ? "市場快訊" : locale === "ja" ? "市場速報" : "Market briefs"}</h2>
       <div>{officialRows.map((item) => {
         const excerpt = newsExcerpt(item.summary);
         return <article key={String(item.id)} className="officialBriefCard">
         <p><b>{categories[safeItemCategory(item.category)][locale]}</b><time dateTime={item.sourcePublishedAt}>{item.date}</time></p>
         <h3><a href={item.url} target="_blank" rel="noreferrer">{item.title} ↗</a></h3>
-        {excerpt ? <p className="newsExcerpt">{excerpt}</p> : <p className="newsExcerptMuted">{locale === "zh" ? "來源未提供摘要。" : locale === "ja" ? "情報源に要約がありません。" : "The source did not provide an excerpt."}</p>}
+        {excerpt ? <p className="newsExcerpt">{excerpt}</p> : <p className="newsExcerptMuted">{locale === "zh" ? "這則快訊沒有可顯示的摘要。" : locale === "ja" ? "この速報には表示できる要約がありません。" : "No excerpt is available for this brief."}</p>}
         <small>{item.sourceName}{item.translationLabel ? ` · ${item.translationLabel}` : ""}</small>
       </article>;
       })}</div>

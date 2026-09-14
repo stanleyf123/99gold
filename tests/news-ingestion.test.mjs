@@ -37,6 +37,7 @@ function moduleFrom(path, extras = {}) {
 const normalize = moduleFrom("../lib/news/normalize.ts");
 const sources = moduleFrom("../lib/news/source-config.ts");
 const feedClient = moduleFrom("../lib/news/feed-client.ts");
+const translateLib = moduleFrom("../lib/news/translate.ts");
 
 function loadPipeline(translate = defaultTranslate()) {
   const mocks = {
@@ -56,6 +57,8 @@ function loadPipeline(translate = defaultTranslate()) {
 function defaultTranslate() {
   return {
     AUTO_PIPELINE_REVIEWER: "auto-pipeline",
+    cleanSourceText: translateLib.cleanSourceText,
+    looksLikeTargetLocale: translateLib.looksLikeTargetLocale,
     translateOfficialBrief: async (title, summary) => ({
       titles: { zh: `中文：${title}`, en: title, ja: `日本語：${title}` },
       summaries: {
@@ -135,8 +138,27 @@ function memoryDb(seed = []) {
             row.summary_ja = bound[5];
             row.translation_provider = bound[6];
             row.status = "published";
+            row.scheduled_for = bound[8];
             row.reviewed_by = bound[10];
             row.published_at = bound[11];
+            return { meta: { changes: 1 } };
+          }
+          if (q.includes("UPDATE news_candidates") && q.includes("status = 'rejected'")) {
+            const id = bound[bound.length - 1];
+            const row = candidates.find((item) => item.id === id && (item.status === "pending" || item.status === "approved"));
+            if (!row) return { meta: { changes: 0 } };
+            row.status = "rejected";
+            row.reviewed_by = bound[1];
+            row.scheduled_for = null;
+            return { meta: { changes: 1 } };
+          }
+          if (q.includes("UPDATE news_candidates") && q.includes("status = 'approved'")) {
+            const id = bound[bound.length - 1];
+            const row = candidates.find((item) => item.id === id && (item.status === "pending" || item.status === "approved"));
+            if (!row) return { meta: { changes: 0 } };
+            row.status = "approved";
+            row.scheduled_for = bound[0];
+            row.reviewed_by = bound[2];
             return { meta: { changes: 1 } };
           }
           if (q.includes("UPDATE news_candidates") && q.includes("published")) return { meta: { changes: 0 } };
@@ -156,8 +178,14 @@ function memoryDb(seed = []) {
         },
         async all() {
           if (q.includes("FROM news_candidates") && q.includes("pending")) {
+            const cutoff = bound[0];
             return {
-              results: candidates.filter((item) => item.status === "pending" || item.status === "approved"),
+              results: candidates.filter((item) => {
+                if (item.status === "pending") return true;
+                if (item.status !== "approved") return false;
+                if (!item.scheduled_for || !cutoff) return true;
+                return item.scheduled_for <= cutoff;
+              }),
             };
           }
           return { results: [] };
@@ -485,6 +513,16 @@ test("pipeline auto-publishes existing pending rows and never publishes rejected
       summary: "Waiting on schedule",
       source_language: "en",
       status: "approved",
+      scheduled_for: "2026-09-14T12:00:00.000Z",
+    },
+    {
+      id: "approved-future",
+      url: "https://www.federalreserve.gov/later.htm",
+      title: "Future scheduled brief",
+      summary: "Not due yet",
+      source_language: "en",
+      status: "approved",
+      scheduled_for: "2026-09-14T18:00:00.000Z",
     },
     {
       id: "rejected-1",
@@ -502,6 +540,61 @@ test("pipeline auto-publishes existing pending rows and never publishes rejected
   assert.equal(db.candidates.find((item) => item.id === "old-pending")?.reviewed_by, "auto-pipeline");
   assert.equal(db.candidates.find((item) => item.id === "old-pending")?.translation_provider, "mymemory");
   assert.equal(db.candidates.find((item) => item.id === "approved-row")?.status, "published");
+  assert.equal(db.candidates.find((item) => item.id === "approved-future")?.status, "approved");
   assert.equal(db.candidates.find((item) => item.id === "rejected-1")?.status, "rejected");
   assert.equal(db.candidates.find((item) => item.id === "rejected-1")?.title_zh, undefined);
+});
+
+test("admin approve publishes immediately when scheduled_for is due", async () => {
+  const { reviewNewsCandidate } = loadPipeline();
+  const db = memoryDb([
+    {
+      id: "due-1",
+      url: "https://www.federalreserve.gov/due.htm",
+      title: "Due brief",
+      summary: "Publish now",
+      source_language: "en",
+      status: "pending",
+    },
+  ]);
+  const now = new Date("2026-09-14T13:00:00Z");
+  const published = await reviewNewsCandidate(db, {
+    id: "due-1",
+    action: "approve",
+    reviewedBy: "admin@99gold.net",
+    now,
+  });
+  assert.equal(published.status, "published");
+  assert.equal(published.publishedAt, now.toISOString());
+  assert.equal(db.candidates[0].status, "published");
+  assert.equal(db.candidates[0].reviewed_by, "admin@99gold.net");
+  assert.match(db.candidates[0].title_zh, /中文：/);
+  assert.equal(db.candidates[0].published_at, now.toISOString());
+
+  const later = await reviewNewsCandidate(db, {
+    id: "due-1",
+    action: "approve",
+    reviewedBy: "admin@99gold.net",
+    now,
+  });
+  assert.equal(later, null);
+
+  db.candidates.push({
+    id: "later-1",
+    url: "https://www.federalreserve.gov/later-admin.htm",
+    title: "Later brief",
+    summary: "Wait",
+    source_language: "en",
+    status: "pending",
+  });
+  const scheduled = await reviewNewsCandidate(db, {
+    id: "later-1",
+    action: "approve",
+    scheduledFor: new Date("2026-09-14T18:00:00Z"),
+    reviewedBy: "admin@99gold.net",
+    now,
+  });
+  assert.equal(scheduled.status, "approved");
+  assert.equal(db.candidates.find((item) => item.id === "later-1")?.status, "approved");
+  assert.equal(db.candidates.find((item) => item.id === "later-1")?.published_at, undefined);
 });

@@ -69,10 +69,14 @@ test("official briefs expose locale-specific translations from stored fields",as
  assert.equal(zhItem.summary,"官方政策決定");
  assert.equal(zhItem.translated,true);
  assert.equal(zhItem.translationLabel,"機器翻譯");
+ assert.equal(zhItem.sourceName,"市場快訊");
+ assert.doesNotMatch(zhItem.sourceName,/Federal Reserve|ONS|Treasury|BLS|ECB/i);
  const enItem=(await api.getDailyGoldNews("en",db)).items.find((item)=>item.external);
  assert.equal(enItem.title,"Federal Reserve issues FOMC statement");
+ assert.equal(enItem.sourceName,"Market brief");
  assert.equal(enItem.translated,false);
  const jaItem=(await api.getDailyGoldNews("ja",db)).items.find((item)=>item.external);
  assert.equal(jaItem.title,"米連邦準備制度理事会がFOMC声明を発表");
+ assert.equal(jaItem.sourceName,"市場速報");
  assert.equal(jaItem.translated,true);
 });
