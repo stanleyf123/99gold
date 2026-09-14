@@ -69,6 +69,8 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.match(header, /className="siteHeader"/);
   assert.match(header, /\/news\?lang=zh/);
   assert.match(header, /\$\{base\}-ja/);
+  assert.match(header, /useSiteLocale/);
+  assert.match(header, /className="languageSwitch menuLanguage"/);
   assert.match(layout, /site-chrome\.css/);
   assert.match(layout, /SiteChrome/);
   assert.match(chrome, /--page-gutter:/);
@@ -76,11 +78,15 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.match(chrome, /--hero-height:\s*clamp\(/);
   assert.match(chrome, /heroPhoto/);
   assert.match(chrome, /brandHeroCopy/);
+  assert.match(chrome, /\.siteHeader \.languageSwitch:not\(\.menuLanguage\)/);
   assert.doesNotMatch(chrome, /aspect-ratio:\s*1200\/630/);
   assert.doesNotMatch(page, /<SiteHeader/);
+  assert.match(page, /useSiteLocale/);
   assert.match(page, /className="heroPhoto"/);
   assert.match(page, /className="brandHeroCopy"/);
   assert.match(page, /今日市場快速判讀/);
+  assert.match(page, /Today’s Gold Dashboard/);
+  assert.match(page, /本日の金情報/);
   assert.match(page, /quoteEmptyPanel/);
   assert.match(page, /brandHero[\s\S]*marketRadar[\s\S]*marketHub/);
   assert.doesNotMatch(page, /marketHub[\s\S]*marketRadar/);
@@ -89,9 +95,13 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.match(section, /getGlobalQuotes/);
   assert.match(section, /buildSectionView/);
   assert.match(section, /redirect\("\/news"\)/);
+  assert.match(section, /SectionView/);
   assert.doesNotMatch(section, /此頁尚無可驗證的即時資料/);
   assert.doesNotMatch(globalPage, /<SiteHeader/);
   assert.doesNotMatch(globalPage, /globalNav/);
+  assert.match(globalPage, /useSiteLocale/);
+  assert.match(globalPage, /Global Precious Metals Desk/);
+  assert.match(globalPage, /世界貴金属相場センター/);
   assert.doesNotMatch(news, /<SiteHeader/);
   assert.doesNotMatch(news, /articleNav/);
   assert.doesNotMatch(news, /alt=\{article\.imageAlt\}/);
@@ -100,6 +110,41 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.doesNotMatch(editorial, /alt=\{a\.imageAlt\}/);
   assert.match(cover, /onError/);
   assert.match(cover, /coverFallback/);
+});
+
+test("keeps one locale source for header, homepage, global and section chrome", async () => {
+  const [localeMod, chrome, header, page, globalPage, sectionPage, sectionView] = await Promise.all([
+    readFile(new URL("../app/locale.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/SiteChrome.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/SiteHeader.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/global/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/[section]/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/[section]/SectionView.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(localeMod, /export const LOCALE_STORAGE_KEY = "golden-tide-locale"/);
+  assert.match(localeMod, /export const LOCALE_EVENT = "golden-tide-locale"/);
+  assert.match(localeMod, /new CustomEvent<Locale>\(LOCALE_EVENT, \{ detail: locale \}\)/);
+  assert.match(localeMod, /function LocaleProvider/);
+  assert.match(localeMod, /visitor-locale/);
+  assert.match(chrome, /LocaleProvider/);
+  assert.match(chrome, /<SiteHeader \/>/);
+  assert.doesNotMatch(chrome, /<SiteHeader[\s\S]*<SiteHeader/);
+  assert.match(header, /setContextLocale/);
+  assert.match(page, /languageCopy\[locale\]/);
+  assert.doesNotMatch(page, /addEventListener\("golden-tide-locale"/);
+  assert.match(globalPage, /國際市場參考行情/);
+  assert.match(globalPage, /International market references/);
+  assert.match(globalPage, /国際市場の参考相場/);
+  assert.match(sectionPage, /SectionView/);
+  assert.match(sectionView, /useSiteLocale/);
+  assert.match(sectionView, /International Gold/);
+  assert.match(sectionView, /国際金価格/);
+  assert.match(sectionView, /Today’s Jewelry Prices/);
+  assert.match(sectionView, /Gold Recycling/);
+  assert.match(sectionView, /No valid data/);
+  assert.match(sectionView, /有効なデータなし/);
 });
 
 test("keeps quote history, data transparency and responsive styles wired", async () => {

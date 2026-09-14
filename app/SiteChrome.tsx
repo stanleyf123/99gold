@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { LocaleProvider } from "./locale";
 import SiteHeader from "./SiteHeader";
 
 export default function SiteChrome({ children }: { children: ReactNode }) {
@@ -10,9 +11,9 @@ export default function SiteChrome({ children }: { children: ReactNode }) {
     return children;
   }
   return (
-    <>
+    <LocaleProvider>
       <SiteHeader />
       {children}
-    </>
+    </LocaleProvider>
   );
 }
