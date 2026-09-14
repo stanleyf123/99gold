@@ -70,8 +70,9 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.match(header, /黃金回收/);
   assert.match(header, /市場情報/);
   assert.match(header, /className="siteHeader"/);
-  assert.match(header, /\/news\?lang=zh/);
-  assert.match(header, /\$\{base\}-ja/);
+  assert.match(header, /\/news\?lang=\$\{locale\}/);
+  assert.match(header, /hrefsFromPath/);
+  assert.match(header, /useSearchParams/);
   assert.match(header, /useSiteLocale/);
   assert.match(header, /className="languageSwitch menuLanguage"/);
   assert.match(layout, /site-chrome\.css/);
@@ -137,8 +138,10 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
 });
 
 test("keeps one locale source for header, homepage, global and section chrome", async () => {
-  const [localeMod, chrome, header, page, homeView, globalPage, globalView, sectionPage, sectionView, jewelryView, recycleCalc] = await Promise.all([
+  const [localeMod, siteLocale, visitorLocale, chrome, header, page, homeView, globalPage, globalView, sectionPage, sectionView, jewelryView, recycleCalc] = await Promise.all([
     readFile(new URL("../app/locale.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../lib/site-locale.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/visitor-locale/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/SiteChrome.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/SiteHeader.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
@@ -156,6 +159,11 @@ test("keeps one locale source for header, homepage, global and section chrome", 
   assert.match(localeMod, /new CustomEvent<Locale>\(LOCALE_EVENT, \{ detail: locale \}\)/);
   assert.match(localeMod, /function LocaleProvider/);
   assert.match(localeMod, /visitor-locale/);
+  assert.match(siteLocale, /localeFromGeoCountry/);
+  assert.match(siteLocale, /UNKNOWN_COUNTRY/);
+  assert.match(siteLocale, /\/news\/\$\{id\}\?lang=en/);
+  assert.match(visitorLocale, /localeFromGeoCountry/);
+  assert.match(visitorLocale, /cf-ipcountry/);
   assert.match(chrome, /LocaleProvider/);
   assert.match(chrome, /<SiteHeader \/>/);
   assert.doesNotMatch(chrome, /<SiteHeader[\s\S]*<SiteHeader/);
@@ -207,6 +215,8 @@ test("keeps quote history, data transparency and responsive styles wired", async
   assert.match(homeView, /不顯示估造價格/);
   assert.match(chart, /ResizeObserver/);
   assert.match(chart, /role="img"/);
+  assert.match(chart, /useId/);
+  assert.match(chart, /keyboardId/);
   assert.match(quoteApi, /regularMarketDayHigh/);
   assert.match(quoteApi, /sessionOpen/);
   assert.match(quoteApi, /api\.gold-api\.com\/price/);
@@ -290,6 +300,7 @@ test("ships a scheduled auto-publish news pipeline", async () => {
   assert.doesNotMatch(service, /sourceName:r\.source_name/);
   assert.match(newsPage, /無需人工核准/);
   assert.match(newsPage, /市場快訊/);
+  assert.match(newsPage, /editorialLabels\[language\]\.all/);
   assert.match(newsPage, /\/news\/\$\{item\.id\}\?lang=\$\{locale\}/);
   assert.doesNotMatch(newsPage, /經管理者核准/);
   assert.doesNotMatch(newsPage, /官方來源快訊/);

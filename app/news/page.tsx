@@ -31,8 +31,9 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   const category = categoryOf(query.category);
   const suffix = category === "all" ? "" : `&category=${category}`;
   const canonical = `${SITE_URL}/news?lang=${language}${suffix}`;
+  const title = `${category === "all" ? editorialLabels[language].all : categories[category][language]}｜99GOLD.NET`;
   return {
-    title: `${categories[category][language]}｜99GOLD.NET`,
+    title,
     description: editorialLabels[language].introduction,
     alternates: {
       canonical,
@@ -43,7 +44,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
       },
     },
     openGraph: {
-      title: `${categories[category][language]}｜99GOLD.NET`,
+      title,
       description: editorialLabels[language].introduction,
       url: canonical,
       siteName: "99GOLD.NET",
@@ -53,7 +54,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
     },
     twitter: {
       card: "summary_large_image",
-      title: `${categories[category][language]}｜99GOLD.NET`,
+      title,
       description: editorialLabels[language].introduction,
       images: [DEFAULT_OG_IMAGE],
     },
