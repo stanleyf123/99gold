@@ -71,6 +71,8 @@ test("official briefs expose locale-specific translations from stored fields",as
  assert.equal(zhItem.translationLabel,"機器翻譯");
  assert.equal(zhItem.sourceName,"市場快訊");
  assert.doesNotMatch(zhItem.sourceName,/Federal Reserve|ONS|Treasury|BLS|ECB/i);
+ assert.equal(zhItem.url,"/news/fed-1");
+ assert.doesNotMatch(zhItem.url,/federalreserve|ons\.gov|bls\.gov|ecb\.europa/i);
  const enItem=(await api.getDailyGoldNews("en",db)).items.find((item)=>item.external);
  assert.equal(enItem.title,"Federal Reserve issues FOMC statement");
  assert.equal(enItem.sourceName,"Market brief");

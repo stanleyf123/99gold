@@ -44,7 +44,7 @@ export async function getDailyGoldNews(inputLocale="zh",database?:NewsDatabase) 
  const editorialItems=rows.map(r=>({id:r.id,title:r.title,summary:r.description,date:r.eventDate,category:r.category??"macro",url:"/news/"+r.id,image:r.image,sourceName:names[locale],translated:false,translationProvider:null as string|null,translationLabel:null as string|null,external:false,sourcePublishedAt:r.eventDate,publishedAt:r.publishedAt}));
  const officialItems=scheduled.items.map(r=>{
   const localized=localizedBriefFields(r,locale);
-  return {id:r.id,title:localized.title,summary:localized.summary,date:r.source_published_at.slice(0,10),category:r.category,url:r.canonical_url,image:undefined,sourceName:briefLabels[locale],translated:localized.translated,translationProvider:localized.translationProvider,translationLabel:localized.translationLabel,external:true,sourcePublishedAt:r.source_published_at,publishedAt:r.published_at};
+  return {id:r.id,title:localized.title,summary:localized.summary,date:r.source_published_at.slice(0,10),category:r.category,url:"/news/"+r.id,image:undefined,sourceName:briefLabels[locale],translated:localized.translated,translationProvider:localized.translationProvider,translationLabel:localized.translationLabel,external:true,sourcePublishedAt:r.source_published_at,publishedAt:r.published_at};
  });
  const items=[...officialItems,...editorialItems].sort((a,b)=>Date.parse(b.sourcePublishedAt)-Date.parse(a.sourcePublishedAt)).slice(0,15);
  const updatedAt=items.reduce((latest,item)=>Date.parse(item.publishedAt)>Date.parse(latest||"1970-01-01")?item.publishedAt:latest,"");

@@ -101,7 +101,7 @@ export default async function NewsIndex({ searchParams }: { searchParams: Promis
         const excerpt = newsExcerpt(item.summary);
         return <article key={String(item.id)} className="officialBriefCard">
         <p><b>{categories[safeItemCategory(item.category)][locale]}</b><time dateTime={item.sourcePublishedAt}>{item.date}</time></p>
-        <h3><a href={item.url} target="_blank" rel="noreferrer">{item.title} ↗</a></h3>
+        <h3><Link href={`/news/${item.id}?lang=${locale}`}>{item.title}</Link></h3>
         {excerpt ? <p className="newsExcerpt">{excerpt}</p> : <p className="newsExcerptMuted">{locale === "zh" ? "這則快訊沒有可顯示的摘要。" : locale === "ja" ? "この速報には表示できる要約がありません。" : "No excerpt is available for this brief."}</p>}
         <small>{item.sourceName}{item.translationLabel ? ` · ${item.translationLabel}` : ""}</small>
       </article>;

@@ -128,6 +128,8 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.doesNotMatch(news, /articleNav/);
   assert.match(news, /alt=\{article\.imageAlt\}/);
   assert.doesNotMatch(article, /<SiteHeader/);
+  assert.doesNotMatch(article, /FEDERAL RESERVE/);
+  assert.match(article, /OfficialBriefView/);
   assert.doesNotMatch(editorial, /<SiteHeader/);
   assert.match(editorial, /alt=\{a\.imageAlt\}/);
   assert.match(cover, /onError/);
@@ -284,10 +286,12 @@ test("ships a scheduled auto-publish news pipeline", async () => {
   assert.doesNotMatch(service, /sourceName:r\.source_name/);
   assert.match(newsPage, /無需人工核准/);
   assert.match(newsPage, /市場快訊/);
+  assert.match(newsPage, /\/news\/\$\{item\.id\}\?lang=\$\{locale\}/);
   assert.doesNotMatch(newsPage, /經管理者核准/);
   assert.doesNotMatch(newsPage, /官方來源快訊/);
   assert.match(homeView, /自動檢查、翻譯並上架/);
   assert.match(homeView, /MARKET BRIEF/);
+  assert.match(homeView, /\/news\/\$\{item\.id\}\?lang=\$\{locale\}/);
   assert.doesNotMatch(homeView, /<small>OFFICIAL SOURCE<\/small>/);
 });
 
@@ -360,6 +364,7 @@ test("wires 30-90 day charts, metal comparison, browser alerts, OG route and PWA
   assert.match(newsPage, /newsEmpty/);
   assert.match(excerpt, /newsExcerpt/);
   assert.match(newsService, /localizedBriefFields/);
+  assert.match(newsService, /url:"\/news\/"\+r\.id/);
 });
 
 test("wires gold/silver ratio math, history API, and charts on global, international and home", async () => {

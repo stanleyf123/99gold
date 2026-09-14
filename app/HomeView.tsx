@@ -570,7 +570,7 @@ export default function HomeView({ initialQuotes = null, initialRatioPoints = []
               const category = item.category ?? "macro";
               const key = String(item.id ?? item.url);
               const cover = item.image;
-              const href = item.external ? item.url : `/news/${item.id}`;
+              const href = item.external ? `/news/${item.id}?lang=${locale}` : `/news/${item.id}`;
               const excerpt = newsExcerpt(item.summary);
               return <article key={key}>
                 <div className={cover ? "newsVisual hasImage" : "newsVisual officialSourceVisual"}>{cover ? <CoverImage src={cover} /> : <div className="newsSourceMark"><b>99</b><small>{t("市場快訊", "MARKET BRIEF", "市場速報")}</small></div>}</div>
@@ -579,7 +579,7 @@ export default function HomeView({ initialQuotes = null, initialRatioPoints = []
                 <h3>{item.title}</h3>
                 {excerpt ? <p className="newsSynopsis">{excerpt}</p> : <p className="newsExcerptMuted">{item.external ? t("這則快訊沒有可顯示的摘要。", "No excerpt is available for this brief.", "この速報には表示できる要約がありません。") : t("這篇文章沒有可顯示的摘要。", "No excerpt is available for this article.", "この記事には表示できる要約がありません。")}</p>}
                 {cover && <small className="newsIllustrationLabel">{locale === "zh" ? "AI生成示意圖" : locale === "ja" ? "AI生成イメージ" : "AI-generated illustration"}</small>}
-                <a href={href} target={item.external ? "_blank" : undefined} rel={item.external ? "noreferrer" : undefined}>{item.external ? t("閱讀原文", "Read original", "原文を読む") : copy.read}　→</a>
+                <a href={href}>{item.external ? t("閱讀快訊", "Read brief", "速報を読む") : copy.read}　→</a>
               </article>;
             })}</div>
             {filteredNews.length === 0 && <p className="newsEmpty">{locale === "zh" ? "最近7天此分類暫無新文章。" : locale === "ja" ? "過去7日間、この分類に新しい記事はありません。" : "No new articles in this category in the last 7 days."}</p>}
