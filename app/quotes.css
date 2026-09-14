@@ -38,8 +38,9 @@
 }
 @media(prefers-reduced-motion:reduce){.historyStatus .loading i,.quoteFreshness>span.checking i{animation:none}}
 
-
-/* aligned tab bar + banner gutter */
-.marketTabs{width:100%!important;margin-left:0!important;margin-right:0!important;grid-template-columns:repeat(4,minmax(0,1fr))!important}
-.marketHub .hubPanel{width:100%!important;margin:0!important;box-sizing:border-box}
-.brandHero.brandCover{line-height:0}
+/* banner + tabs shared gutter */
+.topline,.nav{padding-left:5.5vw!important;padding-right:5.5vw!important;box-sizing:border-box}
+.marketHub{padding-left:5.5vw!important;padding-right:5.5vw!important;padding-top:28px!important}
+.brandHero.brandCover{margin:0!important;border-bottom:0}
+.marketTabs{width:100%!important;margin:0!important}
+.marketHub .hubPanel{width:100%!important;margin:0!important;border-radius:0}
