@@ -18,6 +18,7 @@
 .alertCenter,
 .subHero,
 .subContent,
+.siteLinks,
 .globalHero,
 .metalBoard,
 .worldMarkets,
@@ -347,7 +348,8 @@ footer {
   margin-bottom: 14px !important;
 }
 
-.hubLead h1 {
+.hubLead h1,
+.hubLead h2 {
   font: clamp(24px, 2.6vw, 32px) Georgia, "Noto Serif TC", serif !important;
   letter-spacing: .03em;
   margin: 0 0 4px !important;
@@ -733,3 +735,27 @@ footer {
     padding: 0 10px !important;
   }
 }
+
+.siteLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding-top: 8px;
+  padding-bottom: 28px;
+  border-top: 1px solid var(--header-line);
+  background: var(--header-bg);
+}
+
+.siteLinks a {
+  color: #5e655f;
+  text-decoration: none;
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.siteLinks a:hover,
+.siteLinks a[aria-current="page"] {
+  color: var(--ink);
+  border-bottom: 1px solid var(--gold);
+}
+

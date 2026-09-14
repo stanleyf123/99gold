@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import SiteLinks from "../SiteLinks";
 import { type Locale, t, useSiteLocale } from "../locale";
 
 type SectionName = "international" | "jewelry" | "recycling";
@@ -254,6 +255,7 @@ export default function SectionView({
           <p>{note}</p>
           <Link href="/#quotes">{t(locale, "回到即時報價　→", "Back to live quotes →", "即時相場へ戻る →")}</Link>
         </div>
+        <SiteLinks current={section} />
       </section>
       <footer>
         <Link className="brand" href="/"><i>99</i><span>玖久黃金報價網<br/><em>99GOLD.NET</em></span></Link>
