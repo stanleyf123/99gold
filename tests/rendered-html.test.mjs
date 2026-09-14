@@ -40,7 +40,8 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.match(header, /市場情報/);
   assert.match(header, /className="siteHeader"/);
   assert.match(layout, /site-chrome\.css/);
-  assert.match(chrome, /--page-gutter:\s*5\.5vw/);
+  assert.match(chrome, /--page-gutter:/);
+  assert.match(chrome, /--page-max:\s*1240px/);
   assert.match(chrome, /--hero-height:\s*clamp\(220px/);
   assert.match(chrome, /brandHeroCopy/);
   assert.doesNotMatch(chrome, /aspect-ratio:\s*1200\/630/);

@@ -391,7 +391,7 @@ export default function Home() {
         <div className="brandHeroShade" aria-hidden="true" />
         <div className="brandHeroCopy">
           <p className="eyebrow">{siteSettings.englishName}</p>
-          <h1>{siteSettings.fullName}<span>99GOLD.NET</span></h1>
+          <h1>{siteSettings.fullName}</h1>
           <p>{copy.hero}</p>
         </div>
       </section>
