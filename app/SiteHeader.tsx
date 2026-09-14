@@ -3,11 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { type Locale, persistLocale, localeFromLocation, useSiteLocale } from "./locale";
 
-export type Locale = "zh" | "en" | "ja";
-
-const STORAGE_KEY = "golden-tide-locale";
-const LOCALE_EVENT = "golden-tide-locale";
+export type { Locale };
+export { persistLocale };
 
 const navCopy = {
   zh: {
@@ -51,31 +50,6 @@ const navItems = [
   { href: "/news", key: "news" as const, match: (path: string) => path.startsWith("/news") || path.startsWith("/insights") },
 ];
 
-function isLocale(value: string | null | undefined): value is Locale {
-  return value === "zh" || value === "en" || value === "ja";
-}
-
-function applyDocumentLang(locale: Locale) {
-  document.documentElement.lang = locale === "zh" ? "zh-Hant" : locale;
-}
-
-export function persistLocale(locale: Locale) {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, locale);
-  } catch {
-    /* device storage may be unavailable */
-  }
-  applyDocumentLang(locale);
-  window.dispatchEvent(new CustomEvent<Locale>(LOCALE_EVENT, { detail: locale }));
-}
-
-function localeFromLocation(pathname: string, search: string): Locale | null {
-  const lang = new URLSearchParams(search).get("lang");
-  if (isLocale(lang)) return lang;
-  const article = pathname.match(/\/news\/[^/]+-(zh|en|ja)$/);
-  return article && isLocale(article[1]) ? article[1] : null;
-}
-
 function localeHrefsFromLocation(pathname: string, search: string): Partial<Record<Locale, string>> | undefined {
   if (pathname === "/news") {
     const category = new URLSearchParams(search).get("category") || "all";
@@ -117,11 +91,12 @@ export default function SiteHeader({
   extras,
 }: SiteHeaderProps) {
   const pathname = usePathname() || "/";
+  const { locale: contextLocale, setLocale: setContextLocale } = useSiteLocale();
   const [search, setSearch] = useState("");
-  const [locale, setLocale] = useState<Locale>(controlledLocale ?? "zh");
   const [menuOpen, setMenuOpen] = useState(false);
   const derivedHrefs = useMemo(() => localeHrefsFromLocation(pathname, search), [pathname, search]);
   const localeHrefs = controlledHrefs ?? derivedHrefs;
+  const locale = controlledLocale ?? contextLocale;
   const copy = navCopy[locale];
 
   useEffect(() => {
@@ -132,19 +107,10 @@ export default function SiteHeader({
   }, [pathname]);
 
   useEffect(() => {
-    if (controlledLocale) {
-      setLocale(controlledLocale);
-      return;
-    }
+    if (controlledLocale) return;
     const fromUrl = localeFromLocation(pathname, search || readLocationSearch());
-    if (fromUrl) {
-      setLocale(fromUrl);
-      persistLocale(fromUrl);
-      return;
-    }
-    const saved = window.localStorage.getItem(STORAGE_KEY);
-    if (isLocale(saved)) setLocale(saved);
-  }, [controlledLocale, pathname, search]);
+    if (fromUrl && fromUrl !== contextLocale) setContextLocale(fromUrl);
+  }, [controlledLocale, contextLocale, pathname, search, setContextLocale]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -161,8 +127,8 @@ export default function SiteHeader({
   }, [menuOpen]);
 
   const changeLocale = (next: Locale) => {
-    persistLocale(next);
-    setLocale(next);
+    if (controlledLocale) persistLocale(next);
+    else setContextLocale(next);
     onLocaleChange?.(next);
   };
 

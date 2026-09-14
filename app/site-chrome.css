@@ -573,6 +573,7 @@ footer {
   }
 
   .siteHeader .languageSwitch:not(.menuLanguage) {
+    display: flex;
     margin-left: auto;
   }
 
