@@ -16,7 +16,8 @@ const batchNew=moduleFrom("../app/news/batch-20260913.ts");
 const batchPolicy=moduleFrom("../app/news/batch-policy-20260913.ts");
 const categories=moduleFrom("../app/news/categories.ts");
 const data=moduleFrom("../app/news/editorial.ts",{"./batch-20260912":batch,"./batch-20260913":batchNew,"./batch-policy-20260913":batchPolicy});
-const view=moduleFrom("../app/news/EditorialView.tsx",{"./editorial":data,"./categories":categories});
+const cover=moduleFrom("../app/CoverImage.tsx");
+const view=moduleFrom("../app/news/EditorialView.tsx",{"./editorial":data,"./categories":categories,"../CoverImage":cover});
 test("three complete editions have local art, stable dates and cited sources",()=>{
  assert.equal(data.editorials.length,18);
  assert.equal(new Set(batch.batchSeptember12.map(a=>a.group)).size,2);
@@ -33,8 +34,9 @@ test("three complete editions have local art, stable dates and cited sources",()
   const html=renderToStaticMarkup(view.default({article:a}));
   assert.ok(html.includes(a.title));
   assert.ok(html.includes(a.sections.at(-1).paragraphs[0]));
+  assert.ok(html.includes(a.image));
   assert.ok(html.includes('type="application/ld+json"'));
-  assert.ok(html.includes('href="/news/'+a.group+'-ja"'));
+  assert.ok(html.includes(`href="/news?lang=${a.locale}`));
   assert.ok(html.includes(a.locale==="zh"?'lang="zh-Hant"':`lang="${a.locale}"`));
  }
 });

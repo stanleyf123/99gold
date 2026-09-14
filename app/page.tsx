@@ -419,6 +419,7 @@ export default function Home() {
             {quotesUnavailable ? (
               <p className="quoteEmptyPanel">{t("目前沒有可驗證的即時報價，系統每 3 分鐘重試。", "No verified live quotes are available. The site retries every 3 minutes.", "検証可能な即時相場はありません。システムは3分ごとに再試行します。")}</p>
             ) : (
+            <>
             <div className="quoteTerminal">
               <section className="primaryQuoteBlock" aria-label={t("國際黃金主報價", "Primary gold reference", "国際金参考価格")}>
                 <div className="quoteInstrument">
@@ -500,6 +501,7 @@ export default function Home() {
               {["TWD", "HKD", "CNY", "JPY", "EUR"].map((code) => <div key={code}><small>USD / {code}</small><strong>{currencies[code]?.toLocaleString("en-US", { minimumFractionDigits: code === "JPY" ? 2 : 4, maximumFractionDigits: 4 }) ?? "—"}</strong></div>)}
             </div>
             <p className="quoteMethodology"><b>{t("讀價說明：", "How to read these prices: ", "価格の見方：")}</b>{t("報價優先採 Yahoo Finance GC=F 期貨參考；來源受限時改列 Gold API XAU/USD 公開現貨參考，商品代碼、來源與缺少欄位會如實標示。台灣理論價未含銀樓溢價、工費、稅費與即時買賣價差；無有效來源時不顯示估造價格。", "Quotes prefer the Yahoo Finance GC=F futures reference. If it is limited, the site clearly switches to the public Gold API XAU/USD spot reference and leaves unsupported fields blank. Taiwan conversions exclude dealer premiums, workmanship, taxes and live spreads; no estimated price is shown without a valid source.", "相場はYahoo FinanceのGC=F先物を優先し、制限時はGold APIのXAU/USD公開現物参考値へ明示的に切り替え、未提供項目は空欄にします。台湾換算値に店頭プレミアム、加工費、税金、スプレッドは含まず、有効な情報源がない場合は推定値を表示しません。")}</p>
+            </>
             )}
           </div>
         )}

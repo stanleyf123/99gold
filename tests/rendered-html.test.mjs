@@ -40,6 +40,8 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.match(header, /黃金回收/);
   assert.match(header, /市場情報/);
   assert.match(header, /className="siteHeader"/);
+  assert.match(header, /\/news\?lang=zh/);
+  assert.match(header, /\$\{base\}-ja/);
   assert.match(layout, /site-chrome\.css/);
   assert.match(layout, /SiteChrome/);
   assert.match(chrome, /--page-gutter:/);
