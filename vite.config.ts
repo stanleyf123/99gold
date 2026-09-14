@@ -1,3 +1,4 @@
+// Unused Cloudflare/vinext local preview config. Production uses Next.js (`next.config.ts`).
 import vinext from "vinext";
 import { defineConfig } from "vite";
 import hostingConfig from "./.openai/hosting.json";

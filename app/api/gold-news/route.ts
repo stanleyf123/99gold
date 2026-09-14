@@ -1,10 +1,10 @@
-import { env } from "cloudflare:workers";
 import { NextResponse } from "next/server";
+import { getRawDb } from "../../../db";
 import { getDailyGoldNews } from "../news-service";
 
 export async function GET() {
   try {
-    const { items, updatedAt, checkedAt, scheduleStatus } = await getDailyGoldNews("zh", env.DB);
+    const { items, updatedAt, checkedAt, scheduleStatus } = await getDailyGoldNews("zh", getRawDb());
     return NextResponse.json({ items, updatedAt: updatedAt ? `文章發布：${updatedAt}` : "最近7天暫無新文章", publishedAt:updatedAt, checkedAt, scheduleStatus }, { headers: { "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=600" } });
   } catch (error) {
     console.error("gold-news refresh failed", error);
