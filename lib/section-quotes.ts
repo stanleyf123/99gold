@@ -1,3 +1,8 @@
+import {
+  pairFxForTimestamp,
+  taipeiCalendarDate,
+  type DailyFxRate,
+} from "./historical-fx";
 import type { GlobalQuotes, MarketQuoteItem, MetalQuote } from "./quotes";
 
 export const JEWELRY_SELL_PREMIUM_RATE = 0.04;
@@ -286,6 +291,9 @@ export type JewelryDayRow = {
   sell: number;
   change: number | null;
   recycleFine: number;
+  usdTwd: number;
+  fxDate: string | null;
+  fxSource: DailyFxRate["source"] | "constant" | null;
 };
 
 export type JewelryRange = {
@@ -307,16 +315,29 @@ export type JewelryLiveExtras = {
   usdTwd: number | null;
 };
 
+export type JewelryFxInput = number | readonly DailyFxRate[];
+
+function rateForGoldClose(timestamp: number, fx: JewelryFxInput): { usdTwd: number; fxDate: string | null; fxSource: JewelryDayRow["fxSource"] } | null {
+  if (typeof fx === "number") {
+    if (!(fx > 0) || !Number.isFinite(fx)) return null;
+    return { usdTwd: fx, fxDate: taipeiCalendarDate(timestamp) || null, fxSource: "constant" };
+  }
+  const paired = pairFxForTimestamp(timestamp, fx);
+  if (!paired) return null;
+  return { usdTwd: paired.usdTwd, fxDate: paired.date, fxSource: paired.source };
+}
+
 export function jewelryHistoryRows(
   points: Array<{ timestamp: number; close: number }>,
-  usdTwd: number,
+  fx: JewelryFxInput,
 ): JewelryDayRow[] {
-  if (!(usdTwd > 0) || points.length === 0) return [];
+  if (points.length === 0) return [];
   const rows: JewelryDayRow[] = [];
-  for (let index = 0; index < points.length; index += 1) {
-    const point = points[index];
+  for (const point of points) {
     if (!Number.isFinite(point.close) || point.close <= 0) continue;
-    const buy = qianFromUsdOz(point.close, usdTwd);
+    const paired = rateForGoldClose(point.timestamp, fx);
+    if (!paired) continue;
+    const buy = qianFromUsdOz(point.close, paired.usdTwd);
     const sell = jewelrySellFromBuy(buy);
     const previous = rows.at(-1);
     rows.push({
@@ -325,6 +346,9 @@ export function jewelryHistoryRows(
       sell,
       change: previous ? sell - previous.sell : null,
       recycleFine: recycleFromQian(buy, RECYCLE_PURITY["999.9"]),
+      usdTwd: paired.usdTwd,
+      fxDate: paired.fxDate,
+      fxSource: paired.fxSource,
     });
   }
   return rows;
@@ -394,6 +418,10 @@ export function jewelryFaqEntries(live: JewelryLiveExtras | null): JewelryFaqEnt
     {
       question: "資料多久更新一次？",
       answer: "國際金價來源約每 3 分鐘檢查一次；臺銀匯率依牌告時間更新。市場休市時會保留最後有效行情，並標示休市狀態。",
+    },
+    {
+      question: "歷史表的匯率怎麼算？",
+      answer: "每日列是該日 COMEX 收盤，配上同一台北日曆日（若無則最近前一營業日）的臺銀美元即期賣出。缺匯率的日子會略過，不會用「今天」的匯率去改寫過去。圖表標示「歷史匯率換算參考」。",
     },
   ];
 }

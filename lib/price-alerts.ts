@@ -12,6 +12,8 @@ export type SavedPriceAlert = {
   direction: AlertDirection;
   createdAt: string;
   lastNotifiedAt?: string | null;
+  notifyEmail?: boolean;
+  notifyLine?: boolean;
 };
 
 export type AlertMarketQuote = {
@@ -78,6 +80,8 @@ export function parseStoredAlerts(raw: string | null | undefined): SavedPriceAle
         direction,
         createdAt: typeof record.createdAt === "string" ? record.createdAt : new Date(id).toISOString(),
         lastNotifiedAt: typeof record.lastNotifiedAt === "string" ? record.lastNotifiedAt : null,
+        notifyEmail: record.notifyEmail === true,
+        notifyLine: record.notifyLine === true,
       });
     }
     return alerts.slice(-MAX_SAVED_ALERTS);
@@ -100,6 +104,8 @@ export function createPriceAlert(
     direction: Number.isFinite(current) && current > 0 ? alertDirectionFromQuote(current, target) : "above",
     createdAt: now.toISOString(),
     lastNotifiedAt: null,
+    notifyEmail: false,
+    notifyLine: false,
   };
 }
 

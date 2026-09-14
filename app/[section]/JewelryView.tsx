@@ -1,11 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
 import Link from "next/link";
 import SiteLinks from "../SiteLinks";
 import PriceHistoryChart from "../PriceHistoryChart";
 import { type Locale, t, useSiteLocale } from "../locale";
-import { qianFromUsdOz } from "../../lib/section-quotes";
 import "./jewelry.css";
 
 type LiveCard = { name: string; price: string; unit: string; change: string };
@@ -18,7 +16,16 @@ type LiveView = {
   unit: string;
 };
 type MarketStatus = "checking" | "open" | "delayed" | "daily-break" | "weekend-closed" | "unavailable";
-type JewelryDayRow = { timestamp: number; buy: number; sell: number; change: number | null; recycleFine: number };
+type JewelryDayRow = {
+  timestamp: number;
+  buy: number;
+  sell: number;
+  change: number | null;
+  recycleFine: number;
+  usdTwd?: number;
+  fxDate?: string | null;
+  fxSource?: string | null;
+};
 type JewelryRange = { sellHigh: number; sellLow: number; sellAvg: number; buyHigh: number; buyLow: number; buyAvg: number; count: number };
 type JewelryLive = {
   buy: number;
@@ -143,21 +150,21 @@ const faqCopy = {
     { q: "買進和賣出差在哪裡？", a: "買進是理論成本；賣出是該成本加上 4% 估計溢價。你向銀樓買金時通常看賣出區間，賣出舊金時則應再比較店家回收價。" },
     { q: "為什麼跟銀樓掛牌不一樣？", a: "門市還有自己的價差、成色認定與工費。本站只公開可驗證的國際金價與匯率，所以數字會不同。" },
     { q: "回收價可以拿去賣嗎？", a: "不可以直接當成交價。本站回收是含金量試算，實際還要秤重、看成色，並可能扣除耗損或手續費。" },
-    { q: "歷史表的匯率怎麼算？", a: "每日列是當日 COMEX 收盤，乘上「目前」臺銀即期賣出。這能看出金價本身的漲跌，但不是當年當日的歷史匯率。" },
+    { q: "歷史表的匯率怎麼算？", a: "每日列把該日 COMEX 收盤，配上同一台北日曆日（沒有就用最近前一營業日）的臺銀美元即期賣出。缺匯率就略過該點，不會拿「今天」的匯率改寫過去。圖上標示「歷史匯率換算參考」。" },
   ],
   en: [
     { q: "How much is one qian of gold in Taiwan today?", a: "Use the theoretical buy and estimated sell at the top of this page. They convert GC and Bank of Taiwan FX and are not a specific shop’s trade price." },
     { q: "What is the difference between buy and sell here?", a: "Buy is theoretical cost; sell adds a 4% estimated premium. When you purchase jewelry you usually compare the sell range; when you sell old gold, compare a dealer’s recycle bid." },
     { q: "Why doesn’t this match a jewelry shop board?", a: "Shops add their own spread, purity checks and workmanship. This site only publishes a verifiable international gold and FX conversion." },
     { q: "Can I sell at the recycle number?", a: "No. Recycle here is a fine-gold estimate. Actual offers depend on weight, purity, and possible testing or handling fees." },
-    { q: "How is the history table converted?", a: "Each row uses that day’s COMEX close times the current Bank of Taiwan USD spot-sell rate. It shows gold’s own move, not historical FX for that date." },
+    { q: "How is the history table converted?", a: "Each row pairs that day’s COMEX close with Bank of Taiwan USD sight-sell for the same Taipei calendar day, or the nearest prior BOT business day. Days without FX are omitted — today’s rate is never applied to the past. The chart is labeled a historical FX reference." },
   ],
   ja: [
     { q: "今日の台湾の金は銭あたりいくら？", a: "ページ上部の理論買と推定売をご覧ください。GCと台湾銀行為替の換算参考値であり、特定店舗の約定価格ではありません。" },
     { q: "ここの買と売の違いは？", a: "買は理論コスト、売はそこに推定4%プレミアムを加えた値です。購入時は売の帯、古い金を売るときは店頭の買取も比較してください。" },
     { q: "店頭の掲示と違うのはなぜ？", a: "店舗は独自のスプレッド、成色判定、加工費を上乗せします。本サイトは検証可能な国際金価格と為替の換算のみを公開します。" },
     { q: "買取の数字で売れますか？", a: "そのまま約定はできません。ここは含有量の試算で、実際は計量・成色確認、減耗や手数料の控除があり得ます。" },
-    { q: "履歴表の為替はどう計算？", a: "各行はその日のCOMEX終値に、現在の台湾銀行米ドル直物売りを掛けています。金そのものの騰落は見えますが、その日の歴史的為替ではありません。" },
+    { q: "履歴表の為替はどう計算？", a: "各行はその日のCOMEX終値を、同じ台北カレンダー日（なければ直前の台湾銀行営業日）の米ドル直物売りと突合します。為替がない日は省略し、今日のレートで過去を書き換えません。チャートは「歴史的為替の参考」と表示します。" },
   ],
 } as const;
 
@@ -172,6 +179,9 @@ export default function JewelryView({
   historyRange,
   historySource,
   usdTwd,
+  fxLabel,
+  fxBasis,
+  omitted,
 }: {
   view: LiveView;
   quotedAt: string;
@@ -183,6 +193,9 @@ export default function JewelryView({
   historyRange: JewelryRange | null;
   historySource: string;
   usdTwd: number | null;
+  fxLabel: string;
+  fxBasis: "bot-sight-sell" | "mixed" | "market-reference" | null;
+  omitted: number;
 }) {
   const { locale } = useSiteLocale();
   const quotedLabel = formatTaipeiTime(quotedAt, locale);
@@ -206,10 +219,13 @@ export default function JewelryView({
   const buy = live?.buy ?? null;
   const sell = live?.sell ?? null;
   const faq = faqCopy[locale];
-  const convertClose = useMemo(() => {
-    if (usdTwd === null || usdTwd <= 0) return undefined;
-    return (usd: number) => qianFromUsdOz(usd, usdTwd);
-  }, [usdTwd]);
+  const chartNote = t(
+    locale,
+    `${fxLabel || "歷史匯率換算參考。"} 非店家牌價。`,
+    `${fxLabel || "Historical FX conversion reference."} Not a shop price.`,
+    `${fxLabel || "歴史的為替の換算参考。"} 店頭価格ではありません。`,
+  );
+  const fxBadge = t(locale, "歷史匯率換算參考", "Historical FX reference", "歴史的為替の参考");
 
   return (
     <main className="subpage" lang={locale === "zh" ? "zh-Hant" : locale}>
@@ -255,6 +271,15 @@ export default function JewelryView({
             </div>
           </div>
         ) : null}
+        <p className="jewelryFxBadge">
+          {fxBadge}
+          {usdTwd !== null && usdTwd > 0
+            ? ` · ${t(locale, "今日即期賣出", "Today’s spot-sell", "本日の直物売り")} ${usdTwd.toFixed(3)}`
+            : ""}
+          {fxBasis === "mixed" || fxBasis === "market-reference"
+            ? ` · ${t(locale, "部分日期為公開市場備援匯率", "Some dates use a public-market fallback FX", "一部日付は市場為替の予備")}`
+            : ""}
+        </p>
       </section>
       <section className="subContent">
         <div className="sectionHead">
@@ -277,23 +302,29 @@ export default function JewelryView({
         <PriceHistoryChart
           locale={locale}
           currency="TWD"
-          title={t(locale, "台灣理論買進走勢（近 30／90 日）", "Taiwan theoretical buy history (30 / 90 days)", "台湾の理論買推移（30／90日）")}
+          title={t(locale, "台灣理論買進走勢（歷史匯率）", "Taiwan theoretical buy history (historical FX)", "台湾の理論買推移（歴史的為替）")}
           ariaLabel={t(locale, "台灣理論金價歷史走勢", "Taiwan theoretical gold history", "台湾理論金価格の履歴")}
           initialPoints={historyRows.map((row) => ({ timestamp: row.timestamp, close: row.buy }))}
-          convertClose={convertClose}
-          note={t(locale, "走勢以 COMEX 收盤換算目前臺銀即期賣出，非店家牌價，也不是當年當日歷史匯率。", "Chart converts COMEX closes with the current Bank of Taiwan USD spot-sell rate — not a shop price or historical FX.", "チャートはCOMEX終値を現在の台湾銀行米ドル直物売りで換算。店頭価格でも当時の為替でもありません。")}
+          endpoint="/api/jewelry-history"
+          periods={["1M", "3M", "1Y", "3Y"]}
+          note={chartNote}
         />
 
         <div className="sectionHead" style={{ marginTop: 36 }}>
           <div><p className="eyebrow">DAILY TABLE</p><h2>{t(locale, "每日理論牌價", "Daily theoretical prices", "日次の理論価格")}</h2></div>
           <p>{historyRows.length
-            ? t(locale, `COMEX 收盤 × 目前匯率 · ${historyRows.length} 個交易日`, `COMEX close × current FX · ${historyRows.length} sessions`, `COMEX終値×現在為替 · ${historyRows.length}取引日`)
+            ? t(
+              locale,
+              `COMEX 收盤 × 當日／最近前一營業日匯率 · ${historyRows.length} 個交易日${omitted > 0 ? `（略過 ${omitted} 日缺匯率）` : ""}`,
+              `COMEX close × same-day / prior-session FX · ${historyRows.length} sessions${omitted > 0 ? ` (${omitted} days omitted for missing FX)` : ""}`,
+              `COMEX終値×当日／直前営業日為替 · ${historyRows.length}取引日${omitted > 0 ? `（為替なし ${omitted}日を省略）` : ""}`,
+            )
             : t(locale, "目前沒有可驗證的近月歷史資料，故不列出表格。", "No verified recent history, so the table is omitted.", "検証可能な直近履歴がないため表は表示しません。")}</p>
         </div>
         {historyRows.length > 0 ? (
           <div className="jewelryTableWrap">
             <table className="jewelryTable">
-              <caption className="srOnly">{t(locale, "台灣理論金價每日表：賣出、買進、漲跌與 999.9 理論回收", "Daily Taiwan theoretical gold table: sell, buy, change and 999.9 recycle", "台湾理論金価格の日次表")}</caption>
+              <caption className="srOnly">{t(locale, "台灣理論金價每日表：賣出、買進、漲跌、999.9 理論回收與當日匯率", "Daily Taiwan theoretical gold table: sell, buy, change, 999.9 recycle and that day’s FX", "台湾理論金価格の日次表")}</caption>
               <thead>
                 <tr>
                   <th>{t(locale, "日期", "Date", "日付")}</th>
@@ -301,6 +332,7 @@ export default function JewelryView({
                   <th>{t(locale, "買進（理論）", "Buy (theoretical)", "買（理論）")}</th>
                   <th>{t(locale, "漲跌", "Change", "騰落")}</th>
                   <th>{t(locale, "理論回收 999.9", "Recycle 999.9", "理論買取 999.9")}</th>
+                  <th>{t(locale, "當日匯率", "FX that day", "当日為替")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -317,6 +349,7 @@ export default function JewelryView({
                       )}
                     </td>
                     <td>{money(row.recycleFine)}</td>
+                    <td>{typeof row.usdTwd === "number" && Number.isFinite(row.usdTwd) ? row.usdTwd.toFixed(3) : "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -328,9 +361,9 @@ export default function JewelryView({
             <b>{t(locale, "歷史換算說明：", "History conversion note: ", "履歴換算の注記：")}</b>
             {t(
               locale,
-              `各列以該日 COMEX 收盤換算，匯率採用目前臺銀即期賣出，不是當年當日歷史匯率。回收欄 = 當日理論買進 × 999.9。來源：${historySource || "COMEX GC"}。`,
-              `Each row converts that day’s COMEX close with the current Bank of Taiwan USD spot-sell rate, not historical FX. Recycle = that day’s theoretical buy × 999.9. Source: ${historySource || "COMEX GC"}.`,
-              `各行はその日のCOMEX終値を、現在の台湾銀行米ドル直物売りで換算しており、当時の為替ではありません。買取欄＝当日の理論買×999.9。出典：${historySource || "COMEX GC"}。`,
+              `各列以該日 COMEX 收盤，配上當日或最近前一營業日匯率後換算。缺匯率則略過，不用今日匯率改寫過去。回收欄 = 當日理論買進 × 999.9。來源：${historySource || "COMEX GC"}。`,
+              `Each row converts that day’s COMEX close with same-day or nearest prior FX. Missing FX is omitted; today’s rate is not applied to the past. Recycle = that day’s theoretical buy × 999.9. Source: ${historySource || "COMEX GC"}.`,
+              `各行はその日のCOMEX終値を当日または直前営業日の為替で換算。為替がなければ省略し、今日のレートで過去を書き換えません。買取欄＝当日の理論買×999.9。出典：${historySource || "COMEX GC"}。`,
             )}
           </p>
         ) : null}

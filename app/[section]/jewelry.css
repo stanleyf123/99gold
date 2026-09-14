@@ -9,7 +9,7 @@
 .jewelryRange span{display:block;color:#7a7266;font-size:11px;letter-spacing:.04em}
 .jewelryRange strong{display:block;margin-top:4px;font:18px Georgia;font-variant-numeric:tabular-nums}
 .jewelryTableWrap{margin-top:8px;overflow-x:auto;border:1px solid #d1c9bc;background:#fffdf8;-webkit-overflow-scrolling:touch}
-.jewelryTable{width:100%;min-width:640px;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.jewelryTable{width:100%;min-width:720px;border-collapse:collapse;font-variant-numeric:tabular-nums}
 .jewelryTable th{padding:10px 12px;background:#ebe5da;color:#6f776f;text-align:right;font-size:11px;letter-spacing:.04em;white-space:nowrap}
 .jewelryTable th:first-child{text-align:left}
 .jewelryTable td{padding:11px 12px;border-top:1px solid #e2dbcf;text-align:right;font:15px Georgia;white-space:nowrap}
@@ -23,6 +23,7 @@
 .jewelryFaq summary{cursor:pointer;font-weight:700;color:#172128}
 .jewelryFaq p{margin:10px 0 4px;color:#5d655d;line-height:1.7;font-size:14px}
 .jewelryNote{margin-top:22px}
+.jewelryFxBadge{margin:14px 0 0;max-width:720px;color:#6f5b24;font-size:12px;line-height:1.6;padding:8px 10px;background:#f3eee4;border-left:3px solid #c9951c}
 @media(max-width:800px){
   .jewelryHeroPrices,.jewelryRange,.jewelryEducate{grid-template-columns:1fr}
   .jewelryPriceCard strong{font-size:34px}

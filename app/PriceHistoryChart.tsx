@@ -69,11 +69,9 @@ export function PriceHistoryChart({
   const [remote, setRemote] = useState<RemoteHistory | null>(null);
 
   const usingInitial = period === initialPeriod;
-  const cannotConvert = !usingInitial && currency === "TWD" && !convertClose;
 
   useEffect(() => {
     if (period === initialPeriod) return;
-    if (currency === "TWD" && !convertClose) return;
     let disposed = false;
     fetch(`${endpoint}?period=${period}`)
       .then((response) => (response.ok ? (response.json() as Promise<HistoryPayload>) : Promise.reject(new Error("history unavailable"))))
@@ -96,13 +94,13 @@ export function PriceHistoryChart({
         if (!disposed) setRemote({ period, status: "fail", points: [], coverage: "full" });
       });
     return () => { disposed = true; };
-  }, [convertClose, currency, endpoint, initialPeriod, period]);
+  }, [convertClose, endpoint, initialPeriod, period]);
 
   const points = useMemo(
     () => usingInitial ? initialPoints : (remote?.period === period && remote.status === "ok" ? remote.points : []),
     [initialPoints, period, remote, usingInitial],
   );
-  const loading = !usingInitial && !cannotConvert && remote?.period !== period;
+  const loading = !usingInitial && remote?.period !== period;
   const partial = !usingInitial && remote?.period === period && remote.status === "ok" && remote.coverage === "partial";
 
   const positive = useMemo(() => {

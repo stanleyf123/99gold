@@ -1,13 +1,12 @@
 import { notFound, redirect } from "next/navigation";
 import { getGlobalQuotesOrNull } from "../../lib/quotes";
 import { getGoldHistoryOrNull } from "../../lib/gold-history";
+import { getJewelryHistoryOrNull } from "../../lib/jewelry-history";
 import { getGoldSilverRatioHistoryOrNull } from "../../lib/gold-silver-ratio";
 import {
   buildSectionView,
   jewelryFaqEntries,
-  jewelryHistoryRows,
   jewelryLiveExtras,
-  jewelryRangeFromRows,
   taiwanQianValue,
   usdTwdFromQuotes,
   type SectionName,
@@ -36,18 +35,17 @@ export default async function SectionPage({ params }: { params: Promise<{ sectio
   if (section === "insights") redirect("/news");
   if (!isSection(section)) notFound();
 
-  const [quotes, history, ratioHistory] = await Promise.all([
+  const [quotes, history, ratioHistory, jewelryHistory] = await Promise.all([
     getGlobalQuotesOrNull(),
-    section === "recycling" ? Promise.resolve(null) : getGoldHistoryOrNull("1M"),
+    section === "recycling" || section === "jewelry" ? Promise.resolve(null) : getGoldHistoryOrNull("1M"),
     section === "international" ? getGoldSilverRatioHistoryOrNull("1M") : Promise.resolve(null),
+    section === "jewelry" ? getJewelryHistoryOrNull("1M") : Promise.resolve(null),
   ]);
   const view = buildSectionView(section, quotes);
   const live = section === "jewelry" ? jewelryLiveExtras(quotes) : null;
   const usdTwd = usdTwdFromQuotes(quotes);
-  const historyRows = section === "jewelry" && history && usdTwd !== null
-    ? jewelryHistoryRows(history.points, usdTwd)
-    : [];
-  const historyRange = jewelryRangeFromRows(historyRows);
+  const historyRows = jewelryHistory?.rows ?? [];
+  const historyRange = jewelryHistory?.range ?? null;
   const crumb = sectionCrumbs[section];
 
   return (
@@ -64,8 +62,11 @@ export default async function SectionPage({ params }: { params: Promise<{ sectio
           live={live}
           historyRows={historyRows}
           historyRange={historyRange}
-          historySource={history?.source ?? ""}
+          historySource={jewelryHistory?.source ?? ""}
           usdTwd={usdTwd}
+          fxLabel={jewelryHistory?.fxLabel ?? ""}
+          fxBasis={jewelryHistory?.fxBasis ?? null}
+          omitted={jewelryHistory?.omitted ?? 0}
         />
       ) : (
         <SectionView
