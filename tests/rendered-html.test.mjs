@@ -247,7 +247,8 @@ test("ships a scheduled, approval-gated news pipeline", async () => {
   ]);
   assert.match(script, /runNewsPipeline/);
   assert.match(script, /news:pipeline|--manual|cron/);
-  assert.match(deploy, /OnCalendar=\*:0\/30/);
+  assert.match(deploy, /OnCalendar=0\/3:00:00/);
+  assert.match(deploy, /99gold-news\.timer/);
   assert.match(deploy, /npm run news:pipeline/);
   assert.match(deploy, /127\.0\.0\.1:3000/);
   assert.match(pipeline, /status = 'published'/);

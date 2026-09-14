@@ -55,6 +55,7 @@ export function parseFeed(xml: string): FeedItem[] {
 export function canonicalizeUrl(value: string, allowedHosts: string[]) {
   try {
     const url = new URL(value);
+    if (url.protocol === "http:") url.protocol = "https:";
     if (url.protocol !== "https:") return null;
     const originalHost = url.hostname.toLowerCase();
     const host = originalHost.replace(/^www\./, "");
@@ -62,6 +63,7 @@ export function canonicalizeUrl(value: string, allowedHosts: string[]) {
     if (!allowed) return null;
     url.hostname = originalHost;
     url.hash = "";
+    url.pathname = url.pathname.replace(/\/{2,}/g, "/");
     for (const key of [...url.searchParams.keys()]) {
       if (/^(utm_|fbclid$|gclid$|mc_)/i.test(key)) url.searchParams.delete(key);
     }

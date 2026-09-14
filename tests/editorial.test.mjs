@@ -18,6 +18,7 @@ const categories=moduleFrom("../app/news/categories.ts");
 const data=moduleFrom("../app/news/editorial.ts",{"./batch-20260912":batch,"./batch-20260913":batchNew,"./batch-policy-20260913":batchPolicy});
 const cover=moduleFrom("../app/CoverImage.tsx");
 const view=moduleFrom("../app/news/EditorialView.tsx",{"./editorial":data,"./categories":categories,"../CoverImage":cover});
+const feedClient=moduleFrom("../lib/news/feed-client.ts");
 test("three complete editions have local art, stable dates and cited sources",()=>{
  assert.equal(data.editorials.length,18);
  assert.equal(new Set(batch.batchSeptember12.map(a=>a.group)).size,2);
@@ -45,6 +46,6 @@ test("old events are excluded instead of receiving a new publication date",()=>{
  assert.equal(data.recentEditorials("zh",Date.parse("2026-09-20T12:00:00Z")).length,0);
 });
 test("reader API returns original work and local images without a translation request",async()=>{
- const api=moduleFrom("../app/api/news-service.ts",{"../news/editorial":data});
+ const api=moduleFrom("../app/api/news-service.ts",{"../news/editorial":data,"../../lib/news/feed-client":feedClient});
  for(const lang of ["zh","en","ja"]){const result=await api.getDailyGoldNews(lang);assert.equal(result.items.length,6);assert.ok(result.items[0].id.endsWith("-"+lang));assert.equal(result.items[0].translated,false);assert.ok(result.items[0].image.startsWith("/"));assert.equal(result.items[0].category,"policy");}
 });

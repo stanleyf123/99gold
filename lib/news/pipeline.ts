@@ -1,3 +1,4 @@
+import { inspectFeedResponse, newsFeedHeaders } from "./feed-client";
 import { canonicalizeUrl, normalizedTitle, parseFeed, sha256 } from "./normalize";
 import { newsSources, sourceAcceptsTitle } from "./source-config";
 
@@ -10,6 +11,14 @@ type NewsStatement = {
 };
 export type NewsDatabase = { prepare(query: string): NewsStatement };
 export type NewsRunTrigger = "cron" | "manual";
+export type NewsSourceRunDetail = {
+  source: string;
+  status: string;
+  seen?: number;
+  added?: number;
+  staleSkipped?: number;
+  error?: string;
+};
 export type NewsRunSummary = {
   runId: string;
   status: "succeeded" | "partial" | "failed";
@@ -19,16 +28,21 @@ export type NewsRunSummary = {
   duplicatesSkipped: number;
   publishedCount: number;
   errorCount: number;
+  sources: NewsSourceRunDetail[];
 };
 
 type SourceState = { etag: string | null; last_modified: string | null };
 
-const MAX_FEED_BYTES = 2_000_000;
-const MAX_ITEM_AGE_MS = 72 * 60 * 60_000;
+const MAX_ITEM_AGE_MS = 14 * 24 * 60 * 60_000;
 const FUTURE_TOLERANCE_MS = 10 * 60_000;
 
 function errorMessage(error: unknown) {
-  return (error instanceof Error ? error.message : String(error)).replace(/\s+/g, " ").slice(0, 500);
+  const raw = error instanceof Error
+    ? error.message
+    : error && typeof error === "object" && "message" in error && typeof error.message === "string"
+      ? error.message
+      : String(error);
+  return raw.replace(/\s+/g, " ").slice(0, 500);
 }
 
 async function recordSourceSuccess(
@@ -88,7 +102,7 @@ export async function runNewsPipeline(
   let candidatesAdded = 0;
   let duplicatesSkipped = 0;
   let errorCount = 0;
-  const sourceDetails: Array<{ source: string; status: string; seen?: number; added?: number; error?: string }> = [];
+  const sourceDetails: NewsSourceRunDetail[] = [];
   const recentCutoff = new Date(scheduledFor.getTime() - MAX_ITEM_AGE_MS).toISOString();
 
   for (const source of newsSources) {
@@ -96,35 +110,36 @@ export async function runNewsPipeline(
     try {
       const state = await db.prepare("SELECT etag, last_modified FROM news_source_state WHERE source_id = ?")
         .bind(source.id).first<SourceState>();
-      const headers = new Headers({
-        Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml",
-        "User-Agent": "99gold.net market-news-monitor/1.0 (+https://99gold.net)",
-      });
-      if (state?.etag) headers.set("If-None-Match", state.etag);
-      if (state?.last_modified) headers.set("If-Modified-Since", state.last_modified);
+      const headers = new Headers(newsFeedHeaders({
+        etag: state?.etag,
+        lastModified: state?.last_modified,
+      }));
       const response = await fetcher(source.feedUrl, { headers, redirect: "follow", signal: AbortSignal.timeout(15_000) });
-      if (response.status === 304) {
+      const xml = response.status === 304 ? "" : await response.text();
+      const inspection = inspectFeedResponse(response.status, response.statusText, xml);
+      if (inspection.kind === "not-modified") {
         await recordSourceSuccess(db, source.id, attemptedAt, state?.etag ?? null, state?.last_modified ?? null);
         sourceDetails.push({ source: source.id, status: "not-modified", seen: 0, added: 0 });
         continue;
       }
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const xml = await response.text();
-      if (!xml || xml.length > MAX_FEED_BYTES) throw new Error("Feed size invalid");
       const feedItems = parseFeed(xml).slice(0, 50);
       let sourceSeen = 0;
       let sourceAdded = 0;
+      let staleSkipped = 0;
 
       for (const item of feedItems) {
         const publishedTime = Date.parse(item.publishedAt);
         if (!Number.isFinite(publishedTime)
-          || publishedTime < scheduledFor.getTime() - MAX_ITEM_AGE_MS
           || publishedTime > scheduledFor.getTime() + FUTURE_TOLERANCE_MS
           || !sourceAcceptsTitle(source, item.title)) continue;
         const canonicalUrl = canonicalizeUrl(item.url, source.allowedHosts);
         if (!canonicalUrl) continue;
         sourceSeen += 1;
         itemsSeen += 1;
+        if (publishedTime < scheduledFor.getTime() - MAX_ITEM_AGE_MS) {
+          staleSkipped += 1;
+          continue;
+        }
         const titleHash = await sha256(normalizedTitle(item.title));
         const externalId = item.externalId.slice(0, 800);
         const duplicate = await db.prepare(`SELECT id FROM news_candidates
@@ -169,12 +184,18 @@ export async function runNewsPipeline(
         response.headers.get("etag"),
         response.headers.get("last-modified"),
       );
-      sourceDetails.push({ source: source.id, status: "ok", seen: sourceSeen, added: sourceAdded });
+      sourceDetails.push({ source: source.id, status: "ok", seen: sourceSeen, added: sourceAdded, staleSkipped });
     } catch (error) {
       errorCount += 1;
       const message = errorMessage(error);
       await recordSourceFailure(db, source.id, attemptedAt, message);
       sourceDetails.push({ source: source.id, status: "error", error: message });
+      console.error(JSON.stringify({
+        event: "news_pipeline_source_error",
+        source: source.id,
+        feedUrl: source.feedUrl,
+        error: message,
+      }));
     }
   }
 
@@ -207,6 +228,7 @@ export async function runNewsPipeline(
     duplicatesSkipped,
     publishedCount,
     errorCount,
+    sources: sourceDetails,
   };
   console.log(JSON.stringify({ event: "news_pipeline_completed", ...summary }));
   return summary;

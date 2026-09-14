@@ -557,12 +557,12 @@ export default function HomeView({ initialQuotes = null, initialRatioPoints = []
           <div className="hubPanel newsPanel" role="tabpanel">
             <div className="panelHeading">
               <div><p className="eyebrow">TODAY&apos;S MARKET FOCUS</p><h2>{copy.news}</h2></div>
-              <p>{newsUpdated}<small className={`newsScheduleState ${newsScheduleStatus}`}>{newsScheduleLabel} · {t("每 30 分鐘", "EVERY 30 MIN", "30分ごと")}</small></p>
+              <p>{newsUpdated}<small className={`newsScheduleState ${newsScheduleStatus}`}>{newsScheduleLabel} · {t("每 3 小時", "EVERY 3 HOURS", "3時間ごと")}</small></p>
             </div>
             <p className="panelIntro">{t(
-              "官方來源每 30 分鐘檢查，候選內容經管理者核准後由排程發布；本站分析文章則分開查核與撰寫。",
-              "Official sources are checked every 30 minutes. Approved items are published by schedule, while original analysis is researched and written separately.",
-              "公式情報源を30分ごとに確認し、承認済み項目を予定公開します。独自分析記事は別途調査・執筆します。",
+              "官方來源每 3 小時檢查，候選內容經管理者核准後由排程發布；本站分析文章則分開查核與撰寫。",
+              "Official sources are checked every 3 hours. Approved items are published by schedule, while original analysis is researched and written separately.",
+              "公式情報源を3時間ごとに確認し、承認済み項目を予定公開します。独自分析記事は別途調査・執筆します。",
             )}</p>
             <p><Link href={`/news?lang=${locale}`}>{locale === "zh" ? "開啟新聞專區 →" : locale === "ja" ? "ニュース一覧 →" : "News library →"}</Link></p>
             <div className="newsFilters" aria-label={locale === "zh" ? "新聞分類" : locale === "ja" ? "ニュース分類" : "News categories"}>{newsCategories.map((category) => <button key={category} className={newsCategory === category ? "active" : ""} aria-pressed={newsCategory === category} onClick={() => setNewsCategory(category)}>{categories[category][locale]}</button>)}</div>

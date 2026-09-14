@@ -21,6 +21,16 @@ export const newsSources: NewsSource[] = [
     titleTerms: [],
   },
   {
+    // Speeches land more often than FOMC statements, so a 3-hour cron can see new items.
+    id: "federal-reserve-speeches",
+    name: "Federal Reserve Board · Speeches",
+    feedUrl: "https://www.federalreserve.gov/feeds/speeches.xml",
+    allowedHosts: ["federalreserve.gov"],
+    language: "en",
+    category: "policy",
+    titleTerms: [],
+  },
+  {
     id: "bls-cpi",
     name: "U.S. Bureau of Labor Statistics · CPI",
     feedUrl: "https://www.bls.gov/feed/cpi.rss",
@@ -52,6 +62,45 @@ export const newsSources: NewsSource[] = [
     name: "U.S. Bureau of Labor Statistics · JOLTS",
     feedUrl: "https://www.bls.gov/feed/jolts.rss",
     allowedHosts: ["bls.gov"],
+    language: "en",
+    category: "macro",
+    titleTerms: [],
+  },
+  {
+    // ECB press/speeches/interviews; typically several items per week, often same-day.
+    id: "ecb-press",
+    name: "European Central Bank",
+    feedUrl: "https://www.ecb.europa.eu/rss/press.html",
+    allowedHosts: ["ecb.europa.eu"],
+    language: "en",
+    category: "policy",
+    titleTerms: [],
+  },
+  {
+    id: "bank-of-england-speeches",
+    name: "Bank of England · Speeches",
+    feedUrl: "https://www.bankofengland.co.uk/rss/speeches",
+    allowedHosts: ["bankofengland.co.uk"],
+    language: "en",
+    category: "policy",
+    titleTerms: [],
+  },
+  {
+    // GDP, PCE, trade — gold-relevant US macro, more frequent than quarterly BLS CPI.
+    id: "bea-news",
+    name: "U.S. Bureau of Economic Analysis",
+    feedUrl: "https://apps.bea.gov/rss/rss.xml",
+    allowedHosts: ["bea.gov"],
+    language: "en",
+    category: "macro",
+    titleTerms: [],
+  },
+  {
+    // Census briefing-room indicators (retail, trade, inventories) update on most business days.
+    id: "census-indicators",
+    name: "U.S. Census Bureau · Economic Indicators",
+    feedUrl: "https://www.census.gov/economic-indicators/indicator.xml",
+    allowedHosts: ["census.gov"],
     language: "en",
     category: "macro",
     titleTerms: [],
