@@ -1,10 +1,12 @@
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { timingSafeEqual } from "node:crypto";
 
 export type ChatGPTUser = {
   displayName: string;
   email: string;
   fullName: string | null;
+  source: "chatgpt" | "token";
 };
 
 const USER_EMAIL_HEADER = "oai-authenticated-user-email";
@@ -15,24 +17,69 @@ const PERCENT_ENCODED_UTF8 = "percent-encoded-utf-8";
 const SIGN_IN_PATH = "/signin-with-chatgpt";
 const SIGN_OUT_PATH = "/signout-with-chatgpt";
 const CALLBACK_PATH = "/callback";
+export const ADMIN_TOKEN_COOKIE = "admin_token";
+const DEFAULT_ADMIN_EMAIL = "stanleys1225@gmail.com";
 
-export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
-  const requestHeaders = await headers();
-  const email = requestHeaders.get(USER_EMAIL_HEADER);
-  if (!email) return null;
+export function getAdminEmail() {
+  return (process.env.ADMIN_EMAIL?.trim() || DEFAULT_ADMIN_EMAIL).toLowerCase();
+}
 
-  const encodedFullName = requestHeaders.get(USER_FULL_NAME_HEADER);
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get(USER_FULL_NAME_ENCODING_HEADER) === PERCENT_ENCODED_UTF8
-      ? safeDecodeURIComponent(encodedFullName)
-      : null;
+export function getAdminToken() {
+  return process.env.ADMIN_TOKEN?.trim() || "";
+}
 
+export function isAdminEmail(email: string) {
+  return email.toLowerCase() === getAdminEmail();
+}
+
+function tokensMatch(provided: string, expected: string) {
+  const left = Buffer.from(provided);
+  const right = Buffer.from(expected);
+  return left.length === right.length && timingSafeEqual(left, right);
+}
+
+function tokenUser(): ChatGPTUser {
+  const email = getAdminEmail();
+  const fullName = process.env.ADMIN_NAME?.trim() || null;
   return {
     displayName: fullName ?? email,
     email,
     fullName,
+    source: "token",
   };
+}
+
+function requestToken(requestHeaders: Headers, cookieValue: string | undefined) {
+  const bearer = requestHeaders.get("authorization");
+  if (bearer?.toLowerCase().startsWith("bearer ")) return bearer.slice(7).trim();
+  return requestHeaders.get("x-admin-token")?.trim() || cookieValue?.trim() || "";
+}
+
+export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
+  const requestHeaders = await headers();
+  const email = requestHeaders.get(USER_EMAIL_HEADER);
+  if (email) {
+    const encodedFullName = requestHeaders.get(USER_FULL_NAME_HEADER);
+    const fullName =
+      encodedFullName &&
+      requestHeaders.get(USER_FULL_NAME_ENCODING_HEADER) === PERCENT_ENCODED_UTF8
+        ? safeDecodeURIComponent(encodedFullName)
+        : null;
+
+    return {
+      displayName: fullName ?? email,
+      email,
+      fullName,
+      source: "chatgpt",
+    };
+  }
+
+  const expected = getAdminToken();
+  if (!expected) return null;
+  const cookieStore = await cookies();
+  const provided = requestToken(requestHeaders, cookieStore.get(ADMIN_TOKEN_COOKIE)?.value);
+  if (!provided || !tokensMatch(provided, expected)) return null;
+  return tokenUser();
 }
 
 export async function requireChatGPTUser(
@@ -41,7 +88,8 @@ export async function requireChatGPTUser(
   const user = await getChatGPTUser();
   if (user) return user;
 
-  redirect(chatGPTSignInPath(returnTo));
+  const safeReturnTo = safeRelativeReturnPath(returnTo);
+  redirect(`/admin/login?return_to=${encodeURIComponent(safeReturnTo)}`);
 }
 
 export function chatGPTSignInPath(returnTo: string): string {
@@ -54,7 +102,7 @@ export function chatGPTSignOutPath(returnTo = "/"): string {
   return `${SIGN_OUT_PATH}?return_to=${encodeURIComponent(safeReturnTo)}`;
 }
 
-function safeRelativeReturnPath(value: string): string {
+export function safeRelativeReturnPath(value: string): string {
   if (!value.startsWith("/") || value.startsWith("//")) return "/";
 
   let url: URL;
@@ -73,7 +121,8 @@ function isReservedAuthPath(pathname: string): boolean {
   return (
     pathname === SIGN_IN_PATH ||
     pathname === SIGN_OUT_PATH ||
-    pathname === CALLBACK_PATH
+    pathname === CALLBACK_PATH ||
+    pathname === "/admin/login"
   );
 }
 

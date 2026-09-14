@@ -1,0 +1,219 @@
+# 部署到 Linode Nanode（Ubuntu 24.04 + Node 22 + Nginx）
+
+本站以標準 Next.js 跑在 Node 上，資料庫改為本機 SQLite。不再需要 Cloudflare Workers、D1、vinext 或 wrangler。
+
+目標主機範例：`172.237.11.195`（1GB RAM + swap），Nginx 反代到 `127.0.0.1:3000`。
+
+## 1. 系統套件
+
+```bash
+sudo apt update
+sudo apt install -y nginx build-essential python3 sqlite3
+# Node.js 22：依 NodeSource 或 nvm 安裝，確認 `node -v` >= 22.13
+```
+
+1GB RAM 建議保留至少 1–2GB swap。`next build` 記憶體很吃緊，**最好在本機或較大的機器 build**，再把 `.next/`、`node_modules/`、原始碼同步到 VPS。若一定要在 Nanode 上 build：
+
+```bash
+export NODE_OPTIONS=--max-old-space-size=768
+npm run build
+```
+
+## 2. 應用程式目錄
+
+```bash
+sudo mkdir -p /var/www/99gold/data
+sudo chown -R www-data:www-data /var/www/99gold
+# 將 repo 放到 /var/www/99gold 後：
+cd /var/www/99gold
+sudo -u www-data npm ci
+sudo -u www-data npm run db:migrate
+sudo -u www-data npm run build   # 若未在其他機器先 build
+```
+
+SQLite 檔預設為 `/var/www/99gold/data/99gold.sqlite`（可用 `SQLITE_PATH` 覆寫）。請把 `data/` 列入備份，不要提交到 git。
+
+## 3. 環境變數
+
+`/etc/99gold.env`（權限 `0600`，所有者 `www-data`）：
+
+```bash
+SQLITE_PATH=/var/www/99gold/data/99gold.sqlite
+SITE_URL=https://99gold.net
+ADMIN_EMAIL=stanleys1225@gmail.com
+ADMIN_NAME=
+ADMIN_TOKEN=請改成足夠長的隨機字串
+NODE_ENV=production
+```
+
+產生權杖範例：`openssl rand -hex 32`。不要把真實權杖寫進 git。
+
+管理後台：`https://99gold.net/admin/login`。也可用標頭 `Authorization: Bearer <ADMIN_TOKEN>` 或 `x-admin-token` 呼叫管理 API。
+
+## 4. systemd：網站行程
+
+`/etc/systemd/system/99gold.service`：
+
+```ini
+[Unit]
+Description=99gold.net Next.js
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/99gold
+EnvironmentFile=/etc/99gold.env
+ExecStart=/usr/bin/npm start
+Restart=on-failure
+RestartSec=5
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now 99gold.service
+```
+
+`npm start` 等於 `next start --hostname 127.0.0.1 --port 3000`。
+
+## 5. systemd timer：新聞管線（取代 Worker cron）
+
+先前 Cloudflare Worker 每 30 分鐘跑一次 RSS 檢查。VPS 上改跑：
+
+```bash
+cd /var/www/99gold
+npm run news:pipeline
+```
+
+可選 `--manual`（寫入 `news_runs.trigger = manual`）：
+
+```bash
+npx tsx scripts/run-news-pipeline.ts --manual
+```
+
+`/etc/systemd/system/99gold-news.service`：
+
+```ini
+[Unit]
+Description=99gold.net news pipeline
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/99gold
+EnvironmentFile=/etc/99gold.env
+ExecStart=/usr/bin/npm run news:pipeline
+Nice=10
+```
+
+`/etc/systemd/system/99gold-news.timer`：
+
+```ini
+[Unit]
+Description=Check official gold news feeds every 30 minutes
+
+[Timer]
+OnBootSec=2min
+OnCalendar=*:0/30
+AccuracySec=1min
+Persistent=true
+Unit=99gold-news.service
+
+[Install]
+WantedBy=timers.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now 99gold-news.timer
+```
+
+等價 crontab（若不用 systemd timer）：
+
+```cron
+*/30 * * * * www-data cd /var/www/99gold && /usr/bin/npm run news:pipeline >> /var/log/99gold-news.log 2>&1
+```
+
+快訊仍須在 `/admin` 核准後才會發布。timer 只負責抓來源與發布「已核准且到期」的項目。
+
+## 6. Nginx
+
+網域 `99gold.net` 與 IP `172.237.11.195` 都反代到 Node。憑證可用 Certbot 另開 `:443` server。
+
+`/etc/nginx/sites-available/99gold`：
+
+```nginx
+upstream 99gold {
+    server 127.0.0.1:3000;
+    keepalive 8;
+}
+
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name 99gold.net www.99gold.net 172.237.11.195;
+
+    client_max_body_size 2m;
+
+    location / {
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        proxy_pass http://99gold;
+    }
+}
+```
+
+```bash
+sudo ln -sf /etc/nginx/sites-available/99gold /etc/nginx/sites-enabled/99gold
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+HTTPS 範例（Certbot 完成後）：
+
+```nginx
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name 99gold.net www.99gold.net;
+    ssl_certificate     /etc/letsencrypt/live/99gold.net/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/99gold.net/privkey.pem;
+
+    location / {
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        proxy_pass http://99gold;
+    }
+}
+```
+
+啟用 HTTPS 後把 `SITE_URL=https://99gold.net` 寫入環境檔，管理登入 cookie 才會帶 `Secure`。
+
+## 7. 檢查
+
+```bash
+curl -sS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3000/
+curl -sS http://127.0.0.1:3000/api/global-quotes | head
+curl -sS http://127.0.0.1:3000/robots.txt
+curl -sS http://127.0.0.1:3000/sitemap.xml | head
+sudo systemctl status 99gold.service 99gold-news.timer
+```
+
+## 8. SEO
+
+`app/robots.ts`、`app/sitemap.ts`、`app/layout.tsx` 的 metadata / Open Graph 維持不變。sitemap 改讀本機 SQLite 的 `news_articles`，沒有資料庫時仍會列出編輯稿。

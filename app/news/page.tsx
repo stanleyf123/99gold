@@ -1,5 +1,5 @@
-import { env } from "cloudflare:workers";
 import type { Metadata } from "next";
+import { getRawDb } from "../../db";
 import Link from "next/link";
 import { getDailyGoldNews } from "../api/news-service";
 import { recentEditorials, type NewsLocale } from "./editorial";
@@ -46,7 +46,7 @@ export default async function NewsIndex({ searchParams }: { searchParams: Promis
   const labels = editorialLabels[locale];
   const editorials = recentEditorials(locale);
   const editorialRows = editorials.filter((article) => category === "all" || (article.category ?? "macro") === category);
-  const scheduled = await getDailyGoldNews(locale, env.DB);
+  const scheduled = await getDailyGoldNews(locale, getRawDb());
   const official = scheduled.items.filter((item) => item.external);
   const officialRows = official.filter((item) => category === "all" || safeItemCategory(item.category) === category);
   const countFor = (entry: Category) => editorials.filter((article) => entry === "all" || (article.category ?? "macro") === entry).length
