@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { historyPeriodConfig, isHistoryPeriod, type HistoryPeriod } from "../../../lib/gold-history";
+import { historyPeriodConfig, isRatioHistoryPeriod, type RatioHistoryPeriod } from "../../../lib/gold-history";
 import { getGoldSilverRatioHistory } from "../../../lib/gold-silver-ratio";
 
 export async function GET(request: Request) {
   const requested = new URL(request.url).searchParams.get("period")?.toUpperCase();
-  const period: HistoryPeriod = isHistoryPeriod(requested) ? requested : "1M";
+  const period: RatioHistoryPeriod = isRatioHistoryPeriod(requested) ? requested : "1M";
   const config = historyPeriodConfig[period];
 
   try {

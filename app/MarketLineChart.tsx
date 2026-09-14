@@ -31,7 +31,7 @@ function formatTime(timestamp: number, period: string, locale: string) {
     }).format(date);
   }
   return new Intl.DateTimeFormat(language, {
-    year: period === "1Y" ? "2-digit" : undefined,
+    year: period === "1Y" || period === "3Y" || period === "5Y" ? "2-digit" : undefined,
     month: "numeric",
     day: "numeric",
     timeZone: "Asia/Taipei",
