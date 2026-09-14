@@ -164,6 +164,14 @@ test("normalizes allowlisted source URLs and rejects unsafe destinations", () =>
     normalize.canonicalizeUrl("https://www.ecb.europa.eu//press/key/date/2026/html/ecb.sp.html", ["ecb.europa.eu"]),
     "https://www.ecb.europa.eu/press/key/date/2026/html/ecb.sp.html",
   );
+  assert.equal(
+    normalize.canonicalizeUrl("https://www.ons.gov.uk/releases/gdpmonthlyestimateukjuly2026", ["ons.gov.uk"]),
+    "https://www.ons.gov.uk/releases/gdpmonthlyestimateukjuly2026",
+  );
+  assert.equal(
+    normalize.canonicalizeUrl("https://www.gov.uk/government/speeches/example", ["gov.uk"]),
+    "https://www.gov.uk/government/speeches/example",
+  );
   assert.equal(normalize.canonicalizeUrl("https://example.com/fake", ["bls.gov"]), null);
 });
 
@@ -179,13 +187,22 @@ test("allowlists first-party gold and macro RSS that use https", () => {
     "federal-reserve-monetary",
     "federal-reserve-speeches",
     "ecb-press",
-    "bank-of-england-speeches",
+    "ons-release-calendar",
+    "hm-treasury-news",
     "bea-news",
     "census-indicators",
   ]) {
     assert.ok(ids.includes(id), `missing source ${id}`);
   }
+  assert.equal(ids.includes("bank-of-england-speeches"), false);
+  assert.ok(!sources.newsSources.some((source) => /bankofengland/i.test(source.feedUrl)));
   assert.ok(sources.newsSources.length >= 8);
+  const ons = sources.newsSources.find((source) => source.id === "ons-release-calendar");
+  const treasury = sources.newsSources.find((source) => source.id === "hm-treasury-news");
+  assert.equal(ons.feedUrl, "https://www.ons.gov.uk/releasecalendar?rss");
+  assert.match(treasury.feedUrl, /gov\.uk\/government\/organisations\/hm-treasury\.atom/);
+  assert.equal(ons.allowedHosts.join(","), "ons.gov.uk");
+  assert.equal(treasury.allowedHosts.join(","), "gov.uk");
   for (const source of sources.newsSources) {
     assert.match(source.feedUrl, /^https:\/\//);
     assert.ok(source.allowedHosts.length > 0);
@@ -277,4 +294,119 @@ test("pipeline counts parsed feed items even when they are older than the candid
   assert.equal(monetary?.seen, 1);
   assert.ok((monetary?.staleSkipped ?? 0) >= 1);
   assert.equal(db.candidates.length, 0);
+});
+
+test("parses ONS RSS and HM Treasury Atom entries from official hosts", () => {
+  const ons = `<rss version="2.0"><channel>
+    <item>
+      <title>GDP monthly estimate, UK: July 2026</title>
+      <link>https://www.ons.gov.uk/releases/gdpmonthlyestimateukjuly2026</link>
+      <description>UK monthly GDP.</description>
+      <guid>https://www.ons.gov.uk/releases/gdpmonthlyestimateukjuly2026</guid>
+      <pubDate>Fri, 11 Sep 2026 06:00:00 +0000</pubDate>
+    </item>
+  </channel></rss>`;
+  const [onsItem] = normalize.parseFeed(ons);
+  assert.equal(onsItem.title, "GDP monthly estimate, UK: July 2026");
+  assert.equal(onsItem.url, "https://www.ons.gov.uk/releases/gdpmonthlyestimateukjuly2026");
+  assert.equal(onsItem.publishedAt, "2026-09-11T06:00:00.000Z");
+
+  const atom = `<feed xmlns="http://www.w3.org/2005/Atom">
+    <entry>
+      <id>tag:www.gov.uk,2005:/government/speeches/example</id>
+      <updated>2026-09-10T16:02:00+01:00</updated>
+      <link rel="alternate" type="text/html" href="https://www.gov.uk/government/speeches/example"/>
+      <title>Economic Secretary to the Treasury speech</title>
+      <summary type="html">Official speech summary.</summary>
+    </entry>
+  </feed>`;
+  const [treasuryItem] = normalize.parseFeed(atom);
+  assert.equal(treasuryItem.url, "https://www.gov.uk/government/speeches/example");
+  assert.equal(treasuryItem.publishedAt, "2026-09-10T15:02:00.000Z");
+  assert.equal(treasuryItem.summary, "Official speech summary.");
+});
+
+test("admin health lists current allowlist names and hides retired BoE 403 rows", () => {
+  const health = sources.currentSourceHealth([
+    {
+      source_id: "bank-of-england-speeches",
+      last_attempt_at: "2026-09-14T09:00:00.000Z",
+      last_success_at: null,
+      last_error: "HTTP 403 Forbidden — source blocked or unavailable (not an empty feed)",
+      consecutive_errors: 12,
+    },
+    {
+      source_id: "federal-reserve-monetary",
+      last_attempt_at: "2026-09-14T09:00:00.000Z",
+      last_success_at: "2026-09-14T09:00:00.000Z",
+      last_error: null,
+      consecutive_errors: 0,
+    },
+  ]);
+  assert.equal(health.some((row) => row.source_id === "bank-of-england-speeches"), false);
+  assert.equal(health.some((row) => /bankofengland/i.test(row.source_id)), false);
+  const ons = health.find((row) => row.source_id === "ons-release-calendar");
+  const treasury = health.find((row) => row.source_id === "hm-treasury-news");
+  const fed = health.find((row) => row.source_id === "federal-reserve-monetary");
+  assert.equal(ons.source_name, "UK Office for National Statistics");
+  assert.equal(treasury.source_name, "HM Treasury");
+  assert.equal(ons.consecutive_errors, 0);
+  assert.equal(ons.last_error, null);
+  assert.equal(fed.last_success_at, "2026-09-14T09:00:00.000Z");
+  assert.equal(sources.newsSourceLabel("ons-release-calendar"), "UK Office for National Statistics");
+  assert.equal(health.length, sources.newsSources.length);
+});
+
+test("pipeline stays succeeded without BoE and enqueues recent ONS and Treasury items", async () => {
+  const { runNewsPipeline } = loadPipeline();
+  const db = memoryDb();
+  const requested = [];
+  const recentOns = `<rss version="2.0"><channel><item>
+    <title>GDP monthly estimate, UK: July 2026</title>
+    <link>https://www.ons.gov.uk/releases/gdpmonthlyestimateukjuly2026</link>
+    <guid>https://www.ons.gov.uk/releases/gdpmonthlyestimateukjuly2026</guid>
+    <pubDate>Fri, 11 Sep 2026 06:00:00 +0000</pubDate>
+  </item></channel></rss>`;
+  const recentTreasury = `<feed xmlns="http://www.w3.org/2005/Atom"><entry>
+    <id>tag:www.gov.uk,2005:/government/speeches/example</id>
+    <updated>2026-09-10T16:02:00+01:00</updated>
+    <link rel="alternate" type="text/html" href="https://www.gov.uk/government/speeches/example"/>
+    <title>Economic Secretary to the Treasury speech</title>
+    <summary>Official speech summary.</summary>
+  </entry></feed>`;
+  const recentFed = `<rss><channel><item>
+    <title>Federal Reserve issues FOMC statement</title>
+    <link>https://www.federalreserve.gov/newsevents/pressreleases/monetary20260913a.htm</link>
+    <guid>fed-recent</guid>
+    <pubDate>Sun, 13 Sep 2026 12:00:00 GMT</pubDate>
+  </item></channel></rss>`;
+  const fetcher = async (url) => {
+    const href = String(url);
+    requested.push(href);
+    if (/bankofengland/i.test(href)) {
+      return jsonResponse(403, "<html><title>Access Denied</title></html>", "Forbidden");
+    }
+    if (href.includes("ons.gov.uk")) return jsonResponse(200, recentOns);
+    if (href.includes("gov.uk")) return jsonResponse(200, recentTreasury);
+    if (href.includes("federalreserve.gov")) return jsonResponse(200, recentFed);
+    return jsonResponse(200, `<rss><channel><title>empty</title></channel></rss>`);
+  };
+  const summary = await runNewsPipeline(db, new Date("2026-09-14T13:00:00Z"), "manual", fetcher);
+  assert.equal(summary.status, "succeeded");
+  assert.equal(summary.errorCount, 0);
+  assert.ok(!requested.some((url) => /bankofengland/i.test(url)));
+  assert.ok(requested.some((url) => url.includes("ons.gov.uk/releasecalendar")));
+  assert.ok(requested.some((url) => url.includes("hm-treasury.atom")));
+  const ons = summary.sources.find((source) => source.source === "ons-release-calendar");
+  const treasury = summary.sources.find((source) => source.source === "hm-treasury-news");
+  assert.equal(ons?.status, "ok");
+  assert.equal(ons?.seen, 1);
+  assert.equal(ons?.added, 1);
+  assert.equal(treasury?.status, "ok");
+  assert.equal(treasury?.seen, 1);
+  assert.equal(treasury?.added, 1);
+  assert.ok(summary.itemsSeen >= 2);
+  assert.ok(summary.candidatesAdded >= 2);
+  assert.ok(db.candidates.some((item) => item.url.includes("ons.gov.uk")));
+  assert.ok(db.candidates.some((item) => item.url.includes("gov.uk/government/speeches")));
 });

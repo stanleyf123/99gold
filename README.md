@@ -35,7 +35,7 @@ npm start
 | `npm test` | 單元／原始碼測試（不需要完整 build） |
 | `npm run test:build` | 先 build 再檢查產出 |
 
-新聞排程請用 systemd timer（每 3 小時）或 cron 呼叫 `npm run news:pipeline`，不要在訪客請求裡抓 RSS。VPS 部署步驟見 [DEPLOY-LINODE.md](./DEPLOY-LINODE.md)。
+新聞排程請用 systemd timer（每 3 小時）或 cron 呼叫 `npm run news:pipeline`，不要在訪客請求裡抓 RSS。白名單只含第一方公開 RSS/Atom（見 `lib/news/source-config.ts`）；Bank of England 在 Linode 等機房 IP 會被 Akamai 403，無法只靠 User-Agent 修好，英國來源改用 ONS 與 HM Treasury。VPS 部署步驟見 [DEPLOY-LINODE.md](./DEPLOY-LINODE.md)。
 
 ## 環境變數
 

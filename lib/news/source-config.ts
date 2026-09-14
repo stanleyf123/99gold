@@ -8,6 +8,15 @@ export type NewsSource = {
   titleTerms: string[];
 };
 
+export type NewsSourceHealthRow = {
+  source_id: string;
+  source_name: string;
+  last_attempt_at: string | null;
+  last_success_at: string | null;
+  last_error: string | null;
+  consecutive_errors: number;
+};
+
 // First-party public feeds only. New sources must be explicitly allowlisted and
 // reviewed before they can enter the editorial queue.
 export const newsSources: NewsSource[] = [
@@ -77,10 +86,22 @@ export const newsSources: NewsSource[] = [
     titleTerms: [],
   },
   {
-    id: "bank-of-england-speeches",
-    name: "Bank of England · Speeches",
-    feedUrl: "https://www.bankofengland.co.uk/rss/speeches",
-    allowedHosts: ["bankofengland.co.uk"],
+    // UK CPI/GDP/trade calendar. BoE /rss/* is Akamai-blocked from common VPS
+    // ranges (including Linode); a browser User-Agent does not unblock it.
+    id: "ons-release-calendar",
+    name: "UK Office for National Statistics",
+    feedUrl: "https://www.ons.gov.uk/releasecalendar?rss",
+    allowedHosts: ["ons.gov.uk"],
+    language: "en",
+    category: "macro",
+    titleTerms: [],
+  },
+  {
+    // Treasury speeches and news — UK policy coverage without BoE's datacenter 403.
+    id: "hm-treasury-news",
+    name: "HM Treasury",
+    feedUrl: "https://www.gov.uk/government/organisations/hm-treasury.atom",
+    allowedHosts: ["gov.uk"],
     language: "en",
     category: "policy",
     titleTerms: [],
@@ -111,4 +132,32 @@ export function sourceAcceptsTitle(source: NewsSource, title: string) {
   if (!source.titleTerms.length) return true;
   const normalized = title.normalize("NFKC").toLocaleLowerCase("en-US");
   return source.titleTerms.some((term) => normalized.includes(term));
+}
+
+export function newsSourceLabel(sourceId: string) {
+  return newsSources.find((source) => source.id === sourceId)?.name ?? sourceId;
+}
+
+/** Admin health list: current allowlist only, so retired BoE 403 rows stay off the dashboard. */
+export function currentSourceHealth(
+  rows: Array<{
+    source_id: string;
+    last_attempt_at?: string | null;
+    last_success_at?: string | null;
+    last_error?: string | null;
+    consecutive_errors?: number | null;
+  }>,
+): NewsSourceHealthRow[] {
+  const byId = new Map(rows.map((row) => [row.source_id, row]));
+  return newsSources.map((source) => {
+    const row = byId.get(source.id);
+    return {
+      source_id: source.id,
+      source_name: source.name,
+      last_attempt_at: row?.last_attempt_at ?? null,
+      last_success_at: row?.last_success_at ?? null,
+      last_error: row?.last_error ?? null,
+      consecutive_errors: row?.consecutive_errors ?? 0,
+    };
+  });
 }
