@@ -7,6 +7,7 @@ import {
   jewelryHistoryRows,
   jewelryLiveExtras,
   jewelryRangeFromRows,
+  taiwanQianValue,
   usdTwdFromQuotes,
   type SectionName,
 } from "../../lib/section-quotes";
@@ -71,6 +72,7 @@ export default async function SectionPage({ params }: { params: Promise<{ sectio
           retrievedAt={quotes?.retrievedAt ?? ""}
           marketStatus={quotes?.marketStatus}
           source={quotes?.source ?? ""}
+          taiwanQian={taiwanQianValue(quotes?.items)}
         />
       )}
     </>

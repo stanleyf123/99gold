@@ -3,6 +3,7 @@
 import Link from "next/link";
 import SiteLinks from "../SiteLinks";
 import { type Locale, t, useSiteLocale } from "../locale";
+import RecycleCalculator from "./RecycleCalculator";
 
 type SectionName = "international" | "jewelry" | "recycling";
 type LiveCard = { name: string; price: string; unit: string; change: string };
@@ -198,6 +199,7 @@ export default function SectionView({
   retrievedAt,
   marketStatus,
   source,
+  taiwanQian,
 }: {
   section: SectionName;
   view: LiveView;
@@ -205,6 +207,7 @@ export default function SectionView({
   retrievedAt: string;
   marketStatus?: MarketStatus;
   source?: string;
+  taiwanQian?: number | null;
 }) {
   const { locale } = useSiteLocale();
   const copy = chrome[section];
@@ -250,6 +253,14 @@ export default function SectionView({
             <b>{localize(locale, card.change)}</b>
           </article>
         ))}</div>
+        {section === "recycling" && (
+          <RecycleCalculator
+            locale={locale}
+            taiwanQian={taiwanQian ?? null}
+            quotedLabel={quotedLabel}
+            connected={view.connected}
+          />
+        )}
         <div className="guide">
           <span>{t(locale, "玖久黃金報價網提示", "99GOLD.NET note", "99GOLD.NETからのご案内")}</span>
           <p>{note}</p>

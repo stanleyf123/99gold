@@ -1,14 +1,23 @@
 import type { GlobalQuotes, MarketQuoteItem, MetalQuote } from "./quotes";
 
 export const JEWELRY_SELL_PREMIUM_RATE = 0.04;
+export const GRAMS_PER_QIAN = 3.75;
+export const QIAN_PER_TAEL = 10;
 export const RECYCLE_PURITY = {
   "999.9": 1,
   "916": 0.916,
   "750": 0.75,
 } as const;
+export const RECYCLE_WEIGHT_UNITS = ["qian", "gram", "tael"] as const;
+export type RecycleWeightUnit = (typeof RECYCLE_WEIGHT_UNITS)[number];
+export type RecyclePurityPreset = keyof typeof RECYCLE_PURITY | "custom";
+export const WEIGHT_TO_QIAN: Record<RecycleWeightUnit, number> = {
+  qian: 1,
+  gram: 1 / GRAMS_PER_QIAN,
+  tael: QIAN_PER_TAEL,
+};
 
 export const TROY_OUNCE_GRAMS = 31.1034768;
-export const GRAMS_PER_QIAN = 3.75;
 
 export type SectionName = "international" | "jewelry" | "recycling";
 export type SectionCard = { name: string; price: string; unit: string; change: string };
@@ -75,6 +84,30 @@ export function jewelrySellFromBuy(buyQian: number, premiumRate = JEWELRY_SELL_P
 
 export function recycleFromQian(buyQian: number, purity: number): number {
   return Math.round(buyQian * purity);
+}
+
+export function weightToQian(weight: number, unit: RecycleWeightUnit): number {
+  return weight * WEIGHT_TO_QIAN[unit];
+}
+
+export function parseCustomPurityPercent(value: string): number | null {
+  const percent = Number(String(value).replace(/,/g, "").trim());
+  if (!Number.isFinite(percent) || percent <= 0 || percent > 100) return null;
+  return Math.round(percent * 1e4) / 1e6;
+}
+
+export function recycleEstimateTwd(
+  buyQian: number,
+  weight: number,
+  unit: RecycleWeightUnit,
+  purity: number,
+): number | null {
+  if (!Number.isFinite(buyQian) || buyQian <= 0) return null;
+  if (!Number.isFinite(weight) || weight <= 0) return null;
+  if (!Number.isFinite(purity) || purity <= 0 || purity > 1) return null;
+  const qian = weightToQian(weight, unit);
+  if (!Number.isFinite(qian) || qian <= 0) return null;
+  return Math.round(recycleFromQian(buyQian, purity) * qian);
 }
 
 export function itemById(items: MarketQuoteItem[] | undefined, id: MarketQuoteItem["id"]): MarketQuoteItem | undefined {
