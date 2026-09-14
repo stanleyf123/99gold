@@ -29,15 +29,19 @@ export function PriceHistoryChart({
   initialPoints,
   convertClose,
   note,
+  endpoint = "/api/gold-history",
+  formatValue,
 }: {
   locale: Locale;
-  currency: "USD" | "TWD";
+  currency?: "USD" | "TWD";
   title: string;
   ariaLabel: string;
   initialPeriod?: ChartPeriod;
   initialPoints: MarketChartPoint[];
   convertClose?: (usdClose: number) => number;
   note?: string;
+  endpoint?: string;
+  formatValue?: (value: number) => string;
 }) {
   const [period, setPeriod] = useState<ChartPeriod>(initialPeriod);
   const [remote, setRemote] = useState<RemoteHistory | null>(null);
@@ -49,7 +53,7 @@ export function PriceHistoryChart({
     if (period === initialPeriod) return;
     if (currency === "TWD" && !convertClose) return;
     let disposed = false;
-    fetch(`/api/gold-history?period=${period}`)
+    fetch(`${endpoint}?period=${period}`)
       .then((response) => (response.ok ? (response.json() as Promise<HistoryPayload>) : Promise.reject(new Error("history unavailable"))))
       .then((data) => {
         if (disposed) return;
@@ -65,7 +69,7 @@ export function PriceHistoryChart({
         if (!disposed) setRemote({ period, status: "fail", points: [] });
       });
     return () => { disposed = true; };
-  }, [convertClose, currency, initialPeriod, period]);
+  }, [convertClose, currency, endpoint, initialPeriod, period]);
 
   const points = useMemo(
     () => usingInitial ? initialPoints : (remote?.period === period && remote.status === "ok" ? remote.points : []),
@@ -103,7 +107,8 @@ export function PriceHistoryChart({
           positive={positive}
           locale={locale}
           period={period}
-          currency={currency}
+          currency={currency ?? "USD"}
+          formatValue={formatValue}
           ariaLabel={`${period} ${ariaLabel}`}
         />
       ) : (

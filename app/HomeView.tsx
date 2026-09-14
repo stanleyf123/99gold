@@ -10,6 +10,7 @@ import { categories, type NewsCategory } from "./news/categories";
 import { useSiteLocale } from "./locale";
 import { jewelrySellFromBuy, parseQuotedNumber } from "../lib/section-quotes";
 import PriceAlerts from "./PriceAlerts";
+import GoldSilverRatioPanel from "./GoldSilverRatio";
 import { newsExcerpt } from "../lib/news-excerpt";
 
 const alertMarkets = [
@@ -161,7 +162,7 @@ function applyQuoteSnapshot(
   if (data.quoteSource || data.source) setters.setQuoteSource(data.quoteSource ?? data.source ?? "");
 }
 
-export default function HomeView({ initialQuotes = null }: { initialQuotes?: HomeQuoteSnapshot | null }) {
+export default function HomeView({ initialQuotes = null, initialRatioPoints = [] }: { initialQuotes?: HomeQuoteSnapshot | null; initialRatioPoints?: MarketChartPoint[] }) {
   const [activeTab, setActiveTab] = useState<"quotes" | "news" | "history" | "tools">("quotes");
   const [period, setPeriod] = useState<HistoryPeriod>("1M");
   const [manualPrice, setManualPrice] = useState("");
@@ -511,6 +512,14 @@ export default function HomeView({ initialQuotes = null }: { initialQuotes?: Hom
                 <tbody>{globalMetals.map((metal) => { const hasChange = Number.isFinite(metal.changePercent); return <tr key={metal.id}><td><strong>{metal.symbol}</strong><span>{locale === "en" ? metal.englishName : metal.name}</span></td><td>{priceFormatter.format(metal.price)}</td><td><b className={hasChange ? metal.changePercent >= 0 ? "up" : "down" : undefined}>{hasChange ? `${metal.changePercent >= 0 ? "▲" : "▼"} ${percentFormatter(metal.changePercent)}` : "—"}</b></td><td>{priceFormatter.format(metal.open)}</td><td>{priceFormatter.format(metal.high)}</td><td>{priceFormatter.format(metal.low)}</td><td>{metal.venue}</td><td><time dateTime={metal.quotedAt}>{metal.quotedAt ? formatSiteTime(metal.quotedAt) : "—"}</time></td></tr>; })}{globalMetals.length === 0 && <tr><td colSpan={8} className="tableUnavailable">{t("行情來源暫時無法連線", "Market data source is temporarily unavailable", "市場データソースに接続できません")}</td></tr>}</tbody>
               </table>
             </div>
+            <GoldSilverRatioPanel
+              locale={locale}
+              goldPrice={globalGold.price}
+              silverPrice={globalMetals.find((metal) => metal.id === "silver")?.price ?? Number.NaN}
+              goldSymbol={globalGold.symbol || "GC=F"}
+              silverSymbol={globalMetals.find((metal) => metal.id === "silver")?.symbol ?? "SI=F"}
+              initialPoints={initialRatioPoints}
+            />
 
             <div className="fxTape" aria-label={t("主要匯率", "Major exchange rates", "主要為替レート")}>
               <span>FX REFERENCE</span>

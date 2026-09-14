@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import SiteLinks from "../SiteLinks";
 import PriceAlerts from "../PriceAlerts";
+import GoldSilverRatioPanel from "../GoldSilverRatio";
 import { type Locale, t, useSiteLocale } from "../locale";
 import { parseQuotedNumber } from "../../lib/section-quotes";
 import {
@@ -115,7 +116,7 @@ function changeText(changePercent: number | null, locale: Locale) {
   return `${direction}${changePercent.toFixed(2)}%`;
 }
 
-export default function GlobalMarketPage({ initialQuotes = null }: { initialQuotes?: Partial<Data> | null }) {
+export default function GlobalMarketPage({ initialQuotes = null, initialRatioPoints = [] }: { initialQuotes?: Partial<Data> | null; initialRatioPoints?: Array<{ timestamp: number; close: number }> }) {
   const { locale } = useSiteLocale();
   const [data, setData] = useState<Data>(() => snapshotFromQuotes(initialQuotes) ?? fallback);
   const [checkFailed, setCheckFailed] = useState(false);
@@ -165,6 +166,7 @@ export default function GlobalMarketPage({ initialQuotes = null }: { initialQuot
 
   const metal = data.metals.find((item) => item.id === metalId) ?? data.metals[0];
   const gold = data.metals.find((item) => item.id === "gold");
+  const silver = data.metals.find((item) => item.id === "silver");
   const effectiveCurrency = currency in data.currencies ? currency : Object.keys(data.currencies)[0] ?? currency;
   const worldQuotes = useMemo(() => {
     const quoted = (id: string) => parseQuotedNumber(data.items.find((item) => item.id === id)?.price ?? "");
@@ -263,6 +265,14 @@ export default function GlobalMarketPage({ initialQuotes = null }: { initialQuot
           </table>
         </div>
       </div>
+      <GoldSilverRatioPanel
+        locale={locale}
+        goldPrice={gold && Number.isFinite(gold.price) ? gold.price : Number.NaN}
+        silverPrice={silver && Number.isFinite(silver.price) ? silver.price : Number.NaN}
+        goldSymbol={gold?.symbol ?? "GC=F"}
+        silverSymbol={silver?.symbol ?? "SI=F"}
+        initialPoints={initialRatioPoints}
+      />
       </>
       )}
     </section>

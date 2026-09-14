@@ -13,6 +13,7 @@ type MarketLineChartProps = {
   locale: "zh" | "en" | "ja";
   period: string;
   currency?: string;
+  formatValue?: (value: number) => string;
   ariaLabel: string;
 };
 
@@ -37,7 +38,7 @@ function formatTime(timestamp: number, period: string, locale: string) {
   }).format(date);
 }
 
-export function MarketLineChart({ points, positive, locale, period, currency = "USD", ariaLabel }: MarketLineChartProps) {
+export function MarketLineChart({ points, positive, locale, period, currency = "USD", formatValue, ariaLabel }: MarketLineChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -193,7 +194,7 @@ export function MarketLineChart({ points, positive, locale, period, currency = "
         {activePoint && (
           <div className="marketChartReadout" aria-live="polite">
             <span>{formatTime(activePoint.timestamp, period, locale)}</span>
-            <strong>{moneyFormatter.format(activePoint.close)}</strong>
+            <strong>{(formatValue ?? ((value: number) => moneyFormatter.format(value)))(activePoint.close)}</strong>
           </div>
         )}
         <label className="srOnly" htmlFor={`market-chart-${period}`}>{locale === "en" ? "Inspect chart points with keyboard" : locale === "ja" ? "キーボードでチャートを確認" : "使用鍵盤檢視圖表資料點"}</label>
