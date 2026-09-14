@@ -44,6 +44,14 @@ export const newsCandidates = sqliteTable("news_candidates", {
   reviewedAt: text("reviewed_at"),
   reviewedBy: text("reviewed_by"),
   publishedAt: text("published_at"),
+  titleZh: text("title_zh"),
+  titleEn: text("title_en"),
+  titleJa: text("title_ja"),
+  summaryZh: text("summary_zh"),
+  summaryEn: text("summary_en"),
+  summaryJa: text("summary_ja"),
+  translationProvider: text("translation_provider"),
+  translatedAt: text("translated_at"),
 });
 
 export const newsSourceState = sqliteTable("news_source_state", {

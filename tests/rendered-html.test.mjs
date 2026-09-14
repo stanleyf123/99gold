@@ -128,6 +128,8 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.doesNotMatch(news, /articleNav/);
   assert.match(news, /alt=\{article\.imageAlt\}/);
   assert.doesNotMatch(article, /<SiteHeader/);
+  assert.doesNotMatch(article, /FEDERAL RESERVE/);
+  assert.match(article, /OfficialBriefView/);
   assert.doesNotMatch(editorial, /<SiteHeader/);
   assert.match(editorial, /alt=\{a\.imageAlt\}/);
   assert.match(cover, /onError/);
@@ -239,15 +241,18 @@ test("keeps quote history, data transparency and responsive styles wired", async
   assert.match(sitemap, /\/global/);
 });
 
-test("ships a scheduled, approval-gated news pipeline", async () => {
-  const [script, deploy, service, pipeline, migration, admin, sources] = await Promise.all([
+test("ships a scheduled auto-publish news pipeline", async () => {
+  const [script, deploy, service, pipeline, migration, translations, admin, sources, newsPage, homeView] = await Promise.all([
     readFile(new URL("../scripts/run-news-pipeline.ts", import.meta.url), "utf8"),
     readFile(new URL("../DEPLOY-LINODE.md", import.meta.url), "utf8"),
     readFile(new URL("../app/api/news-service.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/news/pipeline.ts", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0004_news_pipeline.sql", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0005_news_translations.sql", import.meta.url), "utf8"),
     readFile(new URL("../app/api/admin/news/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/news/source-config.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/news/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/HomeView.tsx", import.meta.url), "utf8"),
   ]);
   assert.match(script, /runNewsPipeline/);
   assert.match(script, /news:pipeline|--manual|cron/);
@@ -258,17 +263,36 @@ test("ships a scheduled, approval-gated news pipeline", async () => {
   assert.match(deploy, /Akamai Access Denied HTML 403/);
   assert.match(deploy, /ons\.gov\.uk\/releasecalendar\?rss/);
   assert.match(deploy, /hm-treasury/);
+  assert.match(deploy, /db:migrate/);
+  assert.doesNotMatch(deploy, /快訊仍須在 `\/admin` 核准/);
   assert.match(pipeline, /status = 'published'/);
-  assert.match(pipeline, /status = 'approved'/);
+  assert.match(pipeline, /status IN \('pending', 'approved'\)/);
+  assert.match(pipeline, /AUTO_PIPELINE_REVIEWER/);
+  assert.match(pipeline, /translateOfficialBrief/);
   assert.match(pipeline, /news_pipeline_completed/);
   assert.match(migration, /CREATE TABLE `news_candidates`/);
   assert.match(migration, /CREATE TABLE `news_runs`/);
+  assert.match(translations, /title_zh/);
+  assert.match(translations, /translation_provider/);
   assert.match(admin, /requireAdmin/);
+  assert.match(admin, /reviewNewsCandidate/);
   assert.match(admin, /currentSourceHealth/);
   assert.match(sources, /ons-release-calendar/);
   assert.match(sources, /hm-treasury-news/);
   assert.doesNotMatch(sources, /bank-of-england-speeches/);
   assert.doesNotMatch(service, /fetch\(/);
+  assert.match(service, /localizedBriefFields/);
+  assert.match(service, /briefLabels/);
+  assert.doesNotMatch(service, /sourceName:r\.source_name/);
+  assert.match(newsPage, /無需人工核准/);
+  assert.match(newsPage, /市場快訊/);
+  assert.match(newsPage, /\/news\/\$\{item\.id\}\?lang=\$\{locale\}/);
+  assert.doesNotMatch(newsPage, /經管理者核准/);
+  assert.doesNotMatch(newsPage, /官方來源快訊/);
+  assert.match(homeView, /自動檢查、翻譯並上架/);
+  assert.match(homeView, /MARKET BRIEF/);
+  assert.match(homeView, /\/news\/\$\{item\.id\}\?lang=\$\{locale\}/);
+  assert.doesNotMatch(homeView, /<small>OFFICIAL SOURCE<\/small>/);
 });
 
 test("wires 30-90 day charts, metal comparison, browser alerts, OG route and PWA shell", async () => {
@@ -339,7 +363,8 @@ test("wires 30-90 day charts, metal comparison, browser alerts, OG route and PWA
   assert.match(newsPage, /newsExcerpt/);
   assert.match(newsPage, /newsEmpty/);
   assert.match(excerpt, /newsExcerpt/);
-  assert.match(newsService, /r\.summary\?\.replace/);
+  assert.match(newsService, /localizedBriefFields/);
+  assert.match(newsService, /url:"\/news\/"\+r\.id/);
 });
 
 test("wires gold/silver ratio math, history API, and charts on global, international and home", async () => {

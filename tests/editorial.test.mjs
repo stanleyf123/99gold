@@ -8,7 +8,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 const require=createRequire(import.meta.url);
 function moduleFrom(file, overrides={}) {
  const code=ts.transpileModule(readFileSync(new URL(file,import.meta.url),"utf8"),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText;
- const context={exports:{},require:(id)=>overrides[id]??require(id),Date,console};
+ const context={exports:{},require:(id)=>overrides[id]??require(id),Date,console,JSON,URL,AbortSignal,Headers,fetch,setTimeout,process};
  vm.runInNewContext(code,context);return context.exports;
 }
 const batch=moduleFrom("../app/news/batch-20260912.ts");
@@ -19,6 +19,7 @@ const data=moduleFrom("../app/news/editorial.ts",{"./batch-20260912":batch,"./ba
 const cover=moduleFrom("../app/CoverImage.tsx");
 const view=moduleFrom("../app/news/EditorialView.tsx",{"./editorial":data,"./categories":categories,"../CoverImage":cover});
 const feedClient=moduleFrom("../lib/news/feed-client.ts");
+const translate=moduleFrom("../lib/news/translate.ts");
 test("three complete editions have local art, stable dates and cited sources",()=>{
  assert.equal(data.editorials.length,18);
  assert.equal(new Set(batch.batchSeptember12.map(a=>a.group)).size,2);
@@ -46,6 +47,38 @@ test("old events are excluded instead of receiving a new publication date",()=>{
  assert.equal(data.recentEditorials("zh",Date.parse("2026-09-20T12:00:00Z")).length,0);
 });
 test("reader API returns original work and local images without a translation request",async()=>{
- const api=moduleFrom("../app/api/news-service.ts",{"../news/editorial":data,"../../lib/news/feed-client":feedClient});
+ const api=moduleFrom("../app/api/news-service.ts",{"../news/editorial":data,"../../lib/news/feed-client":feedClient,"../../lib/news/translate":translate});
  for(const lang of ["zh","en","ja"]){const result=await api.getDailyGoldNews(lang);assert.equal(result.items.length,6);assert.ok(result.items[0].id.endsWith("-"+lang));assert.equal(result.items[0].translated,false);assert.ok(result.items[0].image.startsWith("/"));assert.equal(result.items[0].category,"policy");}
+});
+test("official briefs expose locale-specific translations from stored fields",async()=>{
+ const api=moduleFrom("../app/api/news-service.ts",{"../news/editorial":data,"../../lib/news/feed-client":feedClient,"../../lib/news/translate":translate});
+ const official={
+  id:"fed-1",title:"Federal Reserve issues FOMC statement",summary:"Official policy decision",
+  canonical_url:"https://www.federalreserve.gov/newsevents/pressreleases/monetary20260913a.htm",
+  source_name:"Federal Reserve Board",category:"policy",source_published_at:"2026-09-13T18:00:00.000Z",
+  published_at:"2026-09-14T13:00:00.000Z",source_language:"en",
+  title_zh:"聯邦準備理事會發布FOMC聲明",title_en:"Federal Reserve issues FOMC statement",
+  title_ja:"米連邦準備制度理事会がFOMC声明を発表",
+  summary_zh:"官方政策決定",summary_en:"Official policy decision",summary_ja:"公式の政策決定",
+  translation_provider:"mymemory",
+ };
+ const db={prepare(query){const q=query.replace(/\s+/g," ");return{bind(){return this;},async first(){return q.includes("news_runs")?{finished_at:"2026-09-14T13:00:00.000Z",status:"succeeded"}:null;},async all(){return{results:q.includes("news_candidates")?[official]:[]};}};}};
+ const zh=await api.getDailyGoldNews("zh",db);
+ const zhItem=zh.items.find((item)=>item.external);
+ assert.equal(zhItem.title,"聯邦準備理事會發布FOMC聲明");
+ assert.equal(zhItem.summary,"官方政策決定");
+ assert.equal(zhItem.translated,true);
+ assert.equal(zhItem.translationLabel,"機器翻譯");
+ assert.equal(zhItem.sourceName,"市場快訊");
+ assert.doesNotMatch(zhItem.sourceName,/Federal Reserve|ONS|Treasury|BLS|ECB/i);
+ assert.equal(zhItem.url,"/news/fed-1");
+ assert.doesNotMatch(zhItem.url,/federalreserve|ons\.gov|bls\.gov|ecb\.europa/i);
+ const enItem=(await api.getDailyGoldNews("en",db)).items.find((item)=>item.external);
+ assert.equal(enItem.title,"Federal Reserve issues FOMC statement");
+ assert.equal(enItem.sourceName,"Market brief");
+ assert.equal(enItem.translated,false);
+ const jaItem=(await api.getDailyGoldNews("ja",db)).items.find((item)=>item.external);
+ assert.equal(jaItem.title,"米連邦準備制度理事会がFOMC声明を発表");
+ assert.equal(jaItem.sourceName,"市場速報");
+ assert.equal(jaItem.translated,true);
 });

@@ -20,7 +20,7 @@ const alertMarkets = [
   { id: "gram", label: "黃金每公克", value: Number.NaN, unit: "TWD／公克" },
 ] as const;
 
-type NewsItem = { id?: number | string; title: string; category?:NewsCategory; originalTitle?: string; summary?: string; date: string; url: string; image?: string; sourceName?: string; translated?: boolean; external?: boolean };
+type NewsItem = { id?: number | string; title: string; category?:NewsCategory; originalTitle?: string; summary?: string; date: string; url: string; image?: string; sourceName?: string; translated?: boolean; translationLabel?: string | null; translationProvider?: string | null; external?: boolean };
 type QuoteItem = { id?: string; label: string; code: string; price: string; unit: string; change: string; up: boolean | null };
 type HistoryPeriod = "1D" | "1W" | "1M" | "3M" | "1Y";
 type MarketStatus = "checking" | "open" | "delayed" | "daily-break" | "weekend-closed" | "unavailable";
@@ -560,9 +560,9 @@ export default function HomeView({ initialQuotes = null, initialRatioPoints = []
               <p>{newsUpdated}<small className={`newsScheduleState ${newsScheduleStatus}`}>{newsScheduleLabel} · {t("每 3 小時", "EVERY 3 HOURS", "3時間ごと")}</small></p>
             </div>
             <p className="panelIntro">{t(
-              "官方來源每 3 小時檢查，候選內容經管理者核准後由排程發布；本站分析文章則分開查核與撰寫。",
-              "Official sources are checked every 3 hours. Approved items are published by schedule, while original analysis is researched and written separately.",
-              "公式情報源を3時間ごとに確認し、承認済み項目を予定公開します。独自分析記事は別途調査・執筆します。",
+              "官方來源每 3 小時自動檢查、翻譯並上架快訊；本站分析文章則分開查核與撰寫。",
+              "Official sources are checked every 3 hours. Briefs are auto-translated and published; original analysis is researched and written separately.",
+              "公式情報源を3時間ごとに確認し、速報を自動翻訳して公開します。独自分析記事は別途調査・執筆します。",
             )}</p>
             <p><Link href={`/news?lang=${locale}`}>{locale === "zh" ? "開啟新聞專區 →" : locale === "ja" ? "ニュース一覧 →" : "News library →"}</Link></p>
             <div className="newsFilters" aria-label={locale === "zh" ? "新聞分類" : locale === "ja" ? "ニュース分類" : "News categories"}>{newsCategories.map((category) => <button key={category} className={newsCategory === category ? "active" : ""} aria-pressed={newsCategory === category} onClick={() => setNewsCategory(category)}>{categories[category][locale]}</button>)}</div>
@@ -570,16 +570,16 @@ export default function HomeView({ initialQuotes = null, initialRatioPoints = []
               const category = item.category ?? "macro";
               const key = String(item.id ?? item.url);
               const cover = item.image;
-              const href = item.external ? item.url : `/news/${item.id}`;
+              const href = item.external ? `/news/${item.id}?lang=${locale}` : `/news/${item.id}`;
               const excerpt = newsExcerpt(item.summary);
               return <article key={key}>
-                <div className={cover ? "newsVisual hasImage" : "newsVisual officialSourceVisual"}>{cover ? <CoverImage src={cover} /> : <div className="newsSourceMark"><b>99</b><small>OFFICIAL SOURCE</small></div>}</div>
+                <div className={cover ? "newsVisual hasImage" : "newsVisual officialSourceVisual"}>{cover ? <CoverImage src={cover} /> : <div className="newsSourceMark"><b>99</b><small>{t("市場快訊", "MARKET BRIEF", "市場速報")}</small></div>}</div>
                 <p><b>{categories[category][locale]}</b><time>{item.date}</time></p>
-                <div className="newsSource"><span>{item.sourceName || "國際新聞"}</span>{item.translated && <em>自動翻譯</em>}</div>
+                <div className="newsSource"><span>{item.sourceName || t("市場快訊", "Market brief", "市場速報")}</span>{item.translated && <em>{item.translationLabel || t("自動翻譯", "Auto-translated", "自動翻訳")}</em>}</div>
                 <h3>{item.title}</h3>
-                {excerpt ? <p className="newsSynopsis">{excerpt}</p> : <p className="newsExcerptMuted">{item.external ? t("來源未提供摘要。", "The source did not provide an excerpt.", "情報源に要約がありません。") : t("這篇文章沒有可顯示的摘要。", "No excerpt is available for this article.", "この記事には表示できる要約がありません。")}</p>}
+                {excerpt ? <p className="newsSynopsis">{excerpt}</p> : <p className="newsExcerptMuted">{item.external ? t("這則快訊沒有可顯示的摘要。", "No excerpt is available for this brief.", "この速報には表示できる要約がありません。") : t("這篇文章沒有可顯示的摘要。", "No excerpt is available for this article.", "この記事には表示できる要約がありません。")}</p>}
                 {cover && <small className="newsIllustrationLabel">{locale === "zh" ? "AI生成示意圖" : locale === "ja" ? "AI生成イメージ" : "AI-generated illustration"}</small>}
-                <a href={href} target={item.external ? "_blank" : undefined} rel={item.external ? "noreferrer" : undefined}>{item.external ? t("前往官方來源", "Open official source", "公式情報源を開く") : copy.read}　→</a>
+                <a href={href}>{item.external ? t("閱讀快訊", "Read brief", "速報を読む") : copy.read}　→</a>
               </article>;
             })}</div>
             {filteredNews.length === 0 && <p className="newsEmpty">{locale === "zh" ? "最近7天此分類暫無新文章。" : locale === "ja" ? "過去7日間、この分類に新しい記事はありません。" : "No new articles in this category in the last 7 days."}</p>}
