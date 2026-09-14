@@ -181,7 +181,11 @@ function jewelryView(quotes: GlobalQuotes): SectionView | null {
   if (buy === null) return null;
   const sell = jewelrySellFromBuy(buy);
   const gold = quotes.metals.find((metal) => metal.id === "gold");
-  const buyChange = gold ? metalChange(gold) : (itemById(quotes.items, "taiwan-qian")?.change ?? "未含銀樓價差與費用");
+  const extras = jewelryLiveExtras(quotes);
+  const buyChange = extras?.buyChange;
+  const buyChangeLabel = buyChange == null
+    ? (gold ? metalChange(gold) : (itemById(quotes.items, "taiwan-qian")?.change ?? "未含銀樓價差與費用"))
+    : `${buyChange >= 0 ? "+" : "−"}${formatTwdAmount(Math.abs(buyChange))}${extras?.changePercent != null && Number.isFinite(extras.changePercent) ? `　${extras.changePercent >= 0 ? "+" : "−"}${Math.abs(extras.changePercent).toFixed(2)}%` : ""}`;
   const page = copy.jewelry;
   return {
     eyebrow: page.eyebrow,
@@ -191,7 +195,7 @@ function jewelryView(quotes: GlobalQuotes): SectionView | null {
     price: formatTwdAmount(sell),
     change: `估計溢價 ${(JEWELRY_SELL_PREMIUM_RATE * 100).toFixed(0)}%`,
     cards: [
-      { name: "999.9 黃金買進", price: formatTwdAmount(buy), unit: "台幣／錢", change: buyChange },
+      { name: "999.9 黃金買進", price: formatTwdAmount(buy), unit: "台幣／錢", change: buyChangeLabel },
       { name: "999.9 黃金賣出估計", price: formatTwdAmount(sell), unit: "台幣／錢", change: `估計溢價 ${(JEWELRY_SELL_PREMIUM_RATE * 100).toFixed(0)}%（非店家牌價）` },
       gramValue !== null
         ? { name: gram?.label ?? "黃金每公克", price: formatTwdAmount(gramValue), unit: gram?.unit ?? "台幣／公克", change: gram?.change ?? "未含銀樓價差與費用" }
