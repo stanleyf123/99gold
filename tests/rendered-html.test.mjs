@@ -94,6 +94,7 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.doesNotMatch(section, /<SiteHeader/);
   assert.match(section, /getGlobalQuotes/);
   assert.match(section, /buildSectionView/);
+  assert.match(section, /taiwanQianValue/);
   assert.match(section, /redirect\("\/news"\)/);
   assert.match(section, /SectionView/);
   assert.doesNotMatch(section, /此頁尚無可驗證的即時資料/);
@@ -113,7 +114,7 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
 });
 
 test("keeps one locale source for header, homepage, global and section chrome", async () => {
-  const [localeMod, chrome, header, page, globalPage, sectionPage, sectionView] = await Promise.all([
+  const [localeMod, chrome, header, page, globalPage, sectionPage, sectionView, recycleCalc] = await Promise.all([
     readFile(new URL("../app/locale.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/SiteChrome.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/SiteHeader.tsx", import.meta.url), "utf8"),
@@ -121,6 +122,7 @@ test("keeps one locale source for header, homepage, global and section chrome", 
     readFile(new URL("../app/global/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/[section]/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/[section]/SectionView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/[section]/RecycleCalculator.tsx", import.meta.url), "utf8"),
   ]);
 
   assert.match(localeMod, /export const LOCALE_STORAGE_KEY = "golden-tide-locale"/);
@@ -145,6 +147,15 @@ test("keeps one locale source for header, homepage, global and section chrome", 
   assert.match(sectionView, /Gold Recycling/);
   assert.match(sectionView, /No valid data/);
   assert.match(sectionView, /有効なデータなし/);
+  assert.match(sectionView, /section === "recycling"/);
+  assert.match(sectionView, /RecycleCalculator/);
+  assert.match(recycleCalc, /回收試算/);
+  assert.match(recycleCalc, /Recycle estimate/);
+  assert.match(recycleCalc, /買取試算/);
+  assert.match(recycleCalc, /參考試算、未含耗損／手續費／檢測，非店家成交價。/);
+  assert.match(recycleCalc, /recycleEstimateTwd/);
+  assert.match(recycleCalc, /taiwanQian/);
+  assert.doesNotMatch(recycleCalc, /18000|16,800|假金價/);
 });
 
 test("keeps quote history, data transparency and responsive styles wired", async () => {

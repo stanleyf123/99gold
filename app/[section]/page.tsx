@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { getGlobalQuotes, type GlobalQuotes } from "../../lib/quotes";
-import { buildSectionView, type SectionName } from "../../lib/section-quotes";
+import { buildSectionView, taiwanQianValue, type SectionName } from "../../lib/section-quotes";
 import SectionView from "./SectionView";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +35,7 @@ export default async function SectionPage({ params }: { params: Promise<{ sectio
       retrievedAt={quotes?.retrievedAt ?? ""}
       marketStatus={quotes?.marketStatus}
       source={quotes?.source ?? ""}
+      taiwanQian={taiwanQianValue(quotes?.items)}
     />
   );
 }

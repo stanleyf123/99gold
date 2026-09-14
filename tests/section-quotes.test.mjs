@@ -16,6 +16,9 @@ const {
   parseQuotedNumber,
   jewelrySellFromBuy,
   recycleFromQian,
+  recycleEstimateTwd,
+  parseCustomPurityPercent,
+  weightToQian,
   taiwanQianValue,
   buildSectionView,
   formatTaipeiTime,
@@ -67,6 +70,22 @@ test("recycling scales taiwan-qian by 999.9 / 916 / 750 purity", () => {
   assert.equal(view.cards[1].price, "15,169");
   assert.equal(view.cards[2].price, "12,420");
   assert.match(view.note, /實際回收請向店家確認/);
+});
+
+test("recycle estimate multiplies taiwan-qian by weight, unit and purity", () => {
+  assert.equal(weightToQian(10, "qian"), 10);
+  assert.equal(weightToQian(3.75, "gram"), 1);
+  assert.equal(weightToQian(1, "tael"), 10);
+  assert.equal(recycleEstimateTwd(16560, 10, "qian", RECYCLE_PURITY["999.9"]), 165600);
+  assert.equal(recycleEstimateTwd(16560, 1, "tael", RECYCLE_PURITY["999.9"]), 165600);
+  assert.equal(recycleEstimateTwd(16560, 3.75, "gram", RECYCLE_PURITY["999.9"]), 16560);
+  assert.equal(recycleEstimateTwd(16560, 10, "qian", RECYCLE_PURITY["916"]), 151690);
+  assert.equal(recycleEstimateTwd(16560, 10, "qian", parseCustomPurityPercent("75")), 124200);
+  assert.equal(recycleEstimateTwd(16560, 0, "qian", 1), null);
+  assert.equal(recycleEstimateTwd(Number.NaN, 10, "qian", 1), null);
+  assert.equal(parseCustomPurityPercent("99.99"), 0.9999);
+  assert.equal(parseCustomPurityPercent("0"), null);
+  assert.equal(parseCustomPurityPercent("101"), null);
 });
 
 test("international section uses live metal prices in USD/oz", () => {
