@@ -34,7 +34,7 @@ export async function getDailyGoldNews(inputLocale="zh",database?:NewsDatabase) 
  const names={zh:"本站撰文 · AI協作",en:"Original editorial · AI-assisted",ja:"独自記事 · AI協働"};
  const scheduled=await scheduledNews(database);
  const editorialItems=rows.map(r=>({id:r.id,title:r.title,summary:r.description,date:r.eventDate,category:r.category??"macro",url:"/news/"+r.id,image:r.image,sourceName:names[locale],translated:false,external:false,sourcePublishedAt:r.eventDate,publishedAt:r.publishedAt}));
- const officialItems=scheduled.items.map(r=>({id:r.id,title:r.title,summary:r.summary??"",date:r.source_published_at.slice(0,10),category:r.category,url:r.canonical_url,image:undefined,sourceName:r.source_name,translated:false,external:true,sourcePublishedAt:r.source_published_at,publishedAt:r.published_at}));
+ const officialItems=scheduled.items.map(r=>({id:r.id,title:r.title,summary:r.summary?.replace(/\s+/g," ").trim()||null,date:r.source_published_at.slice(0,10),category:r.category,url:r.canonical_url,image:undefined,sourceName:r.source_name,translated:false,external:true,sourcePublishedAt:r.source_published_at,publishedAt:r.published_at}));
  const items=[...officialItems,...editorialItems].sort((a,b)=>Date.parse(b.sourcePublishedAt)-Date.parse(a.sourcePublishedAt)).slice(0,15);
  const updatedAt=items.reduce((latest,item)=>Date.parse(item.publishedAt)>Date.parse(latest||"1970-01-01")?item.publishedAt:latest,"");
  const checkedTime=Date.parse(scheduled.checkedAt);

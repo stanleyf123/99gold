@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 export const SITE_URL = "https://99gold.net";
 export const SITE_NAME = "玖久黃金報價網";
 export const SITE_NAME_EN = "99GOLD.NET";
-export const DEFAULT_OG_IMAGE = "/og-quotes-v2.png";
-export const DEFAULT_OG_ALT = "玖久黃金報價網專業黃金報價與歷史金價";
+export const DEFAULT_OG_IMAGE = "/og";
+export const DEFAULT_OG_ALT = "玖久黃金報價網今日金價：台灣理論錢價與 COMEX 黃金參考";
 
 export type SeoLocale = "zh" | "en" | "ja";
 export type PublicRoute = "home" | "jewelry" | "international" | "recycling" | "global" | "news";

@@ -1,8 +1,11 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import SiteLinks from "../SiteLinks";
+import PriceHistoryChart from "../PriceHistoryChart";
 import { type Locale, t, useSiteLocale } from "../locale";
+import { qianFromUsdOz } from "../../lib/section-quotes";
 import "./jewelry.css";
 
 type LiveCard = { name: string; price: string; unit: string; change: string };
@@ -168,6 +171,7 @@ export default function JewelryView({
   historyRows,
   historyRange,
   historySource,
+  usdTwd,
 }: {
   view: LiveView;
   quotedAt: string;
@@ -178,6 +182,7 @@ export default function JewelryView({
   historyRows: JewelryDayRow[];
   historyRange: JewelryRange | null;
   historySource: string;
+  usdTwd: number | null;
 }) {
   const { locale } = useSiteLocale();
   const quotedLabel = formatTaipeiTime(quotedAt, locale);
@@ -201,6 +206,10 @@ export default function JewelryView({
   const buy = live?.buy ?? null;
   const sell = live?.sell ?? null;
   const faq = faqCopy[locale];
+  const convertClose = useMemo(() => {
+    if (usdTwd === null || usdTwd <= 0) return undefined;
+    return (usd: number) => qianFromUsdOz(usd, usdTwd);
+  }, [usdTwd]);
 
   return (
     <main className="subpage" lang={locale === "zh" ? "zh-Hant" : locale}>
@@ -264,6 +273,16 @@ export default function JewelryView({
             <b>{localize(locale, card.change)}</b>
           </article>
         ))}</div>
+
+        <PriceHistoryChart
+          locale={locale}
+          currency="TWD"
+          title={t(locale, "台灣理論買進走勢（近 30／90 日）", "Taiwan theoretical buy history (30 / 90 days)", "台湾の理論買推移（30／90日）")}
+          ariaLabel={t(locale, "台灣理論金價歷史走勢", "Taiwan theoretical gold history", "台湾理論金価格の履歴")}
+          initialPoints={historyRows.map((row) => ({ timestamp: row.timestamp, close: row.buy }))}
+          convertClose={convertClose}
+          note={t(locale, "走勢以 COMEX 收盤換算目前臺銀即期賣出，非店家牌價，也不是當年當日歷史匯率。", "Chart converts COMEX closes with the current Bank of Taiwan USD spot-sell rate — not a shop price or historical FX.", "チャートはCOMEX終値を現在の台湾銀行米ドル直物売りで換算。店頭価格でも当時の為替でもありません。")}
+        />
 
         <div className="sectionHead" style={{ marginTop: 36 }}>
           <div><p className="eyebrow">DAILY TABLE</p><h2>{t(locale, "每日理論牌價", "Daily theoretical prices", "日次の理論価格")}</h2></div>

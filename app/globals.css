@@ -89,3 +89,31 @@
 .panelHeading>p .newsScheduleState{display:block;margin-top:5px;font-size:9px;letter-spacing:.04em}.newsScheduleState.healthy{color:#287463}.newsScheduleState.delayed,.newsScheduleState.error{color:#a34838}.newsScheduleState.pending{color:#876418}.officialSourceVisual{display:grid;place-items:center;background:radial-gradient(circle at 75% 25%,#71571e 0,#283b3f 34%,#17272c 72%)}.newsSourceMark{display:grid;justify-items:center;gap:7px;color:#f3d477}.newsSourceMark b{width:44px;height:44px;border:1px solid #d7b24e;border-radius:50%;display:grid;place-items:center;font:24px Georgia}.newsSourceMark small{font-size:8px;letter-spacing:.16em}
 .newsOperationsNote{padding:12px 15px;border-left:3px solid #b98520;background:#f1eadb;color:#655f54}.officialBriefs{margin-top:48px;padding-top:30px;border-top:1px solid #d8d0c3}.officialBriefs>h2{font:30px Georgia,"Noto Serif TC",serif}.officialBriefs>div{display:grid;gap:12px}.officialBriefs article{padding:20px;border:1px solid #ddd5c7;background:#fffdf8}.officialBriefs article>p:first-child{display:flex;justify-content:space-between;gap:20px;color:#8c6a20;font-size:12px}.officialBriefs h3{font-size:20px;line-height:1.5}.officialBriefs h3 a{color:#211e17;text-decoration:none}.officialBriefs article>p:not(:first-child){color:#655f54}.officialBriefs small{color:#777067}@media(max-width:640px){.officialBriefs h3{font-size:17px}}
 .editorialCategoryFilters{display:flex;flex-wrap:wrap;gap:10px;margin:24px 0 30px}.editorialCategoryFilters a{font-size:14px;padding:10px 14px;border:1px solid #bba56a;border-radius:30px;text-decoration:none}.editorialCategoryFilters a[aria-current=page]{background:#172334;color:#f1d48d}.editorialCategoryFilters span{margin-left:6px}.editorialList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px}.editorialList h2{font-size:23px}.editorialList article{min-width:0}@media(max-width:650px){.editorialList{grid-template-columns:1fr}.editorialCategoryFilters{gap:8px}}
+.offlineBanner{position:sticky;top:0;z-index:1400;background:#172128;color:#f7f2e6;padding:10px 16px;text-align:center;font-size:13px;line-height:1.55}
+.alertNotifyRow{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px}
+.alertNotifyRow p{margin:0;color:#6f766f;font-size:13px;line-height:1.65;max-width:62em}
+.notifyEnable{min-height:40px;border:1px solid #1b282d;background:#fffdf8;color:#1b282d;padding:0 16px;font-weight:700}
+.compactAlerts{grid-template-columns:1fr;padding-top:36px;padding-bottom:48px;gap:22px;background:#f3eee4;border-top:1px solid #d5ccba}
+.compactAlerts .alertIntro>p:last-child{max-width:none}
+.compactAlerts .savedAlerts{grid-template-columns:repeat(3,1fr)}
+.newsExcerpt{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;color:#655e52}
+.newsExcerptMuted{margin:10px 0 0;color:#8a8478;font-size:14px;line-height:1.6}
+.newsSynopsis{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.editorialList .newsCard{max-width:none;background:#fffdf8;border:1px solid #ddd5c7;padding:0 0 16px;display:flex;flex-direction:column}
+.editorialList .newsCard a:first-child{display:grid;gap:8px}
+.editorialList .newsCard img,.editorialList .newsCard .coverFallback{border-radius:0;width:100%;aspect-ratio:16/10;object-fit:cover;height:auto}
+.editorialList .newsCard .articleKicker{margin:12px 16px 0}
+.editorialList .newsCard h2{margin:0 16px;font-size:22px;line-height:1.35}
+.editorialList .newsCard .newsExcerpt,.editorialList .newsCard .newsExcerptMuted{margin:10px 16px 0;font-size:15px;line-height:1.7}
+.editorialList .newsCard a:last-child{margin:14px 16px 0}
+@media(max-width:800px){.compactAlerts .savedAlerts{grid-template-columns:1fr 1fr}}
+@media(max-width:460px){.compactAlerts .savedAlerts{grid-template-columns:1fr}}
+.goldSilverRatio{margin-top:28px}
+.goldSilverRatio .ratioNow{background:#fffdf8;border:1px solid #d1cabc;padding:22px 24px 16px}
+.goldSilverRatio .ratioNow h2{margin:0 0 6px;font:28px Georgia,"Noto Serif TC",serif;color:#172128}
+.goldSilverRatio .ratioNow strong{display:block;font:clamp(40px,5vw,56px)/1 Georgia,"Noto Serif TC",serif;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.goldSilverRatio .ratioNow>p:not(.eyebrow){max-width:42em;color:#5d5348;line-height:1.7;margin:12px 0 0;font-size:15px}
+.goldSilverRatio .ratioNow small{display:block;margin-top:10px;color:#7a7468;font-size:12px;line-height:1.6}
+.goldSilverRatio .sectionChart{margin-top:12px}
+.hubPanel .goldSilverRatio{margin-top:22px}
+@media(max-width:520px){.goldSilverRatio .ratioNow{padding:18px 16px}.goldSilverRatio .ratioNow h2{font-size:22px}}

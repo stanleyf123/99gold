@@ -12,6 +12,7 @@ const context = { exports: {}, module: { exports: {} } };
 vm.runInNewContext(code, context);
 const {
   SITE_URL,
+  DEFAULT_OG_IMAGE,
   pageMetadata,
   absoluteUrl,
   faqJsonLd,
@@ -24,6 +25,7 @@ const {
 test("each public route has a unique zh title, description and https canonical", () => {
   const titles = new Set();
   const descriptions = new Set();
+  assert.equal(DEFAULT_OG_IMAGE, "/og");
   for (const route of Object.keys(routeCopy)) {
     const meta = pageMetadata(route);
     const title = meta.title;

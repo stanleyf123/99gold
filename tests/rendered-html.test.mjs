@@ -43,7 +43,7 @@ test("build emits the complete 99gold professional quote workspace", async (t) =
   assert.match(bundleText, /全球貴金屬比較/);
   assert.match(bundleText, /歷史金價/);
   assert.doesNotMatch(bundleText, /Your site is taking shape|codex-preview/);
-  await access(new URL("../public/og-quotes-v2.png", import.meta.url));
+  await access(new URL("../app/og/route.tsx", import.meta.url));
 });
 
 test("uses a shared SiteHeader and coherent homepage layout", async () => {
@@ -91,6 +91,12 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.match(homeView, /className="heroPhoto"/);
   assert.match(homeView, /className="brandHeroCopy"/);
   assert.match(homeView, /今日市場快速判讀/);
+  assert.match(homeView, /臺銀美金即期賣出/);
+  assert.match(homeView, /BOT USD spot sell/);
+  assert.match(homeView, /台湾銀行米ドル直物売り/);
+  assert.match(homeView, /新台幣／美元/);
+  assert.match(homeView, /bankOfTaiwanUsdSightSell/);
+  assert.match(chrome, /repeat\(4, minmax\(0, 1fr\)\)/);
   assert.match(homeView, /Today’s Gold Dashboard/);
   assert.match(homeView, /本日の金情報/);
   assert.match(homeView, /quoteEmptyPanel/);
@@ -114,6 +120,10 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.match(globalView, /useSiteLocale/);
   assert.match(globalView, /Global Precious Metals Desk/);
   assert.match(globalView, /世界貴金属相場センター/);
+  assert.match(globalView, /buildWorldMarketQuotes/);
+  assert.match(globalView, /依國際參考價與匯率換算，非當地交易所結算價／非店家牌價/);
+  assert.match(globalView, /not a local exchange settlement or shop quote/);
+  assert.match(globalView, /現地取引所の決済価格／店頭掲示価格ではありません/);
   assert.doesNotMatch(news, /<SiteHeader/);
   assert.doesNotMatch(news, /articleNav/);
   assert.match(news, /alt=\{article\.imageAlt\}/);
@@ -201,13 +211,15 @@ test("keeps quote history, data transparency and responsive styles wired", async
   assert.match(quoteApi, /Resolve gold first/);
   assert.match(quoteApi, /quotedAt: gold\.quotedAt/);
   assert.match(quoteApi, /retrievedAt/);
+  assert.match(quoteApi, /\["TWD", "HKD", "CNY", "JPY", "EUR", "GBP", "SGD"\]/);
   assert.match(quoteRoute, /getGlobalQuotes/);
   assert.match(quoteRoute, /lib\/quotes/);
   assert.match(homeView, /行情時間/);
   assert.match(homeView, /本站檢查/);
   assert.match(homeView, /週末休市/);
   assert.doesNotMatch(homeView, /api\/market-quotes\?t=|api\/global-quotes\?t=|api\/gold-history\?period=\$\{period\}&t=/);
-  assert.match(historyLib, /GC%3DF/);
+  assert.match(historyLib, /encodeURIComponent\(symbol\)/);
+  assert.match(historyLib, /GC=F/);
   assert.match(historyLib, /historyPeriodConfig/);
   assert.match(historyApi, /getGoldHistory/);
   assert.match(historyLib, /quotedAt/);
@@ -245,4 +257,107 @@ test("ships a scheduled, approval-gated news pipeline", async () => {
   assert.match(migration, /CREATE TABLE `news_runs`/);
   assert.match(admin, /requireAdmin/);
   assert.doesNotMatch(service, /fetch\(/);
+});
+
+test("wires 30-90 day charts, metal comparison, browser alerts, OG route and PWA shell", async () => {
+  const [
+    jewelryView,
+    sectionView,
+    sectionPage,
+    globalView,
+    homeView,
+    chart,
+    alerts,
+    alertsLib,
+    og,
+    seo,
+    layout,
+    manifest,
+    sw,
+    pwa,
+    newsPage,
+    excerpt,
+    newsService,
+  ] = await Promise.all([
+    readFile(new URL("../app/[section]/JewelryView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/[section]/SectionView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/[section]/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/global/GlobalView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/HomeView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/PriceHistoryChart.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/PriceAlerts.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../lib/price-alerts.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/og/route.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../lib/seo.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../public/manifest.webmanifest", import.meta.url), "utf8"),
+    readFile(new URL("../public/sw.js", import.meta.url), "utf8"),
+    readFile(new URL("../app/PwaRegister.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/news/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../lib/news-excerpt.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/news-service.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(sectionPage, /getGoldHistoryOrNull\("1M"\)/);
+  assert.match(jewelryView, /PriceHistoryChart/);
+  assert.match(jewelryView, /近 30／90 日/);
+  assert.match(sectionView, /section === "international"/);
+  assert.match(sectionView, /PriceHistoryChart/);
+  assert.match(chart, /endpoint = "\/api\/gold-history"/);
+  assert.match(chart, /\$\{endpoint\}\?period=\$\{period\}/);
+  assert.match(globalView, /metalCompare/);
+  assert.match(globalView, /金銀鉑鈀對照/);
+  assert.match(globalView, /Gold \/ silver \/ platinum \/ palladium/);
+  assert.match(homeView, /<PriceAlerts/);
+  assert.match(globalView, /<PriceAlerts/);
+  assert.match(alerts, /Notification.requestPermission/);
+  assert.match(alerts, /LINE／Email/);
+  assert.match(alertsLib, /PRICE_ALERTS_STORAGE_KEY/);
+  assert.match(og, /ImageResponse/);
+  assert.match(og, /taiwanQianValue/);
+  assert.match(seo, /DEFAULT_OG_IMAGE = "\/og"/);
+  assert.match(layout, /manifest: "\/manifest.webmanifest"/);
+  assert.match(layout, /PwaRegister/);
+  assert.match(manifest, /"display": "standalone"/);
+  assert.match(sw, /99gold-quotes-v1/);
+  assert.match(sw, /\/api\/global-quotes/);
+  assert.match(sw, /pathname.startsWith\("\/admin"\)/);
+  assert.match(pwa, /serviceWorker.register\("\/sw.js"\)/);
+  assert.match(pwa, /行情時間／本站檢查/);
+  assert.match(newsPage, /newsExcerpt/);
+  assert.match(newsPage, /newsEmpty/);
+  assert.match(excerpt, /newsExcerpt/);
+  assert.match(newsService, /r\.summary\?\.replace/);
+});
+
+test("wires gold/silver ratio math, history API, and charts on global, international and home", async () => {
+  const [ratioLib, ratioApi, panel, globalView, globalPage, sectionView, sectionPage, homeView, homePage, chart] = await Promise.all([
+    readFile(new URL("../lib/gold-silver-ratio.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/gold-silver-ratio/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/GoldSilverRatio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/global/GlobalView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/global/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/[section]/SectionView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/[section]/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/HomeView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/PriceHistoryChart.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(ratioLib, /goldUsdPerOz \/ silverUsdPerOz/);
+  assert.match(ratioLib, /SI=F/);
+  assert.match(ratioLib, /return null/);
+  assert.match(ratioApi, /getGoldSilverRatioHistory/);
+  assert.match(panel, /金銀比/);
+  assert.match(panel, /Gold\/silver ratio/);
+  assert.match(panel, /數字愈高，代表相對白銀、黃金愈貴/);
+  assert.match(panel, /A higher number means gold is expensive versus silver/);
+  assert.match(panel, /数値が高いほど、銀に対して金が高い/);
+  assert.match(panel, /\/api\/gold-silver-ratio/);
+  assert.match(globalView, /GoldSilverRatioPanel/);
+  assert.match(globalPage, /getGoldSilverRatioHistoryOrNull/);
+  assert.match(sectionView, /GoldSilverRatioPanel/);
+  assert.match(sectionPage, /section === "international" \? getGoldSilverRatioHistoryOrNull/);
+  assert.match(homeView, /GoldSilverRatioPanel/);
+  assert.match(homePage, /getGoldSilverRatioHistoryOrNull/);
+  assert.match(chart, /endpoint/);
 });

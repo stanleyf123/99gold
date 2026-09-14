@@ -9,6 +9,7 @@ import { editorialLabels } from "./EditorialView";
 import { categories } from "./categories";
 import CoverImage from "../CoverImage";
 import { DEFAULT_OG_ALT, DEFAULT_OG_IMAGE, SITE_URL, breadcrumbJsonLd, sectionCrumbs } from "../../lib/seo";
+import { newsExcerpt } from "../../lib/news-excerpt";
 
 export const dynamic = "force-dynamic";
 type Query = { lang?: string; category?: string };
@@ -80,26 +81,33 @@ export default async function NewsIndex({ searchParams }: { searchParams: Promis
     <p className="newsOperationsNote">{locale === "zh" ? "官方來源每 30 分鐘自動檢查；快訊經管理者核准後排程發布。" : locale === "ja" ? "公式情報源を30分ごとに確認し、承認済み速報を予定公開します。" : "Official sources are checked every 30 minutes; approved briefs are published on schedule."}</p>
     <nav className="editorialCategoryFilters" aria-label={locale === "zh" ? "新聞分類" : locale === "ja" ? "ニュース分類" : "News categories"}>{(Object.keys(categories) as Category[]).map((entry) => <Link key={entry} href={`/news?lang=${locale}&category=${entry}`} aria-current={category === entry ? "page" : undefined}>{categories[entry][locale]} <span>{countFor(entry)}</span></Link>)}</nav>
 
-    <div className="editorialList">{editorialRows.map((article) => <article key={article.id}>
+    <div className="editorialList">{editorialRows.map((article) => {
+      const excerpt = newsExcerpt(article.description);
+      return <article key={article.id} className="newsCard">
       <Link href={`/news/${article.id}`}>
         <CoverImage src={article.image} alt={article.imageAlt} />
         <p className="articleKicker">{categories[article.category ?? "macro"][locale]} · {labels.event}: {article.eventDate}</p>
         <h2>{article.title}</h2>
       </Link>
-      <p>{article.description}</p><Link href={`/news/${article.id}`}>{labels.more} →</Link>
-    </article>)}</div>
+      {excerpt ? <p className="newsExcerpt">{excerpt}</p> : <p className="newsExcerptMuted">{locale === "zh" ? "這篇文章沒有可顯示的摘要。" : locale === "ja" ? "この記事には表示できる要約がありません。" : "No excerpt is available for this article."}</p>}
+      <Link href={`/news/${article.id}`}>{labels.more} →</Link>
+    </article>;
+    })}</div>
 
     {officialRows.length > 0 && <section className="officialBriefs">
       <p className="articleKicker">SCHEDULED OFFICIAL SOURCES</p>
       <h2>{locale === "zh" ? "官方來源快訊" : locale === "ja" ? "公式情報源速報" : "Official-source briefs"}</h2>
-      <div>{officialRows.map((item) => <article key={String(item.id)}>
+      <div>{officialRows.map((item) => {
+        const excerpt = newsExcerpt(item.summary);
+        return <article key={String(item.id)} className="officialBriefCard">
         <p><b>{categories[safeItemCategory(item.category)][locale]}</b><time dateTime={item.sourcePublishedAt}>{item.date}</time></p>
         <h3><a href={item.url} target="_blank" rel="noreferrer">{item.title} ↗</a></h3>
-        {item.summary && <p>{item.summary}</p>}
+        {excerpt ? <p className="newsExcerpt">{excerpt}</p> : <p className="newsExcerptMuted">{locale === "zh" ? "來源未提供摘要。" : locale === "ja" ? "情報源に要約がありません。" : "The source did not provide an excerpt."}</p>}
         <small>{item.sourceName}</small>
-      </article>)}</div>
+      </article>;
+      })}</div>
     </section>}
-    {!editorialRows.length && !officialRows.length && <p>{labels.noNews}</p>}
+    {!editorialRows.length && !officialRows.length && <p className="newsEmpty">{labels.noNews}</p>}
     <SiteLinks current="news" />
   </main>
   );

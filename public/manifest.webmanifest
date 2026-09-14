@@ -1,0 +1,15 @@
+{
+  "name": "玖久黃金報價網 99GOLD.NET",
+  "short_name": "99GOLD",
+  "description": "COMEX 黃金參考與台灣理論金價。理論參考，非店家牌價。",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f4ed",
+  "theme_color": "#15282d",
+  "lang": "zh-Hant",
+  "icons": [
+    { "src": "/icon", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/apple-icon", "sizes": "180x180", "type": "image/png" }
+  ]
+}

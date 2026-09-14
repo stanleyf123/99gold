@@ -44,10 +44,12 @@ export function isHistoryPeriod(value: string | null | undefined): value is Hist
   return value === "1D" || value === "1W" || value === "1M" || value === "3M" || value === "1Y";
 }
 
-export async function getGoldHistory(period: HistoryPeriod = "1M"): Promise<GoldHistory> {
+export type MetalHistorySymbol = "GC=F" | "SI=F";
+
+export async function getMetalHistory(symbol: MetalHistorySymbol, period: HistoryPeriod = "1M"): Promise<GoldHistory> {
   const config = historyPeriodConfig[period];
   const response = await fetch(
-    `https://query1.finance.yahoo.com/v8/finance/chart/GC%3DF?interval=${config.interval}&range=${config.range}`,
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${config.interval}&range=${config.range}`,
     {
       headers: { Accept: "application/json", "User-Agent": "Mozilla/5.0" },
       next: { revalidate: config.cacheSeconds },
@@ -79,6 +81,10 @@ export async function getGoldHistory(period: HistoryPeriod = "1M"): Promise<Gold
   if (!finalPoint) throw new Error("history timestamp missing");
   const quotedAt = new Date(finalPoint.timestamp * 1000).toISOString();
   const retrievedAt = new Date().toISOString();
+  const exchange = result?.meta?.exchangeName ?? "COMEX";
+  const source = symbol === "GC=F"
+    ? `${exchange} GC futures via Yahoo Finance`
+    : `${exchange} ${symbol} via Yahoo Finance`;
 
   return {
     period,
@@ -87,9 +93,13 @@ export async function getGoldHistory(period: HistoryPeriod = "1M"): Promise<Gold
     quotedAt,
     updatedAt: quotedAt,
     retrievedAt,
-    source: `${result?.meta?.exchangeName ?? "COMEX"} GC futures via Yahoo Finance`,
+    source,
     currency: result?.meta?.currency ?? "USD",
   };
+}
+
+export async function getGoldHistory(period: HistoryPeriod = "1M"): Promise<GoldHistory> {
+  return getMetalHistory("GC=F", period);
 }
 
 export async function getGoldHistoryOrNull(period: HistoryPeriod = "1M"): Promise<GoldHistory | null> {

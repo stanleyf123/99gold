@@ -46,3 +46,18 @@
   .recycleCalcResult strong{font-size:28px}
   .recycleCalcNote{padding:13px 16px}
 }
+
+.sectionChart{margin:28px 0 8px;padding:18px 18px 16px;border:1px solid #d1cabc;background:#fffdf8}
+.sectionChartHead{display:flex;justify-content:space-between;align-items:end;gap:16px;margin-bottom:8px}
+.sectionChartHead p{margin:0 0 6px;color:#8a6a1f;font-size:11px;font-weight:800;letter-spacing:.08em}
+.sectionChartHead h3{margin:0;font:22px Georgia,"Noto Serif TC",serif;color:#172128}
+.sectionChartPeriods{display:flex;gap:8px;flex-wrap:wrap}
+.sectionChartPeriods button{min-height:36px;border:1px solid #cfc7b9;background:#faf8f2;color:#172128;padding:0 12px;font-size:13px;font-weight:700}
+.sectionChartPeriods button.selected,.sectionChartPeriods button[aria-pressed=true]{background:#1b282d;color:#f7f2e6;border-color:#1b282d}
+.sectionChartNote{margin:10px 0 0;color:#6f675c;font-size:12px;line-height:1.7}
+.sectionChart .marketLineCanvas,.sectionChart .marketChartUnavailable{width:100%;height:220px;margin-top:8px}
+@media(max-width:640px){
+  .sectionChart{padding:14px 12px}
+  .sectionChartHead{display:grid;align-items:start}
+  .sectionChartHead h3{font-size:18px}
+}

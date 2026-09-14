@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import SiteLinks from "../SiteLinks";
+import PriceHistoryChart from "../PriceHistoryChart";
+import GoldSilverRatioPanel from "../GoldSilverRatio";
 import { type Locale, t, useSiteLocale } from "../locale";
 import RecycleCalculator from "./RecycleCalculator";
 
@@ -200,6 +202,10 @@ export default function SectionView({
   marketStatus,
   source,
   taiwanQian,
+  historyPoints = [],
+  ratioPoints = [],
+  goldPrice = Number.NaN,
+  silverPrice = Number.NaN,
 }: {
   section: SectionName;
   view: LiveView;
@@ -208,6 +214,10 @@ export default function SectionView({
   marketStatus?: MarketStatus;
   source?: string;
   taiwanQian?: number | null;
+  historyPoints?: Array<{ timestamp: number; close: number }>;
+  ratioPoints?: Array<{ timestamp: number; close: number }>;
+  goldPrice?: number;
+  silverPrice?: number;
 }) {
   const { locale } = useSiteLocale();
   const copy = chrome[section];
@@ -253,6 +263,24 @@ export default function SectionView({
             <b>{localize(locale, card.change)}</b>
           </article>
         ))}</div>
+        {section === "international" ? (
+          <PriceHistoryChart
+            locale={locale}
+            currency="USD"
+            title={t(locale, "COMEX 黃金期貨走勢（近 30／90 日）", "COMEX gold futures (30 / 90 days)", "COMEX金先物（30／90日）")}
+            ariaLabel={t(locale, "COMEX 黃金期貨歷史走勢", "COMEX gold futures history", "COMEX金先物の履歴")}
+            initialPoints={historyPoints}
+            note={t(locale, "GC 期貨參考，不等同現貨或銀樓牌價。", "GC futures reference — not spot XAU or a jewelry quote.", "GC先物の参考値であり、現物や店頭価格ではありません。")}
+          />
+        ) : null}
+        {section === "international" ? (
+          <GoldSilverRatioPanel
+            locale={locale}
+            goldPrice={goldPrice}
+            silverPrice={silverPrice}
+            initialPoints={ratioPoints}
+          />
+        ) : null}
         {section === "recycling" && (
           <RecycleCalculator
             locale={locale}
