@@ -179,7 +179,6 @@ export default function JewelryView({
   historyRange,
   historySource,
   usdTwd,
-  fxLabel,
   fxBasis,
   omitted,
 }: {
@@ -193,7 +192,7 @@ export default function JewelryView({
   historyRange: JewelryRange | null;
   historySource: string;
   usdTwd: number | null;
-  fxLabel: string;
+  fxLabel?: string;
   fxBasis: "bot-sight-sell" | "mixed" | "market-reference" | null;
   omitted: number;
 }) {
@@ -219,12 +218,28 @@ export default function JewelryView({
   const buy = live?.buy ?? null;
   const sell = live?.sell ?? null;
   const faq = faqCopy[locale];
-  const chartNote = t(
-    locale,
-    `${fxLabel || "歷史匯率換算參考。"} 非店家牌價。`,
-    `${fxLabel || "Historical FX conversion reference."} Not a shop price.`,
-    `${fxLabel || "歴史的為替の換算参考。"} 店頭価格ではありません。`,
-  );
+  const chartNote = `${
+    fxBasis === "bot-sight-sell"
+      ? t(
+        locale,
+        "歷史匯率換算參考：各交易日採用臺銀美元即期賣出（台北日曆當日，若無則最近前一營業日）。",
+        "Historical FX reference: each session uses Bank of Taiwan USD sight-sell for that Taipei day, or the nearest prior BOT business day.",
+        "歴史的為替の参考：各時点は台湾銀行の米ドル直物売り（台北カレンダー当日、なければ直前営業日）。",
+      )
+      : fxBasis === "mixed"
+        ? t(
+          locale,
+          "歷史匯率換算參考：優先臺銀美元即期賣出；缺口改用 Yahoo TWD=X／FRED DEXTAUS。缺匯率的日子會略過，絕不編造。",
+          "Historical FX reference: Bank of Taiwan USD sight-sell when available; gaps use Yahoo TWD=X / FRED DEXTAUS. Missing FX is omitted, never invented.",
+          "歴史的為替の参考：台湾銀行直物売りを優先し、欠落は Yahoo TWD=X / FRED DEXTAUS。為替がない日は省略し、補間しません。",
+        )
+        : t(
+          locale,
+          "歷史匯率換算參考：Yahoo TWD=X／FRED DEXTAUS 市場匯率（非臺銀即期賣出）。缺匯率的日子會略過。",
+          "Historical FX reference: Yahoo TWD=X / FRED DEXTAUS (public mid-market), not Bank of Taiwan sight-sell. Missing FX is omitted.",
+          "歴史的為替の参考：Yahoo TWD=X / FRED DEXTAUS（市場仲値）であり、台湾銀行の直物売りではありません。欠落は省略します。",
+        )
+  } ${t(locale, "非店家牌價。", "Not a shop price.", "店頭価格ではありません。")}`;
   const fxBadge = t(locale, "歷史匯率換算參考", "Historical FX reference", "歴史的為替の参考");
 
   return (
