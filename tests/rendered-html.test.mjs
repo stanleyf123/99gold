@@ -240,13 +240,14 @@ test("keeps quote history, data transparency and responsive styles wired", async
 });
 
 test("ships a scheduled, approval-gated news pipeline", async () => {
-  const [script, deploy, service, pipeline, migration, admin] = await Promise.all([
+  const [script, deploy, service, pipeline, migration, admin, sources] = await Promise.all([
     readFile(new URL("../scripts/run-news-pipeline.ts", import.meta.url), "utf8"),
     readFile(new URL("../DEPLOY-LINODE.md", import.meta.url), "utf8"),
     readFile(new URL("../app/api/news-service.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/news/pipeline.ts", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0004_news_pipeline.sql", import.meta.url), "utf8"),
     readFile(new URL("../app/api/admin/news/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/news/source-config.ts", import.meta.url), "utf8"),
   ]);
   assert.match(script, /runNewsPipeline/);
   assert.match(script, /news:pipeline|--manual|cron/);
@@ -254,12 +255,19 @@ test("ships a scheduled, approval-gated news pipeline", async () => {
   assert.match(deploy, /99gold-news\.timer/);
   assert.match(deploy, /npm run news:pipeline/);
   assert.match(deploy, /127\.0\.0\.1:3000/);
+  assert.match(deploy, /Akamai Access Denied HTML 403/);
+  assert.match(deploy, /ons\.gov\.uk\/releasecalendar\?rss/);
+  assert.match(deploy, /hm-treasury/);
   assert.match(pipeline, /status = 'published'/);
   assert.match(pipeline, /status = 'approved'/);
   assert.match(pipeline, /news_pipeline_completed/);
   assert.match(migration, /CREATE TABLE `news_candidates`/);
   assert.match(migration, /CREATE TABLE `news_runs`/);
   assert.match(admin, /requireAdmin/);
+  assert.match(admin, /currentSourceHealth/);
+  assert.match(sources, /ons-release-calendar/);
+  assert.match(sources, /hm-treasury-news/);
+  assert.doesNotMatch(sources, /bank-of-england-speeches/);
   assert.doesNotMatch(service, /fetch\(/);
 });
 

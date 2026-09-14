@@ -201,8 +201,8 @@ test("allowlists first-party gold and macro RSS that use https", () => {
   const treasury = sources.newsSources.find((source) => source.id === "hm-treasury-news");
   assert.equal(ons.feedUrl, "https://www.ons.gov.uk/releasecalendar?rss");
   assert.match(treasury.feedUrl, /gov\.uk\/search\/news-and-communications\.atom/);
-  assert.deepEqual(ons.allowedHosts, ["ons.gov.uk"]);
-  assert.deepEqual(treasury.allowedHosts, ["gov.uk"]);
+  assert.equal(ons.allowedHosts.join(","), "ons.gov.uk");
+  assert.equal(treasury.allowedHosts.join(","), "gov.uk");
   for (const source of sources.newsSources) {
     assert.match(source.feedUrl, /^https:\/\//);
     assert.ok(source.allowedHosts.length > 0);
