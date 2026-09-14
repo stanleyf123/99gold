@@ -48,6 +48,8 @@ NODE_ENV=production
 
 產生權杖範例：`openssl rand -hex 32`。不要把真實權杖寫進 git。
 
+`SITE_URL` 除了給管理 cookie 加 `Secure`，也是反代後面絕對轉址的公開 origin（見第 6 節）。不要省略。
+
 管理後台：`https://99gold.net/admin/login`。也可用標頭 `Authorization: Bearer <ADMIN_TOKEN>` 或 `x-admin-token` 呼叫管理 API。
 
 ## 4. systemd：網站行程
@@ -220,6 +222,8 @@ server {
 ```
 
 啟用 HTTPS 後把 `SITE_URL=https://99gold.net` 寫入環境檔，管理登入 cookie 才會帶 `Secure`。
+
+Nginx 已轉發 `Host` 與 `X-Forwarded-Proto`，但 Next.js 的 `request.url` 仍可能是上游 `http://127.0.0.1:3000`。凡是 **絕對** 轉址（例如 `/api/admin/session` 的 `Location`）必須用 `SITE_URL`（去掉結尾斜線）當 origin，不要用 `request.url`；否則手機瀏覽器會跟到 `http://localhost:3000/admin` 而連不上。相對路徑 `redirect("/admin")` 由瀏覽器依目前頁面解析，不受影響。
 
 ## 7. 檢查
 

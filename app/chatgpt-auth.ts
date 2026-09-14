@@ -89,6 +89,9 @@ export async function requireChatGPTUser(
   if (user) return user;
 
   const safeReturnTo = safeRelativeReturnPath(returnTo);
+  // Relative Location so the browser resolves against the public page URL.
+  // Absolute redirects must use SITE_URL via lib/public-origin (request.url is
+  // the upstream origin behind nginx, e.g. http://127.0.0.1:3000).
   redirect(`/admin/login?return_to=${encodeURIComponent(safeReturnTo)}`);
 }
 
