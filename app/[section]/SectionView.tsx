@@ -332,7 +332,7 @@ export default function SectionView({
                   <span>{t(locale, `近 ${range.count} 個交易日賣出估計`, `Estimated sell · ${range.count} sessions`, `推定売値 · ${range.count}セッション`)}</span>
                   <strong>{Number.isFinite(rangePosition) ? `${rangePosition.toFixed(0)}%` : "—"}</strong>
                 </div>
-                <div className="dayRangeTrack" aria-hidden="true"><i style={{ width: `${Number.isFinite(rangePosition) ? rangePosition : 0}%` }} /></div>
+                <div className="dayRangeTrack" aria-hidden="true"><i style={{ width: `${Number.isFinite(rangePosition) ? Math.round(rangePosition) : 0}%` }} /></div>
                 <dl>
                   <div><dt>{t(locale, "最低", "Low", "安値")}</dt><dd>NT$ {formatTwdAmount(range.low)}</dd></div>
                   <div><dt>{t(locale, "平均", "Average", "平均")}</dt><dd>NT$ {formatTwdAmount(range.average)}</dd></div>
@@ -400,7 +400,13 @@ export default function SectionView({
                 <p className="eyebrow">DAILY REFERENCE TABLE</p>
                 <h2>{t(locale, "近日理論金價", "Recent theoretical prices", "最近の理論価格")}</h2>
               </div>
-              <p>{taiwanHistory?.source ?? historyNote}</p>
+              <p>
+                {taiwanHistory
+                  ? taiwanHistory.fxMode === "daily"
+                    ? t(locale, "COMEX GC 日線 × 當日 USD/TWD 換算理論台幣／錢", "COMEX GC daily closes × same-day USD/TWD as theoretical TWD / qian", "COMEX GC日足×当日USD/TWDの理論台湾ドル／銭")
+                    : t(locale, "COMEX GC 日線 × 最新可用 USD/TWD 換算（非逐日匯率）", "COMEX GC daily closes × latest available USD/TWD (not day-by-day FX)", "COMEX GC日足×最新USD/TWD（逐日為替ではありません）")
+                  : historyNote}
+              </p>
             </div>
             {taiwanHistory?.days.length ? (
               <div className="proQuoteTableScroll jewelryTableScroll">

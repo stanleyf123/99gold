@@ -158,6 +158,8 @@ test("keeps one locale source for header, homepage, global and section chrome", 
   assert.match(sectionView, /常見問題/);
   assert.match(sectionView, /How to read buy, sell and recycle/);
   assert.match(sectionView, /よくある質問/);
+  assert.match(sectionView, /COMEX GC daily closes/);
+  assert.doesNotMatch(sectionView, /taiwanHistory\?\.source/);
 });
 
 test("keeps quote history, data transparency and responsive styles wired", async () => {
