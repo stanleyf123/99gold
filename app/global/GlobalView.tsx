@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import SiteLinks from "../SiteLinks";
+import PriceAlerts from "../PriceAlerts";
 import { type Locale, t, useSiteLocale } from "../locale";
 import { parseQuotedNumber } from "../../lib/section-quotes";
 import {
@@ -21,6 +22,10 @@ type Metal = {
   englishName: string;
   price: number;
   changePercent: number | null;
+  change?: number | null;
+  open?: number | null;
+  high?: number | null;
+  low?: number | null;
 };
 type QuoteItem = { id: string; price: string };
 type Data = {
@@ -211,6 +216,7 @@ export default function GlobalMarketPage({ initialQuotes = null }: { initialQuot
       {data.metals.length === 0 ? (
         <p className="quoteEmptyPanel">{t(locale, "目前沒有可驗證的即時報價，系統每 3 分鐘重試。", "No verified live quotes right now. The site retries every 3 minutes.", "検証可能な即時相場はありません。3分ごとに再試行します。")}</p>
       ) : (
+      <>
       <div className="metalGrid">{data.metals.map((item) => {
         const hasChange = item.changePercent !== null && Number.isFinite(item.changePercent);
         const direction = hasChange ? Math.sign(item.changePercent!) : 0;
@@ -221,6 +227,43 @@ export default function GlobalMarketPage({ initialQuotes = null }: { initialQuot
           <small>{t(locale, "每金衡盎司", "Per troy ounce", "1トロイオンス")}</small>
         </button>;
       })}</div>
+      <div className="metalCompareWrap">
+        <div className="boardHead">
+          <div><p>COMPARISON</p><h2>{t(locale, "金銀鉑鈀對照", "Gold / silver / platinum / palladium", "金・銀・プラチナ・パラジウム")}</h2></div>
+          <span>{t(locale, "同一來源的美元／盎司參考", "USD / oz from the same feed", "同一情報源の米ドル／オンス")}</span>
+        </div>
+        <div className="proQuoteTableScroll">
+          <table className="metalCompare">
+            <thead>
+              <tr>
+                <th>{t(locale, "金屬", "Metal", "金属")}</th>
+                <th>{t(locale, "最新價", "Last", "最新値")}</th>
+                <th>{t(locale, "漲跌", "Change", "騰落")}</th>
+                <th>{t(locale, "單位", "Unit", "単位")}</th>
+                <th>{t(locale, "最高", "High", "高値")}</th>
+                <th>{t(locale, "最低", "Low", "安値")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.metals.map((item) => {
+                const hasChange = item.changePercent !== null && Number.isFinite(item.changePercent);
+                const direction = hasChange ? Math.sign(item.changePercent!) : 0;
+                return (
+                  <tr key={item.id}>
+                    <td><strong>{item.symbol}</strong><span>{metalLabel(item, locale)}</span></td>
+                    <td>US$ {item.price.toLocaleString("en-US", { maximumFractionDigits: 2 })}</td>
+                    <td><b className={direction > 0 ? "rise" : direction < 0 ? "fall" : undefined}>{hasChange ? `${direction > 0 ? "+" : ""}${item.changePercent!.toFixed(2)}%` : "—"}</b></td>
+                    <td>{t(locale, "美元／盎司", "USD / oz", "米ドル／オンス")}</td>
+                    <td>{item.high != null && Number.isFinite(item.high) ? item.high.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "—"}</td>
+                    <td>{item.low != null && Number.isFinite(item.low) ? item.low.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "—"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      </>
       )}
     </section>
     <section className="converter">
@@ -252,6 +295,15 @@ export default function GlobalMarketPage({ initialQuotes = null }: { initialQuot
         </article>;
       })}</div>
     </section>
+    <PriceAlerts
+      locale={locale}
+      compact
+      markets={[
+        { id: "spot", label: t(locale, "COMEX 黃金參考", "COMEX gold reference", "COMEX金参考"), value: gold && Number.isFinite(gold.price) ? gold.price : Number.NaN, unit: "USD／oz" },
+        { id: "qian", label: t(locale, "台灣理論金價", "Taiwan theoretical qian", "台湾理論銭"), value: parseQuotedNumber(data.items.find((item) => item.id === "taiwan-qian")?.price ?? "") ?? Number.NaN, unit: "TWD／錢" },
+        { id: "gram", label: t(locale, "黃金每公克", "Gold per gram", "グラムあたりの金"), value: parseQuotedNumber(data.items.find((item) => item.id === "taiwan-gram")?.price ?? "") ?? Number.NaN, unit: "TWD／公克" },
+      ]}
+    />
     <SiteLinks current="global" />
     <footer><span>玖久黃金報價網 · 99GOLD.NET</span><p>{t(locale, "真金價值，長久相伴。", "True gold value, lasting companionship.", "真金の価値を、長く寄り添う。")}</p></footer>
   </main>;

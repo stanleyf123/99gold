@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import JsonLd from "./JsonLd";
 import SiteChrome from "./SiteChrome";
+import PwaRegister from "./PwaRegister";
 import { DEFAULT_OG_ALT, DEFAULT_OG_IMAGE, SITE_NAME_EN, SITE_URL, organizationJsonLd, pageMetadata, websiteJsonLd } from "../lib/seo";
 import "./globals.css";
 import "./quotes.css";
@@ -23,6 +24,16 @@ export const metadata: Metadata = {
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
+    apple: "/apple-icon",
+  },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "99GOLD",
+    statusBarStyle: "default",
+  },
+  other: {
+    "theme-color": "#15282d",
   },
 };
 
@@ -34,6 +45,7 @@ export default function RootLayout({
   return (
     <html lang="zh-Hant">
       <body>
+        <PwaRegister />
         <SiteChrome>{children}</SiteChrome>
         <JsonLd data={organizationJsonLd()} />
         <JsonLd data={websiteJsonLd()} />

@@ -9,14 +9,14 @@ import SiteLinks from "./SiteLinks";
 import { categories, type NewsCategory } from "./news/categories";
 import { useSiteLocale } from "./locale";
 import { jewelrySellFromBuy, parseQuotedNumber } from "../lib/section-quotes";
+import PriceAlerts from "./PriceAlerts";
+import { newsExcerpt } from "../lib/news-excerpt";
 
 const alertMarkets = [
   { id: "spot", label: "國際黃金參考", value: Number.NaN, unit: "USD／盎司" },
   { id: "qian", label: "台灣理論金價", value: Number.NaN, unit: "TWD／錢" },
   { id: "gram", label: "黃金每公克", value: Number.NaN, unit: "TWD／公克" },
 ] as const;
-
-type SavedAlert = { id: number; market: string; target: number };
 
 type NewsItem = { id?: number | string; title: string; category?:NewsCategory; originalTitle?: string; summary?: string; date: string; url: string; image?: string; sourceName?: string; translated?: boolean; external?: boolean };
 type QuoteItem = { id?: string; label: string; code: string; price: string; unit: string; change: string; up: boolean | null };
@@ -169,9 +169,6 @@ export default function HomeView({ initialQuotes = null }: { initialQuotes?: Hom
   const [toolUnit, setToolUnit] = useState<"qian" | "gram" | "tael" | "ounce">("qian");
   const [purity, setPurity] = useState("0.9999");
   const [purchasePrice, setPurchasePrice] = useState("");
-  const [alertMarket, setAlertMarket] = useState<(typeof alertMarkets)[number]["id"]>("qian");
-  const [alertTarget, setAlertTarget] = useState("18000");
-  const [savedAlerts, setSavedAlerts] = useState<SavedAlert[]>([]);
   const [news, setNews] = useState<NewsItem[]>(fallbackNews);
   const [newsCategory, setNewsCategory] = useState<NewsCategory | "all">("all");
   const [newsUpdated, setNewsUpdated] = useState("正在取得最新消息");
@@ -297,24 +294,6 @@ export default function HomeView({ initialQuotes = null }: { initialQuotes?: Hom
       window.clearInterval(timer);
     };
   }, [locale]);
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem("golden-tide-alerts");
-      if (stored) window.setTimeout(() => setSavedAlerts(JSON.parse(stored)), 0);
-    } catch { /* device storage may be unavailable */ }
-  }, []);
-  const savePriceAlert = () => {
-    const target = Number.parseFloat(alertTarget);
-    if (!Number.isFinite(target) || target <= 0) return;
-    const next = [...savedAlerts, { id: Date.now(), market: alertMarket, target }].slice(-3);
-    setSavedAlerts(next);
-    try { window.localStorage.setItem("golden-tide-alerts", JSON.stringify(next)); } catch { /* ignore */ }
-  };
-  const removePriceAlert = (id: number) => {
-    const next = savedAlerts.filter((item) => item.id !== id);
-    setSavedAlerts(next);
-    try { window.localStorage.setItem("golden-tide-alerts", JSON.stringify(next)); } catch { /* ignore */ }
-  };
   const selectDashboardTab = (tab: typeof activeTab) => {
     if (tab === "history" && activeTab !== "history") setHistoryLoading(true);
     setActiveTab(tab);
@@ -344,7 +323,6 @@ export default function HomeView({ initialQuotes = null }: { initialQuotes?: Hom
     const parsed = Number((quote?.price ?? "").replace(/,/g, ""));
     return { ...market, label: quote?.label ?? market.label, value: Number.isFinite(parsed) && parsed > 0 ? parsed : market.value, unit: quote?.unit ?? market.unit };
   }), [quotes]);
-  const selectedAlertMarket = liveAlertMarkets.find((market) => market.id === alertMarket) ?? liveAlertMarkets[0];
   const filteredNews = news.filter((item) => newsCategory === "all" || (item.category ?? "macro") === newsCategory);
   const globalGold = globalMetals.find((metal) => metal.id === "gold") ?? unavailableGold;
   const globalAvailable = Number.isFinite(globalGold.price);
@@ -562,12 +540,13 @@ export default function HomeView({ initialQuotes = null }: { initialQuotes?: Hom
               const key = String(item.id ?? item.url);
               const cover = item.image;
               const href = item.external ? item.url : `/news/${item.id}`;
+              const excerpt = newsExcerpt(item.summary);
               return <article key={key}>
                 <div className={cover ? "newsVisual hasImage" : "newsVisual officialSourceVisual"}>{cover ? <CoverImage src={cover} /> : <div className="newsSourceMark"><b>99</b><small>OFFICIAL SOURCE</small></div>}</div>
                 <p><b>{categories[category][locale]}</b><time>{item.date}</time></p>
                 <div className="newsSource"><span>{item.sourceName || "國際新聞"}</span>{item.translated && <em>自動翻譯</em>}</div>
                 <h3>{item.title}</h3>
-                {item.summary && <p className="newsSynopsis">{item.summary}</p>}
+                {excerpt ? <p className="newsSynopsis">{excerpt}</p> : <p className="newsExcerptMuted">{item.external ? t("來源未提供摘要。", "The source did not provide an excerpt.", "情報源に要約がありません。") : t("這篇文章沒有可顯示的摘要。", "No excerpt is available for this article.", "この記事には表示できる要約がありません。")}</p>}
                 {cover && <small className="newsIllustrationLabel">{locale === "zh" ? "AI生成示意圖" : locale === "ja" ? "AI生成イメージ" : "AI-generated illustration"}</small>}
                 <a href={href} target={item.external ? "_blank" : undefined} rel={item.external ? "noreferrer" : undefined}>{item.external ? t("前往官方來源", "Open official source", "公式情報源を開く") : copy.read}　→</a>
               </article>;
@@ -640,9 +619,7 @@ export default function HomeView({ initialQuotes = null }: { initialQuotes?: Hom
 
         {activeTab === "tools" && <div className="hubPanel proToolsPanel" role="tabpanel" id="tools"><div className="panelHeading"><div><p className="eyebrow">GOLD TOOLKIT</p><h2>{copy.tools}</h2></div><p>{t("支援台灣常用重量與純度", "Taiwan weights and purity units", "台湾で使う重量・純度単位")}</p></div><div className="toolWorkspace"><section className="toolForm"><div className="fieldGroup"><label htmlFor="manualPrice">{t("店家提供的回收報價（NT$／錢）", "Dealer recycle quote (NT$ / qian)", "店頭の買取相場（NT$／銭）")}</label><input id="manualPrice" type="number" min="0" placeholder={t("請輸入實際報價", "Enter the quoted price", "実際の相場を入力")} value={manualPrice} onChange={e=>setManualPrice(e.target.value)}/></div><div className="fieldGroup"><label htmlFor="toolWeight">{t("黃金重量", "Gold weight", "金の重量")}</label><div className="inputPair"><input id="toolWeight" type="number" min="0" step="0.01" inputMode="decimal" value={goldWeight} onChange={(event) => setGoldWeight(event.target.value)}/><select aria-label={t("重量單位", "Weight unit", "重量単位")} value={toolUnit} onChange={(event) => setToolUnit(event.target.value as typeof toolUnit)}><option value="qian">{t("錢", "Qian", "銭")}</option><option value="gram">{t("公克", "Gram", "グラム")}</option><option value="tael">{t("台兩", "Tael", "台両")}</option><option value="ounce">{t("金衡盎司", "Troy ounce", "トロイオンス")}</option></select></div></div><div className="fieldGroup"><label htmlFor="purity">{t("黃金純度", "Gold purity", "金の純度")}</label><select id="purity" value={purity} onChange={(event) => setPurity(event.target.value)}><option value="0.9999">{t("9999 純金", "9999 fine gold", "9999 純金")}</option><option value="0.999">{t("999 純金", "999 fine gold", "999 純金")}</option><option value="0.916">916／22K</option><option value="0.75">750／18K</option><option value="0.585">585／14K</option></select></div><div className="fieldGroup"><label htmlFor="purchasePrice">{t("你的買入價（每錢）", "Your purchase price (per qian)", "購入価格（銭あたり）")}</label><div className="moneyInput"><span>NT$</span><input id="purchasePrice" type="number" min="0" step="100" inputMode="numeric" value={purchasePrice} onChange={(event) => setPurchasePrice(event.target.value)}/></div></div><p className="toolHint">{t("純度換算採理論含金量，實際回收仍依店家檢測、耗損與手續費為準。", "Purity conversion uses theoretical gold content. Actual recycling still depends on testing, loss, and fees.", "純度換算は理論含有量です。実際の買取は鑑定、減耗、手数料によります。")}</p></section><section className="toolResults" aria-live="polite"><div className="primaryResult"><span>{t("預估回收價值", "Estimated recycle value", "買取の試算額")}</span><strong>NT$ {manualPrice ? toolResult.recycleValue.toLocaleString("zh-TW") : "—"}</strong><small>{t("依你輸入的回收報價試算，不是本站牌告", "Estimate from your recycle quote, not a posted site price", "入力した買取相場による試算であり、本サイトの掲示価格ではありません")}</small></div><div className="resultMetrics"><div><span>{t("換算重量", "Converted weight", "換算重量")}</span><strong>{toolResult.grams.toFixed(2)} g</strong></div><div><span>{t("純金重量", "Fine gold weight", "純金重量")}</span><strong>{toolResult.pureQian.toFixed(3)} {t("錢", "qian", "銭")}</strong></div><div><span>{t("購入成本", "Purchase cost", "購入コスト")}</span><strong>NT$ {toolResult.cost.toLocaleString("zh-TW")}</strong></div><div><span>{t("目前損益", "Current P/L", "現在の損益")}</span><strong className={toolResult.gain >= 0 ? "up" : "down"}>{toolResult.gain >= 0 ? "+" : "−"}NT$ {Math.abs(toolResult.gain).toLocaleString("zh-TW")}</strong><small className={toolResult.gain >= 0 ? "up" : "down"}>{toolResult.roi >= 0 ? "+" : ""}{toolResult.roi.toFixed(2)}%</small></div></div></section></div></div>}
       </section>
-      <div id="price-alerts" className="scrollAnchor"/>
-
-      <section className="alertCenter"><div className="alertIntro"><p className="eyebrow">PERSONAL WATCHLIST</p><h2>{t("我的到價標記", "My price alerts", "価格アラート")}</h2><p>{t("設定你關注的價格，網站會保存在這台裝置，回來時可快速查看距離目標還有多少。", "Save the prices you watch on this device and quickly see how far they are from your target.", "注目価格をこの端末に保存し、目標までの差をすぐ確認できます。")}</p></div><div className="alertComposer"><label><span>{t("關注項目", "Watch item", "監視項目")}</span><select value={alertMarket} onChange={(event) => setAlertMarket(event.target.value as typeof alertMarket)}>{liveAlertMarkets.map((market) => <option value={market.id} key={market.id}>{market.label}</option>)}</select></label><label><span>{t("目標價格", "Target price", "目標価格")}</span><div><input type="number" inputMode="decimal" min="0" value={alertTarget} onChange={(event) => setAlertTarget(event.target.value)}/><small>{selectedAlertMarket.unit}</small></div></label><button onClick={savePriceAlert}>{t("加入關注", "Add alert", "追加")}</button></div><div className="savedAlerts">{savedAlerts.length === 0 ? <div className="alertEmpty"><span>{t("尚未設定", "None yet", "未設定")}</span><p>{t("輸入目標價後即可建立你的個人關注清單。", "Enter a target price to build your personal watchlist.", "目標価格を入力すると監視リストを作成できます。")}</p></div> : savedAlerts.map((item) => { const market = liveAlertMarkets.find((entry) => entry.id === item.market) ?? liveAlertMarkets[0]; const gap = item.target - market.value; return <article key={item.id}><div><span>{market.label}</span><small>{t("目前", "Now", "現在")} {Number.isFinite(market.value) ? market.value.toLocaleString("en-US") : "—"} {market.unit}</small></div><strong>{item.target.toLocaleString("en-US")}</strong><em className={gap >= 0 ? "watchUp" : "watchReached"}>{!Number.isFinite(gap) ? t("尚無有效行情，無法判定", "No valid quote to compare", "有効な相場がないため判定できません") : gap > 0 ? `${t("距離目標", "To target", "目標まで")} ${gap.toLocaleString("en-US")}` : t("已達目標", "Target reached", "目標到達")}</em><button aria-label={t(`移除${market.label}到價標記`, `Remove ${market.label} alert`, `${market.label}のアラートを削除`)} onClick={() => removePriceAlert(item.id)}>×</button></article>; })}</div><p className="alertDisclaimer">{t("此功能為裝置內的價格標記，不會發送系統推播；行情更新後可回到本站查看。", "Alerts are stored on this device only and do not send push notifications. Return here after quotes update.", "この機能は端末内の価格メモで、プッシュ通知は送りません。相場更新後に本サイトでご確認ください。")}</p></section>
+      <PriceAlerts locale={locale} markets={liveAlertMarkets} />
 
       <SiteLinks current="home" />
       <footer><a className="brand" href="#top"><i>99</i><span>{siteSettings.brandName}<br/><em>{siteSettings.englishName}</em></span></a><p>{copy.hero}</p><span>© 2026 {siteSettings.fullName}</span></footer>

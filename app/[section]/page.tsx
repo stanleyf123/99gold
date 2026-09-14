@@ -37,7 +37,7 @@ export default async function SectionPage({ params }: { params: Promise<{ sectio
 
   const [quotes, history] = await Promise.all([
     getGlobalQuotesOrNull(),
-    section === "jewelry" ? getGoldHistoryOrNull("1M") : Promise.resolve(null),
+    section === "recycling" ? Promise.resolve(null) : getGoldHistoryOrNull("1M"),
   ]);
   const view = buildSectionView(section, quotes);
   const live = section === "jewelry" ? jewelryLiveExtras(quotes) : null;
@@ -63,6 +63,7 @@ export default async function SectionPage({ params }: { params: Promise<{ sectio
           historyRows={historyRows}
           historyRange={historyRange}
           historySource={history?.source ?? ""}
+          usdTwd={usdTwd}
         />
       ) : (
         <SectionView
@@ -73,6 +74,7 @@ export default async function SectionPage({ params }: { params: Promise<{ sectio
           marketStatus={quotes?.marketStatus}
           source={quotes?.source ?? ""}
           taiwanQian={taiwanQianValue(quotes?.items)}
+          historyPoints={section === "international" ? (history?.points ?? []) : []}
         />
       )}
     </>

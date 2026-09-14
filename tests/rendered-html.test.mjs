@@ -43,7 +43,7 @@ test("build emits the complete 99gold professional quote workspace", async (t) =
   assert.match(bundleText, /全球貴金屬比較/);
   assert.match(bundleText, /歷史金價/);
   assert.doesNotMatch(bundleText, /Your site is taking shape|codex-preview/);
-  await access(new URL("../public/og-quotes-v2.png", import.meta.url));
+  await access(new URL("../app/og/route.tsx", import.meta.url));
 });
 
 test("uses a shared SiteHeader and coherent homepage layout", async () => {
@@ -250,4 +250,74 @@ test("ships a scheduled, approval-gated news pipeline", async () => {
   assert.match(migration, /CREATE TABLE `news_runs`/);
   assert.match(admin, /requireAdmin/);
   assert.doesNotMatch(service, /fetch\(/);
+});
+
+test("wires 30-90 day charts, metal comparison, browser alerts, OG route and PWA shell", async () => {
+  const [
+    jewelryView,
+    sectionView,
+    sectionPage,
+    globalView,
+    homeView,
+    chart,
+    alerts,
+    alertsLib,
+    og,
+    seo,
+    layout,
+    manifest,
+    sw,
+    pwa,
+    newsPage,
+    excerpt,
+    newsService,
+  ] = await Promise.all([
+    readFile(new URL("../app/[section]/JewelryView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/[section]/SectionView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/[section]/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/global/GlobalView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/HomeView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/PriceHistoryChart.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/PriceAlerts.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../lib/price-alerts.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/og/route.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../lib/seo.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../public/manifest.webmanifest", import.meta.url), "utf8"),
+    readFile(new URL("../public/sw.js", import.meta.url), "utf8"),
+    readFile(new URL("../app/PwaRegister.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/news/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../lib/news-excerpt.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/news-service.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(sectionPage, /getGoldHistoryOrNull\("1M"\)/);
+  assert.match(jewelryView, /PriceHistoryChart/);
+  assert.match(jewelryView, /近 30／90 日/);
+  assert.match(sectionView, /section === "international"/);
+  assert.match(sectionView, /PriceHistoryChart/);
+  assert.match(chart, /\/api\/gold-history\?period=/);
+  assert.match(globalView, /metalCompare/);
+  assert.match(globalView, /金銀鉑鈀對照/);
+  assert.match(globalView, /Gold \/ silver \/ platinum \/ palladium/);
+  assert.match(homeView, /<PriceAlerts/);
+  assert.match(globalView, /<PriceAlerts/);
+  assert.match(alerts, /Notification.requestPermission/);
+  assert.match(alerts, /LINE／Email/);
+  assert.match(alertsLib, /PRICE_ALERTS_STORAGE_KEY/);
+  assert.match(og, /ImageResponse/);
+  assert.match(og, /taiwanQianValue/);
+  assert.match(seo, /DEFAULT_OG_IMAGE = "\/og"/);
+  assert.match(layout, /manifest: "\/manifest.webmanifest"/);
+  assert.match(layout, /PwaRegister/);
+  assert.match(manifest, /"display": "standalone"/);
+  assert.match(sw, /99gold-quotes-v1/);
+  assert.match(sw, /\/api\/global-quotes/);
+  assert.match(sw, /pathname.startsWith\("\/admin"\)/);
+  assert.match(pwa, /serviceWorker.register\("\/sw.js"\)/);
+  assert.match(pwa, /行情時間／本站檢查/);
+  assert.match(newsPage, /newsExcerpt/);
+  assert.match(newsPage, /newsEmpty/);
+  assert.match(excerpt, /newsExcerpt/);
+  assert.match(newsService, /r\.summary\?\.replace/);
 });
