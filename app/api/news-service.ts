@@ -1,4 +1,5 @@
 import { recentEditorials, type NewsLocale } from "../news/editorial";
+import { NEWS_SCHEDULE_STALE_AFTER_MS } from "../../lib/news/feed-client";
 import type { NewsDatabase } from "../../lib/news/pipeline";
 export type Locale = NewsLocale;
 export type Article = { id:string; locale:Locale; title:string; body:string; source_url:string; published_at:string; fetched_at:string };
@@ -38,6 +39,6 @@ export async function getDailyGoldNews(inputLocale="zh",database?:NewsDatabase) 
  const items=[...officialItems,...editorialItems].sort((a,b)=>Date.parse(b.sourcePublishedAt)-Date.parse(a.sourcePublishedAt)).slice(0,15);
  const updatedAt=items.reduce((latest,item)=>Date.parse(item.publishedAt)>Date.parse(latest||"1970-01-01")?item.publishedAt:latest,"");
  const checkedTime=Date.parse(scheduled.checkedAt);
- const scheduleStatus=scheduled.runStatus==="failed"?"error":!Number.isFinite(checkedTime)?"pending":Date.now()-checkedTime>45*60_000?"delayed":"healthy";
+ const scheduleStatus=scheduled.runStatus==="failed"?"error":!Number.isFinite(checkedTime)?"pending":Date.now()-checkedTime>NEWS_SCHEDULE_STALE_AFTER_MS?"delayed":"healthy";
  return {items,updatedAt,checkedAt:scheduled.checkedAt,scheduleStatus};
 }

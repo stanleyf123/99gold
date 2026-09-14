@@ -83,7 +83,7 @@ sudo systemctl enable --now 99gold.service
 
 ## 5. systemd timer：新聞管線（取代 Worker cron）
 
-先前 Cloudflare Worker 每 30 分鐘跑一次 RSS 檢查。VPS 上改跑：
+先前 Cloudflare Worker 每 30 分鐘跑一次 RSS 檢查。VPS 上由 systemd `99gold-news.timer` **每 3 小時**呼叫：
 
 ```bash
 cd /var/www/99gold
@@ -118,12 +118,12 @@ Nice=10
 
 ```ini
 [Unit]
-Description=Check official gold news feeds every 30 minutes
+Description=Check official gold news feeds every 3 hours
 
 [Timer]
 OnBootSec=2min
-OnCalendar=*:0/30
-AccuracySec=1min
+OnCalendar=0/3:00:00
+AccuracySec=5min
 Persistent=true
 Unit=99gold-news.service
 
@@ -139,10 +139,10 @@ sudo systemctl enable --now 99gold-news.timer
 等價 crontab（若不用 systemd timer）：
 
 ```cron
-*/30 * * * * www-data cd /var/www/99gold && /usr/bin/npm run news:pipeline >> /var/log/99gold-news.log 2>&1
+0 */3 * * * www-data cd /var/www/99gold && /usr/bin/npm run news:pipeline >> /var/log/99gold-news.log 2>&1
 ```
 
-快訊仍須在 `/admin` 核准後才會發布。timer 只負責抓來源與發布「已核准且到期」的項目。
+快訊仍須在 `/admin` 核准後才會發布。timer 只負責抓來源與發布「已核准且到期」的項目；新抓到的項目進入 pending 佇列，不會自動上 `/news`。
 
 ## 6. Nginx
 

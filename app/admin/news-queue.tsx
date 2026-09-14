@@ -91,7 +91,7 @@ export default function NewsQueue() {
         body: JSON.stringify({ id, action }),
       });
       if (!response.ok) throw new Error("審核失敗");
-      setStatus(action === "approve" ? "已核准，將於下一個 30 分鐘週期發布" : "已拒絕候選新聞");
+      setStatus(action === "approve" ? "已核准，將於下一個 3 小時週期發布" : "已拒絕候選新聞");
       await load();
     } catch {
       setStatus("審核失敗，請稍後重試");
@@ -109,7 +109,7 @@ export default function NewsQueue() {
     </header>
     <p className="newsQueueStatus">{status}</p>
     <div className="newsScheduleSummary">
-      <article><span>自動檢查</span><strong>每 30 分鐘</strong><small>僅限白名單官方 RSS</small></article>
+      <article><span>自動檢查</span><strong>每 3 小時</strong><small>僅限白名單官方 RSS</small></article>
       <article><span>發布方式</span><strong>人工核准</strong><small>核准後由排程發布</small></article>
       <article><span>最近執行</span><strong>{latestRun ? statusNames[latestRun.status as keyof typeof statusNames] ?? latestRun.status : "尚無紀錄"}</strong><small>{latestRun ? formatTime(latestRun.finished_at) : "等待首次排程"}</small></article>
     </div>
