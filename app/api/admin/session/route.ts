@@ -4,6 +4,7 @@ import {
   getAdminToken,
   safeRelativeReturnPath,
 } from "../../../chatgpt-auth";
+import { publicAbsoluteUrl } from "../../../../lib/public-origin";
 import { timingSafeEqual } from "node:crypto";
 
 const cookieOptions = {
@@ -39,9 +40,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "伺服器尚未設定 ADMIN_TOKEN" }, { status: 503 });
   }
   const { token, returnTo } = await readToken(request);
-  const destination = new URL(safeRelativeReturnPath(returnTo), request.url);
+  const destination = publicAbsoluteUrl(safeRelativeReturnPath(returnTo), request.url);
   if (!token || !tokensMatch(token, expected)) {
-    const failure = new URL("/admin/login", request.url);
+    const failure = publicAbsoluteUrl("/admin/login", request.url);
     failure.searchParams.set("return_to", safeRelativeReturnPath(returnTo));
     failure.searchParams.set("error", "1");
     return NextResponse.redirect(failure, { status: 303 });
