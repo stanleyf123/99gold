@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getRawDb } from "../../../../db";
+import { currentSourceHealth } from "../../../../lib/news/source-config";
 import { getChatGPTUser, isAdminEmail } from "../../../chatgpt-auth";
 import { runNewsPipeline } from "../../../../lib/news/pipeline";
 
@@ -24,12 +25,22 @@ export async function GET() {
         ORDER BY CASE status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 WHEN 'published' THEN 2 ELSE 3 END,
         source_published_at DESC LIMIT 100`).all(),
       db.prepare(`SELECT source_id, last_attempt_at, last_success_at, last_error, consecutive_errors
-        FROM news_source_state ORDER BY source_id`).all(),
+        FROM news_source_state ORDER BY source_id`).all<{
+          source_id: string;
+          last_attempt_at: string | null;
+          last_success_at: string | null;
+          last_error: string | null;
+          consecutive_errors: number;
+        }>(),
       db.prepare(`SELECT id, trigger, scheduled_for, finished_at, status, sources_checked,
         items_seen, candidates_added, duplicates_skipped, published_count, error_count
         FROM news_runs ORDER BY started_at DESC LIMIT 20`).all(),
     ]);
-    return NextResponse.json({ candidates: candidates.results, sources: sources.results, runs: runs.results }, {
+    return NextResponse.json({
+      candidates: candidates.results,
+      sources: currentSourceHealth(sources.results),
+      runs: runs.results,
+    }, {
       headers: { "Cache-Control": "no-store" },
     });
   } catch {

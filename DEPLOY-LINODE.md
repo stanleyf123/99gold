@@ -144,6 +144,23 @@ sudo systemctl enable --now 99gold-news.timer
 
 快訊仍須在 `/admin` 核准後才會發布。timer 只負責抓來源與發布「已核准且到期」的項目；新抓到的項目進入 pending 佇列，不會自動上 `/news`。
 
+### 新聞來源與 Linode IP 封鎖
+
+`lib/news/source-config.ts` 只允許第一方公開 RSS/Atom（Fed、BLS、ECB、ONS、HM Treasury、BEA、Census）。**不要把 Bank of England 加回 production cron。**
+
+在 Linode（以及其他常見機房 IP 段）上，`https://www.bankofengland.co.uk/rss/speeches`（以及 `/rss/news`、`/rss/publications`）會回 **Akamai Access Denied HTML 403**。從住宅／辦公室網路同一 URL 可能是 200 RSS。這是 **IP／機房封鎖**，不是缺 User-Agent：在 VPS 上改 Chrome UA 或加標頭無法穩定修好。IMF 的 RSS 在部分 datacenter IP 上也有同樣的 Akamai 403，因此沒有採用。
+
+英國／總體替代來源（已從 datacenter 實測 200）：
+
+- ONS release calendar：`https://www.ons.gov.uk/releasecalendar?rss`
+- HM Treasury 新聞 Atom：`https://www.gov.uk/search/news-and-communications.atom?organisations%5B%5D=hm-treasury`
+
+若 SQLite 裡還留著 `news_source_state.source_id = bank-of-england-speeches` 的連續 403，那是歷史列，管理後台只顯示目前白名單，不會再把它當成排程故障。可選清理：
+
+```sql
+DELETE FROM news_source_state WHERE source_id = 'bank-of-england-speeches';
+```
+
 ## 6. Nginx
 
 網域 `99gold.net` 與 IP `172.237.11.195` 都反代到 Node。憑證可用 Certbot 另開 `:443` server。

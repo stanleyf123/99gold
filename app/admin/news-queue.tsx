@@ -17,7 +17,8 @@ type Candidate = {
 };
 type SourceState = {
   source_id: string;
-  last_attempt_at: string;
+  source_name?: string;
+  last_attempt_at: string | null;
   last_success_at: string | null;
   last_error: string | null;
   consecutive_errors: number;
@@ -116,10 +117,16 @@ export default function NewsQueue() {
     <div className="sourceHealth">
       <h3>來源健康狀態</h3>
       {data.sources.length ? data.sources.map((source) => <article key={source.source_id}>
-        <div><strong>{source.source_id}</strong><small>最近成功 {formatTime(source.last_success_at)}</small></div>
-        <span className={source.consecutive_errors ? "error" : "healthy"}>{source.consecutive_errors ? `連續失敗 ${source.consecutive_errors} 次` : "正常"}</span>
+        <div><strong>{source.source_name || source.source_id}</strong><small>{source.source_id} · 最近成功 {formatTime(source.last_success_at)}</small></div>
+        <span className={source.consecutive_errors ? "error" : "healthy"}>{
+          source.consecutive_errors
+            ? `連續失敗 ${source.consecutive_errors} 次`
+            : source.last_attempt_at
+              ? "正常"
+              : "尚未檢查"
+        }</span>
         {source.last_error && <p>{source.last_error}</p>}
-      </article>) : <p>完成第一次來源檢查後顯示。</p>}
+      </article>) : <p>目前沒有已設定的官方來源。</p>}
     </div>
     <div className="candidateQueue">
       <h3>候選與排程</h3>
