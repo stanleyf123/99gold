@@ -245,10 +245,10 @@ export default function GlobalMarketPage({ initialQuotes = null }: { initialQuot
           <h3>{market.name[locale]}</h3>
           <strong className="marketPrice">{formatWorldPrice(market.primary.value, market.primary.decimals)}</strong>
           <p className="marketUnit">{market.primary.unit[locale]}</p>
-          {market.secondary ? <p className="marketSecondary">{formatWorldPrice(market.secondary.value, market.secondary.decimals)} {market.secondary.unit[locale]}</p> : null}
+          {market.secondary ? <p className="marketSecondary">{`${formatWorldPrice(market.secondary.value, market.secondary.decimals)} ${market.secondary.unit[locale]}`}</p> : null}
           <em className={changeClass(market.changePercent)}>{changeText(market.changePercent, locale)}</em>
           {note ? <p className="marketFallback">{note}</p> : null}
-          <small>{t(locale, "當地市場時間", "Local market hours", "現地市場時間")} {market.hours}</small>
+          <small>{t(locale, "當地市場時間", "Local market hours", "現地市場時間")}<br />{market.hours}</small>
         </article>;
       })}</div>
     </section>
