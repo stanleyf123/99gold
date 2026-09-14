@@ -150,7 +150,7 @@ sudo systemctl enable --now 99gold-news.timer
 
 在 Linode（以及其他常見機房 IP 段）上，`https://www.bankofengland.co.uk/rss/speeches`（以及 `/rss/news`、`/rss/publications`）會回 **Akamai Access Denied HTML 403**。從住宅／辦公室網路同一 URL 可能是 200 RSS。這是 **IP／機房封鎖**，不是缺 User-Agent：在 VPS 上改 Chrome UA 或加標頭無法穩定修好。IMF 的 RSS 在部分 datacenter IP 上也有同樣的 Akamai 403，因此沒有採用。
 
-英國／總體替代來源（已從 datacenter 實測 200）：
+英國／總體替代來源（已從 datacenter 與 production Linode 實測 HTTP 200）：
 
 - ONS release calendar：`https://www.ons.gov.uk/releasecalendar?rss`
 - HM Treasury 新聞 Atom：`https://www.gov.uk/government/organisations/hm-treasury.atom`
