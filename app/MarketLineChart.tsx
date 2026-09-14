@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type PointerEvent } from "react";
 
 export type MarketChartPoint = {
   timestamp: number;
@@ -41,6 +41,8 @@ function formatTime(timestamp: number, period: string, locale: string) {
 export function MarketLineChart({ points, positive, locale, period, currency = "USD", formatValue, ariaLabel }: MarketLineChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
+  const instanceId = useId().replace(/:/g, "");
+  const keyboardId = `market-chart-${period}-${instanceId}`;
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [activeIndex, setActiveIndex] = useState(Math.max(0, points.length - 1));
 
@@ -197,10 +199,10 @@ export function MarketLineChart({ points, positive, locale, period, currency = "
             <strong>{(formatValue ?? ((value: number) => moneyFormatter.format(value)))(activePoint.close)}</strong>
           </div>
         )}
-        <label className="srOnly" htmlFor={`market-chart-${period}`}>{locale === "en" ? "Inspect chart points with keyboard" : locale === "ja" ? "キーボードでチャートを確認" : "使用鍵盤檢視圖表資料點"}</label>
+        <label className="srOnly" htmlFor={keyboardId}>{locale === "en" ? "Inspect chart points with keyboard" : locale === "ja" ? "キーボードでチャートを確認" : "使用鍵盤檢視圖表資料點"}</label>
         <input
           className="marketChartKeyboard"
-          id={`market-chart-${period}`}
+          id={keyboardId}
           type="range"
           min="0"
           max={Math.max(0, points.length - 1)}

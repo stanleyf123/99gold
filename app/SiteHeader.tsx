@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
+import { localeHrefsFromLocation as hrefsFromPath } from "../lib/site-locale";
 import { type Locale, persistLocale, localeFromLocation, useSiteLocale } from "./locale";
 
 export type { Locale };
@@ -50,29 +51,6 @@ const navItems = [
   { href: "/news", key: "news" as const, match: (path: string) => path.startsWith("/news") || path.startsWith("/insights") },
 ];
 
-function localeHrefsFromLocation(pathname: string, search: string): Partial<Record<Locale, string>> | undefined {
-  if (pathname === "/news") {
-    const category = new URLSearchParams(search).get("category") || "all";
-    return {
-      zh: `/news?lang=zh&category=${category}`,
-      en: `/news?lang=en&category=${category}`,
-      ja: `/news?lang=ja&category=${category}`,
-    };
-  }
-  const article = pathname.match(/^(\/news\/.+)-(zh|en|ja)$/);
-  if (!article) return undefined;
-  const base = article[1];
-  return {
-    zh: `${base}-zh`,
-    en: `${base}-en`,
-    ja: `${base}-ja`,
-  };
-}
-
-function readLocationSearch() {
-  return typeof window === "undefined" ? "" : window.location.search;
-}
-
 type SiteHeaderProps = {
   locale?: Locale;
   onLocaleChange?: (locale: Locale) => void;
@@ -82,33 +60,26 @@ type SiteHeaderProps = {
   extras?: ReactNode;
 };
 
-export default function SiteHeader({
+function SiteHeaderInner({
   locale: controlledLocale,
   onLocaleChange,
   localeHrefs: controlledHrefs,
   brandName = "玖久黃金報價網",
   englishName = "99GOLD.NET",
   extras,
-}: SiteHeaderProps) {
+  search,
+}: SiteHeaderProps & { search: string }) {
   const pathname = usePathname() || "/";
   const { locale: contextLocale, setLocale: setContextLocale } = useSiteLocale();
-  const [search, setSearch] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
-  const derivedHrefs = useMemo(() => localeHrefsFromLocation(pathname, search), [pathname, search]);
+  const derivedHrefs = useMemo(() => hrefsFromPath(pathname, search), [pathname, search]);
   const localeHrefs = controlledHrefs ?? derivedHrefs;
   const locale = controlledLocale ?? contextLocale;
   const copy = navCopy[locale];
 
   useEffect(() => {
-    const syncSearch = () => setSearch(readLocationSearch());
-    syncSearch();
-    window.addEventListener("popstate", syncSearch);
-    return () => window.removeEventListener("popstate", syncSearch);
-  }, [pathname]);
-
-  useEffect(() => {
     if (controlledLocale) return;
-    const fromUrl = localeFromLocation(pathname, search || readLocationSearch());
+    const fromUrl = localeFromLocation(pathname, search);
     if (fromUrl && fromUrl !== contextLocale) setContextLocale(fromUrl);
   }, [controlledLocale, contextLocale, pathname, search, setContextLocale]);
 
@@ -247,5 +218,19 @@ export default function SiteHeader({
         </div>
       )}
     </header>
+  );
+}
+
+function SiteHeaderWithSearch(props: SiteHeaderProps) {
+  const searchParams = useSearchParams();
+  const search = searchParams.toString() ? `?${searchParams.toString()}` : "";
+  return <SiteHeaderInner {...props} search={search} />;
+}
+
+export default function SiteHeader(props: SiteHeaderProps) {
+  return (
+    <Suspense fallback={<SiteHeaderInner {...props} search="" />}>
+      <SiteHeaderWithSearch {...props} />
+    </Suspense>
   );
 }

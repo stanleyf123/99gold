@@ -1,10 +1,10 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-
-const traditionalChineseMarkets = new Set(["TW", "HK", "MO"]);
+import { localeFromGeoCountry } from "../../../lib/site-locale";
 
 export async function GET() {
-  const country = (await headers()).get("cf-ipcountry")?.toUpperCase() ?? "";
-  const locale = country === "JP" ? "ja" : traditionalChineseMarkets.has(country) ? "zh" : "en";
+  const requestHeaders = await headers();
+  const country = requestHeaders.get("cf-ipcountry") ?? requestHeaders.get("x-vercel-ip-country") ?? "";
+  const locale = localeFromGeoCountry(country);
   return NextResponse.json({ locale }, { headers: { "Cache-Control": "private, max-age=86400" } });
 }
