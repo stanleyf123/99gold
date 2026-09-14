@@ -114,6 +114,10 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.match(globalView, /useSiteLocale/);
   assert.match(globalView, /Global Precious Metals Desk/);
   assert.match(globalView, /世界貴金属相場センター/);
+  assert.match(globalView, /buildWorldMarketQuotes/);
+  assert.match(globalView, /依國際參考價與匯率換算，非當地交易所結算價／非店家牌價/);
+  assert.match(globalView, /not a local exchange settlement or shop quote/);
+  assert.match(globalView, /現地取引所の決済価格／店頭掲示価格ではありません/);
   assert.doesNotMatch(news, /<SiteHeader/);
   assert.doesNotMatch(news, /articleNav/);
   assert.match(news, /alt=\{article\.imageAlt\}/);
@@ -201,6 +205,7 @@ test("keeps quote history, data transparency and responsive styles wired", async
   assert.match(quoteApi, /Resolve gold first/);
   assert.match(quoteApi, /quotedAt: gold\.quotedAt/);
   assert.match(quoteApi, /retrievedAt/);
+  assert.match(quoteApi, /\["TWD", "HKD", "CNY", "JPY", "EUR", "GBP", "SGD"\]/);
   assert.match(quoteRoute, /getGlobalQuotes/);
   assert.match(quoteRoute, /lib\/quotes/);
   assert.match(homeView, /行情時間/);

@@ -3,6 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import SiteLinks from "../SiteLinks";
 import { type Locale, t, useSiteLocale } from "../locale";
+import { parseQuotedNumber } from "../../lib/section-quotes";
+import {
+  buildWorldMarketQuotes,
+  converterOunces,
+  formatWorldPrice,
+  type WorldMarketBasis,
+  type WorldMarketQuote,
+} from "../../lib/world-markets";
 import "./global.css";
 
 type MarketStatus = "checking" | "open" | "delayed" | "daily-break" | "weekend-closed" | "unavailable";
@@ -14,9 +22,11 @@ type Metal = {
   price: number;
   changePercent: number | null;
 };
+type QuoteItem = { id: string; price: string };
 type Data = {
   metals: Metal[];
   currencies: Record<string, number>;
+  items: QuoteItem[];
   quotedAt: string;
   retrievedAt: string;
   marketStatus: MarketStatus;
@@ -26,6 +36,7 @@ type Data = {
 const fallback: Data = {
   metals: [],
   currencies: {},
+  items: [],
   quotedAt: "",
   retrievedAt: "",
   marketStatus: "checking",
@@ -39,15 +50,18 @@ const japaneseMetalNames: Record<string, string> = {
   palladium: "パラジウム先物",
 };
 
-const markets = [
-  { zh: "台灣", en: "Taiwan", ja: "台湾", city: "Taipei", unit: { zh: "TWD／錢、公克", en: "TWD / qian, gram", ja: "TWD／銭・グラム" }, hours: "09:00–17:00" },
-  { zh: "香港", en: "Hong Kong", ja: "香港", city: "Hong Kong", unit: { zh: "HKD／兩、克", en: "HKD / tael, gram", ja: "HKD／両・グラム" }, hours: "09:00–17:00" },
-  { zh: "中國", en: "China", ja: "中国", city: "Shanghai", unit: { zh: "CNY／克", en: "CNY / gram", ja: "CNY／グラム" }, hours: "09:00–15:30" },
-  { zh: "日本", en: "Japan", ja: "日本", city: "Tokyo", unit: { zh: "JPY／克", en: "JPY / gram", ja: "JPY／グラム" }, hours: "09:00–15:30" },
-  { zh: "新加坡", en: "Singapore", ja: "シンガポール", city: "Singapore", unit: { zh: "SGD／盎司", en: "SGD / ounce", ja: "SGD／オンス" }, hours: "09:00–17:00" },
-  { zh: "倫敦", en: "London", ja: "ロンドン", city: "London", unit: { zh: "USD／盎司", en: "USD / ounce", ja: "USD／オンス" }, hours: "08:00–17:00" },
-  { zh: "紐約", en: "New York", ja: "ニューヨーク", city: "New York", unit: { zh: "USD／盎司", en: "USD / ounce", ja: "USD／オンス" }, hours: "08:20–17:00" },
-] as const;
+function snapshotFromQuotes(next: Partial<Data> & { updatedAt?: string } | null | undefined): Data | null {
+  if (!next?.metals?.length) return null;
+  return {
+    metals: next.metals ?? [],
+    currencies: next.currencies ?? {},
+    items: next.items ?? [],
+    quotedAt: next.quotedAt ?? next.updatedAt ?? "",
+    retrievedAt: next.retrievedAt ?? "",
+    marketStatus: next.marketStatus ?? "delayed",
+    source: next.source ?? "",
+  };
+}
 
 function metalLabel(item: Metal, locale: Locale) {
   if (locale === "en") return item.englishName;
@@ -70,16 +84,35 @@ function formatTaipeiTime(value: string, locale: Locale) {
   }).format(date);
 }
 
+function fallbackNote(basis: WorldMarketBasis, locale: Locale, marketId: WorldMarketQuote["id"]) {
+  if (basis === "usd-fallback" && marketId === "singapore") {
+    return t(locale, "SGD 匯率暫缺，改列 USD／盎司", "SGD FX unavailable · showing USD / oz", "SGD為替なし・USD／オンスを表示");
+  }
+  if (basis === "eur-fallback") {
+    return t(locale, "GBP 匯率暫缺，改列 EUR／盎司", "GBP FX unavailable · showing EUR / oz", "GBP為替なし・EUR／オンスを表示");
+  }
+  if (basis === "usd-fallback" && marketId === "london") {
+    return t(locale, "GBP／EUR 匯率暫缺，改列 USD／盎司", "GBP/EUR FX unavailable · showing USD / oz", "GBP／EUR為替なし・USD／オンスを表示");
+  }
+  return "";
+}
+
+function changeClass(changePercent: number | null) {
+  if (changePercent === null) return undefined;
+  if (changePercent > 0) return "rise";
+  if (changePercent < 0) return "fall";
+  return undefined;
+}
+
+function changeText(changePercent: number | null, locale: Locale) {
+  if (changePercent === null) return t(locale, "有效參考價", "Valid reference", "有効な参考値");
+  const direction = changePercent > 0 ? "+" : "";
+  return `${direction}${changePercent.toFixed(2)}%`;
+}
+
 export default function GlobalMarketPage({ initialQuotes = null }: { initialQuotes?: Partial<Data> | null }) {
   const { locale } = useSiteLocale();
-  const [data, setData] = useState<Data>(() => initialQuotes?.metals?.length ? {
-    metals: initialQuotes.metals ?? [],
-    currencies: initialQuotes.currencies ?? {},
-    quotedAt: initialQuotes.quotedAt ?? "",
-    retrievedAt: initialQuotes.retrievedAt ?? "",
-    marketStatus: initialQuotes.marketStatus ?? "delayed",
-    source: initialQuotes.source ?? "",
-  } : fallback);
+  const [data, setData] = useState<Data>(() => snapshotFromQuotes(initialQuotes) ?? fallback);
   const [checkFailed, setCheckFailed] = useState(false);
   const [lastAttemptAt, setLastAttemptAt] = useState(initialQuotes?.retrievedAt ?? "");
   const [metalId, setMetalId] = useState("gold");
@@ -99,14 +132,9 @@ export default function GlobalMarketPage({ initialQuotes = null }: { initialQuot
         if (!response.ok) throw new Error("Quote source unavailable");
         const next = await response.json() as Partial<Data> & { updatedAt?: string };
         if (disposed) return;
-        setData({
-          metals: next.metals ?? [],
-          currencies: next.currencies ?? {},
-          quotedAt: next.quotedAt ?? next.updatedAt ?? "",
-          retrievedAt: next.retrievedAt ?? "",
-          marketStatus: next.marketStatus ?? "delayed",
-          source: next.source ?? "",
-        });
+        const snapshot = snapshotFromQuotes(next);
+        if (!snapshot) throw new Error("Quote source unavailable");
+        setData(snapshot);
         setLastAttemptAt(next.retrievedAt ?? new Date().toISOString());
         setCheckFailed(false);
       } catch (error) {
@@ -131,10 +159,20 @@ export default function GlobalMarketPage({ initialQuotes = null }: { initialQuot
   }, [initialQuotes]);
 
   const metal = data.metals.find((item) => item.id === metalId) ?? data.metals[0];
+  const gold = data.metals.find((item) => item.id === "gold");
   const effectiveCurrency = currency in data.currencies ? currency : Object.keys(data.currencies)[0] ?? currency;
+  const worldQuotes = useMemo(() => {
+    const quoted = (id: string) => parseQuotedNumber(data.items.find((item) => item.id === id)?.price ?? "");
+    return buildWorldMarketQuotes({
+      goldUsdPerOz: gold && Number.isFinite(gold.price) ? gold.price : null,
+      goldChangePercent: gold?.changePercent ?? null,
+      currencies: data.currencies,
+      taiwanQian: quoted("taiwan-qian"),
+      taiwanGram: quoted("taiwan-gram"),
+    });
+  }, [gold, data.currencies, data.items]);
   const result = useMemo(() => {
-    const ounces = (Number(weight) || 0) * ({ ounce: 1, gram: 1 / 31.1034768, qian: 3.75 / 31.1034768, tael: 37.5 / 31.1034768 }[unit] ?? 1);
-    return ounces * (metal?.price ?? Number.NaN) * (data.currencies[effectiveCurrency] ?? Number.NaN);
+    return converterOunces(Number(weight) || 0, unit) * (metal?.price ?? Number.NaN) * (data.currencies[effectiveCurrency] ?? Number.NaN);
   }, [weight, unit, metal, effectiveCurrency, data.currencies]);
   const statusLabel = checkFailed
     ? data.metals.length
@@ -195,8 +233,24 @@ export default function GlobalMarketPage({ initialQuotes = null }: { initialQuot
       <div className="convertResult"><span>{t(locale, "換算結果", "Converted value", "換算結果")}</span><strong>{effectiveCurrency} {Number.isFinite(result) ? result.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "—"}</strong><small>{weight || 0} {unit}・{metal ? metalLabel(metal, locale) : t(locale, "資料不可用", "Data unavailable", "データなし")}</small></div>
     </section>
     <section className="worldMarkets">
-      <div className="boardHead"><div><p>WORLD MARKETS</p><h2>{t(locale, "主要黃金市場", "Major gold markets", "主な金市場")}</h2></div><span>{t(locale, "當地交易單位與市場時間", "Local trading units and market hours", "現地の取引単位と市場時間")}</span></div>
-      <div>{markets.map((market) => <article key={market.city}><span>{market.city}</span><h3>{market[locale]}</h3><p>{market.unit[locale]}</p><strong>{market.hours}</strong><small>{t(locale, "當地市場時間", "Local market hours", "現地市場時間")}</small></article>)}</div>
+      <div className="boardHead">
+        <div><p>WORLD MARKETS</p><h2>{t(locale, "主要黃金市場", "Major gold markets", "主な金市場")}</h2></div>
+        <span>{t(locale, "當地交易單位與市場時間", "Local trading units and market hours", "現地の取引単位と市場時間")}</span>
+      </div>
+      <p className="worldMarketNote">{t(locale, "依國際參考價與匯率換算，非當地交易所結算價／非店家牌價。港兩採 37.429 公克；台灣錢採 3.75 公克（GC × 臺銀美元即期賣出）。", "Theoretical local references from the international gold price and FX, not a local exchange settlement or shop quote. Hong Kong tael = 37.429 g; Taiwan qian = 3.75 g (GC × Bank of Taiwan USD spot sell).", "国際参考価格と為替による理論換算であり、現地取引所の決済価格／店頭掲示価格ではありません。香港の両は37.429g、台湾の銭は3.75g（GC×台湾銀行米ドル直物売り）。")}</p>
+      <div className="marketGrid">{worldQuotes.map((market) => {
+        const note = fallbackNote(market.basis, locale, market.id);
+        return <article key={market.city}>
+          <span>{market.city}</span>
+          <h3>{market.name[locale]}</h3>
+          <strong className="marketPrice">{formatWorldPrice(market.primary.value, market.primary.decimals)}</strong>
+          <p className="marketUnit">{market.primary.unit[locale]}</p>
+          {market.secondary ? <p className="marketSecondary">{formatWorldPrice(market.secondary.value, market.secondary.decimals)} {market.secondary.unit[locale]}</p> : null}
+          <em className={changeClass(market.changePercent)}>{changeText(market.changePercent, locale)}</em>
+          {note ? <p className="marketFallback">{note}</p> : null}
+          <small>{t(locale, "當地市場時間", "Local market hours", "現地市場時間")} {market.hours}</small>
+        </article>;
+      })}</div>
     </section>
     <SiteLinks current="global" />
     <footer><span>玖久黃金報價網 · 99GOLD.NET</span><p>{t(locale, "真金價值，長久相伴。", "True gold value, lasting companionship.", "真金の価値を、長く寄り添う。")}</p></footer>

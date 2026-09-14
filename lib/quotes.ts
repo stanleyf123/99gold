@@ -100,7 +100,7 @@ async function getMarketCurrencies() {
     });
     if (!response.ok) return { currencies, quotedAt: null as string | null };
     const data = await response.json() as FxResponse;
-    for (const code of ["TWD", "HKD", "CNY", "JPY", "EUR"]) {
+    for (const code of ["TWD", "HKD", "CNY", "JPY", "EUR", "GBP", "SGD"]) {
       const rate = data.rates?.[code];
       if (isFiniteNumber(rate) && rate > 0) currencies[code] = rate;
     }
