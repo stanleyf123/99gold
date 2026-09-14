@@ -89,10 +89,7 @@ export async function requireChatGPTUser(
   if (user) return user;
 
   const safeReturnTo = safeRelativeReturnPath(returnTo);
-  if (getAdminToken()) {
-    redirect(`/admin/login?return_to=${encodeURIComponent(safeReturnTo)}`);
-  }
-  redirect(chatGPTSignInPath(safeReturnTo));
+  redirect(`/admin/login?return_to=${encodeURIComponent(safeReturnTo)}`);
 }
 
 export function chatGPTSignInPath(returnTo: string): string {
