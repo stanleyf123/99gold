@@ -54,3 +54,19 @@ Do **not** treat these as merge blockers for this audit PR.
 3. Open a 市場快訊 `/news/ecb-press-…` and click EN / 日 in the header → URL gains `?lang=en|ja` and the article language changes.
 4. `/international` has two charts; keyboard range inputs must have distinct `id`s.
 5. Homepage / jewelry / global / recycling / news still show live quotes (no false empty radar).
+
+## Local verification (2026-09-14)
+
+Ran against `http://127.0.0.1:3000` (`SQLITE_PATH=/workspace/data/99gold.sqlite`, `SITE_URL=https://99gold.net`).
+
+| Check | Result |
+| --- | --- |
+| `GET /api/visitor-locale` (no GeoIP) | `{"locale":"zh"}` |
+| `cf-ipcountry: JP` / `US` / `XX` | ja / en / zh |
+| First-visit homepage chrome | Stays 繁中 (`今日金價`…); radar includes **臺銀美金即期賣出** NT$ 31.765; no empty-quotes banner |
+| `/news/{id}` 中 → EN → 日 | URL `?lang=` and article title/body switch (seeded `audit-brief-fx-i18n`) |
+| `/news` `<title>` / h1 | 市場新聞｜99GOLD.NET |
+| `/jewelry` | Hero buy/sell + **當日匯率** column with distinct BOT rates |
+| `/international` chart ids | Two unique `market-chart-1M-*` keyboard ids |
+| `/global` `/recycling` `/og` PWA | 200; recycle calc empty → “—”; Email/LINE `configured: false`, no crash |
+| `npm test` | 94 pass, 0 fail, 1 skip |
