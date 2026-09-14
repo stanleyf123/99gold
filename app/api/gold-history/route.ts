@@ -1,16 +1,7 @@
 import { NextResponse } from "next/server";
+import { fetchYahooChartCloses } from "../../../lib/yahoo-chart";
 
 type HistoryPeriod = "1D" | "1W" | "1M" | "3M" | "1Y";
-
-type YahooHistoryResponse = {
-  chart?: {
-    result?: Array<{
-      meta?: { currency?: string; exchangeName?: string };
-      timestamp?: number[];
-      indicators?: { quote?: Array<{ close?: Array<number | null> }> };
-    }>;
-  };
-};
 
 const periodConfig: Record<HistoryPeriod, { range: string; interval: string; cacheSeconds: number }> = {
   "1D": { range: "5d", interval: "5m", cacheSeconds: 180 },
@@ -26,18 +17,8 @@ export async function GET(request: Request) {
   const config = periodConfig[period];
 
   try {
-    const response = await fetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/GC%3DF?interval=${config.interval}&range=${config.range}`,
-      { headers: { Accept: "application/json", "User-Agent": "Mozilla/5.0" } },
-    );
-    if (!response.ok) throw new Error("history unavailable");
-    const data = await response.json() as YahooHistoryResponse;
-    const result = data.chart?.result?.[0];
-    const timestamps = result?.timestamp ?? [];
-    const closes = result?.indicators?.quote?.[0]?.close ?? [];
-    const allPoints = timestamps
-      .map((timestamp, index) => ({ timestamp, close: closes[index] }))
-      .filter((point): point is { timestamp: number; close: number } => Number.isFinite(point.close));
+    const chart = await fetchYahooChartCloses("GC=F", config.range, config.interval);
+    const allPoints = chart?.points ?? [];
     const latestTimestamp = allPoints.at(-1)?.timestamp;
     const points = period === "1D" && latestTimestamp
       ? allPoints.filter((point) => point.timestamp >= latestTimestamp - 86_400)
@@ -64,8 +45,8 @@ export async function GET(request: Request) {
       quotedAt,
       updatedAt: quotedAt,
       retrievedAt,
-      source: `${result?.meta?.exchangeName ?? "COMEX"} GC futures via Yahoo Finance`,
-      currency: result?.meta?.currency ?? "USD",
+      source: `${chart?.exchangeName ?? "COMEX"} GC futures via Yahoo Finance`,
+      currency: chart?.currency ?? "USD",
     }, { headers: { "Cache-Control": `public, max-age=${config.cacheSeconds}, s-maxage=${config.cacheSeconds}` } });
   } catch {
     return NextResponse.json(

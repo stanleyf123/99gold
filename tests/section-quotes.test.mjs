@@ -16,7 +16,10 @@ const {
   parseQuotedNumber,
   jewelrySellFromBuy,
   recycleFromQian,
+  recycleEstimateTwd,
   taiwanQianValue,
+  qianFromGoldUsd,
+  formatSignedTwdChange,
   buildSectionView,
   formatTaipeiTime,
   marketStatusLabel,
@@ -83,6 +86,31 @@ test("jewelry stays empty when gold exists but taiwan-qian is missing", () => {
   const view = buildSectionView("jewelry", { ...quotes, items: quotes.items.filter((item) => item.id !== "taiwan-qian") });
   assert.equal(view.connected, false);
   assert.equal(view.price, "—");
+});
+
+test("qian conversion and recycle estimates stay formula-true", () => {
+  assert.equal(qianFromGoldUsd(4400, 32), Math.round(4400 * 32 / 31.1034768 * 3.75));
+  assert.equal(recycleEstimateTwd(16560, RECYCLE_PURITY["916"]), recycleFromQian(16560, RECYCLE_PURITY["916"]));
+  assert.match(formatSignedTwdChange(-70, -0.41), /▼/);
+  assert.equal(formatSignedTwdChange(null, 1), "");
+});
+
+test("jewelry board shows buy, sell, recycle and previous-close TWD change", () => {
+  const view = buildSectionView("jewelry", {
+    ...quotes,
+    currencies: { TWD: 32, USD: 1 },
+    metals: [{ ...quotes.metals[0], previousClose: 4400 }],
+  });
+  const previousBuy = qianFromGoldUsd(4400, 32);
+  assert.equal(view.jewelry.buy, 16560);
+  assert.equal(view.jewelry.sell, 17222);
+  assert.equal(view.jewelry.recycleFine, 16560);
+  assert.equal(view.jewelry.recycle916, 15169);
+  assert.equal(view.jewelry.recycle750, 12420);
+  assert.equal(view.jewelry.buyChange, 16560 - previousBuy);
+  assert.equal(view.jewelry.sellChange, 17222 - jewelrySellFromBuy(previousBuy));
+  assert.equal(view.jewelry.fxHeldConstant, true);
+  assert.match(view.cards[0].change, /▲|▼/);
 });
 
 test("empty quotes keep dashes only when upstream data is missing", () => {

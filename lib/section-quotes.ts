@@ -1,6 +1,8 @@
 import type { GlobalQuotes, MarketQuoteItem, MetalQuote } from "./quotes";
 
 export const JEWELRY_SELL_PREMIUM_RATE = 0.04;
+export const TROY_OUNCE_GRAMS = 31.1034768;
+export const QIAN_GRAMS = 3.75;
 export const RECYCLE_PURITY = {
   "999.9": 1,
   "916": 0.916,
@@ -9,6 +11,18 @@ export const RECYCLE_PURITY = {
 
 export type SectionName = "international" | "jewelry" | "recycling";
 export type SectionCard = { name: string; price: string; unit: string; change: string };
+export type JewelryBoard = {
+  buy: number;
+  sell: number;
+  gram: number | null;
+  recycleFine: number;
+  recycle916: number;
+  recycle750: number;
+  buyChange: number | null;
+  sellChange: number | null;
+  changePercent: number | null;
+  fxHeldConstant: boolean;
+};
 export type SectionView = {
   eyebrow: string;
   title: string;
@@ -19,6 +33,7 @@ export type SectionView = {
   cards: SectionCard[];
   note: string;
   connected: boolean;
+  jewelry?: JewelryBoard;
 };
 
 const copy = {
@@ -66,12 +81,64 @@ export function formatSignedChange(change: number | null | undefined, changePerc
   return `${direction}${Math.abs(amount).toFixed(2)}　${direction}${Math.abs(percent).toFixed(2)}%`;
 }
 
+export function qianFromGoldUsd(goldUsd: number, usdTwd: number): number {
+  return Math.round(goldUsd * usdTwd / TROY_OUNCE_GRAMS * QIAN_GRAMS);
+}
+
 export function jewelrySellFromBuy(buyQian: number, premiumRate = JEWELRY_SELL_PREMIUM_RATE): number {
   return Math.round(buyQian * (1 + premiumRate));
 }
 
 export function recycleFromQian(buyQian: number, purity: number): number {
   return Math.round(buyQian * purity);
+}
+
+export function recycleEstimateTwd(buyQian: number, purity: number): number {
+  return recycleFromQian(buyQian, purity);
+}
+
+export function formatSignedTwdChange(change: number | null | undefined, changePercent: number | null | undefined): string {
+  if (!Number.isFinite(change) || !Number.isFinite(changePercent)) return "";
+  const amount = change as number;
+  const percent = changePercent as number;
+  const arrow = amount >= 0 ? "▲" : "▼";
+  const direction = amount >= 0 ? "+" : "−";
+  return `${arrow} ${direction}${Math.abs(Math.round(amount)).toLocaleString("en-US")}（${direction}${Math.abs(percent).toFixed(2)}%）`;
+}
+
+function usdTwdRate(quotes: GlobalQuotes): number | null {
+  const rate = quotes.currencies?.TWD;
+  return Number.isFinite(rate) && rate > 0 ? rate : null;
+}
+
+function jewelryBoardFromQuotes(quotes: GlobalQuotes, buy: number, sell: number, gramValue: number | null): JewelryBoard {
+  const gold = quotes.metals.find((metal) => metal.id === "gold");
+  const fx = usdTwdRate(quotes);
+  const previousClose = gold && Number.isFinite(gold.previousClose) && (gold.previousClose as number) > 0
+    ? gold.previousClose as number
+    : null;
+  let buyChange: number | null = null;
+  let sellChange: number | null = null;
+  let changePercent: number | null = null;
+  if (fx !== null && previousClose !== null) {
+    const previousBuy = qianFromGoldUsd(previousClose, fx);
+    const previousSell = jewelrySellFromBuy(previousBuy);
+    buyChange = buy - previousBuy;
+    sellChange = sell - previousSell;
+    changePercent = previousBuy ? (buyChange / previousBuy) * 100 : null;
+  }
+  return {
+    buy,
+    sell,
+    gram: gramValue,
+    recycleFine: recycleEstimateTwd(buy, RECYCLE_PURITY["999.9"]),
+    recycle916: recycleEstimateTwd(buy, RECYCLE_PURITY["916"]),
+    recycle750: recycleEstimateTwd(buy, RECYCLE_PURITY["750"]),
+    buyChange,
+    sellChange,
+    changePercent,
+    fxHeldConstant: fx !== null && previousClose !== null,
+  };
 }
 
 export function itemById(items: MarketQuoteItem[] | undefined, id: MarketQuoteItem["id"]): MarketQuoteItem | undefined {
@@ -178,7 +245,11 @@ function jewelryView(quotes: GlobalQuotes): SectionView | null {
   if (buy === null) return null;
   const sell = jewelrySellFromBuy(buy);
   const gold = quotes.metals.find((metal) => metal.id === "gold");
-  const buyChange = gold ? metalChange(gold) : (itemById(quotes.items, "taiwan-qian")?.change ?? "未含銀樓價差與費用");
+  const jewelry = jewelryBoardFromQuotes(quotes, buy, sell, gramValue);
+  const buyDelta = formatSignedTwdChange(jewelry.buyChange, jewelry.changePercent);
+  const sellDelta = formatSignedTwdChange(jewelry.sellChange, jewelry.changePercent);
+  const buyChange = buyDelta
+    || (gold ? metalChange(gold) : (itemById(quotes.items, "taiwan-qian")?.change ?? "未含銀樓價差與費用"));
   const page = copy.jewelry;
   return {
     eyebrow: page.eyebrow,
@@ -189,13 +260,14 @@ function jewelryView(quotes: GlobalQuotes): SectionView | null {
     change: `估計溢價 ${(JEWELRY_SELL_PREMIUM_RATE * 100).toFixed(0)}%`,
     cards: [
       { name: "999.9 黃金買進", price: formatTwdAmount(buy), unit: "台幣／錢", change: buyChange },
-      { name: "999.9 黃金賣出估計", price: formatTwdAmount(sell), unit: "台幣／錢", change: `估計溢價 ${(JEWELRY_SELL_PREMIUM_RATE * 100).toFixed(0)}%（非店家牌價）` },
+      { name: "999.9 黃金賣出估計", price: formatTwdAmount(sell), unit: "台幣／錢", change: sellDelta || `估計溢價 ${(JEWELRY_SELL_PREMIUM_RATE * 100).toFixed(0)}%（非店家牌價）` },
       gramValue !== null
         ? { name: gram?.label ?? "黃金每公克", price: formatTwdAmount(gramValue), unit: gram?.unit ?? "台幣／公克", change: gram?.change ?? "未含銀樓價差與費用" }
         : { name: "換算來源", price: itemById(quotes.items, "taiwan-qian")?.code ?? "GC × USD/TWD", unit: "理論買進", change: "未含銀樓價差與費用" },
     ],
     note: page.note,
     connected: true,
+    jewelry,
   };
 }
 

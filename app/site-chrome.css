@@ -733,3 +733,176 @@ footer {
     padding: 0 10px !important;
   }
 }
+
+.jewelryHeroBoard {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 22px;
+  max-width: 720px;
+}
+
+.jewelryHeroBoard article {
+  background: #fffdf8;
+  border: 1px solid #d9d1c3;
+  padding: 16px 18px 14px;
+  display: grid;
+  gap: 6px;
+}
+
+.jewelryHeroBoard span {
+  color: #9a721d;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.jewelryHeroBoard strong {
+  font: clamp(28px, 4.2vw, 40px)/1.05 Georgia, "Noto Serif TC", serif;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.jewelryHeroBoard small {
+  color: #7a7468;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.jewelryHeroBoard b {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.jewelryRange {
+  margin-top: 18px;
+  max-width: 720px;
+}
+
+.jewelryRange > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.jewelryRange span {
+  color: #7a7468;
+  font-size: 12px;
+}
+
+.jewelryRange strong {
+  font: 16px Georgia, serif;
+}
+
+.jewelryRange dl {
+  margin: 10px 0 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.jewelryRange dt {
+  color: #8a8478;
+  font-size: 11px;
+}
+
+.jewelryRange dd {
+  margin: 2px 0 0;
+  font: 16px Georgia, serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.jewelryHeroNote,
+.jewelryHistoryEmpty,
+.jewelryDisclaimer {
+  margin: 14px 0 0;
+  color: #5d5348;
+  font-size: 13px;
+  line-height: 1.65;
+  max-width: 46rem;
+}
+
+.jewelryRecycleCards {
+  margin-top: 0;
+  border-top: 0;
+}
+
+.jewelryHistoryHead {
+  margin-top: 28px;
+}
+
+.jewelryTableScroll {
+  margin-top: 12px;
+}
+
+.jewelryPriceTable {
+  min-width: 720px;
+}
+
+.jewelryLearn {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 8px 0 8px;
+}
+
+.jewelryLearn article {
+  background: #fffdf8;
+  border: 1px solid #d9d1c3;
+  padding: 18px 18px 16px;
+}
+
+.jewelryLearn h3 {
+  margin: 0 0 8px;
+  font: 18px Georgia, "Noto Serif TC", serif;
+}
+
+.jewelryLearn p,
+.jewelryFaq p {
+  margin: 0;
+  color: #5d5348;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.jewelryFaq {
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 8px;
+}
+
+.jewelryFaq details {
+  background: #fffdf8;
+  border: 1px solid #d9d1c3;
+  padding: 12px 16px;
+}
+
+.jewelryFaq summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.jewelryFaq details p {
+  margin-top: 8px;
+}
+
+.jewelryDisclaimer {
+  margin-top: 18px;
+  padding: 14px 16px;
+  background: #e7e1d6;
+  max-width: none;
+}
+
+@media (max-width: 800px) {
+  .jewelryHeroBoard,
+  .jewelryLearn,
+  .jewelryRange dl {
+    grid-template-columns: 1fr;
+  }
+
+  .jewelryHeroBoard strong {
+    font-size: 32px;
+  }
+}

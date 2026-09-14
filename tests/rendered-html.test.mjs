@@ -47,8 +47,9 @@ test("build emits the complete 99gold professional quote workspace", async (t) =
 });
 
 test("uses a shared SiteHeader and coherent homepage layout", async () => {
-  const [page, header, chrome, layout, section, globalPage, news, article, editorial, cover] = await Promise.all([
+  const [page, homeView, header, chrome, layout, section, globalPage, news, article, editorial, cover] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/HomeView.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/SiteHeader.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/site-chrome.css", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
@@ -81,19 +82,25 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.match(chrome, /\.siteHeader \.languageSwitch:not\(\.menuLanguage\)/);
   assert.doesNotMatch(chrome, /aspect-ratio:\s*1200\/630/);
   assert.doesNotMatch(page, /<SiteHeader/);
-  assert.match(page, /useSiteLocale/);
-  assert.match(page, /className="heroPhoto"/);
-  assert.match(page, /className="brandHeroCopy"/);
-  assert.match(page, /今日市場快速判讀/);
-  assert.match(page, /Today’s Gold Dashboard/);
-  assert.match(page, /本日の金情報/);
-  assert.match(page, /quoteEmptyPanel/);
-  assert.match(page, /brandHero[\s\S]*marketRadar[\s\S]*marketHub/);
-  assert.doesNotMatch(page, /marketHub[\s\S]*marketRadar/);
-  assert.doesNotMatch(page, /brandCover|aspect-ratio:1200\/630/);
+  assert.match(page, /getGlobalQuotes/);
+  assert.match(page, /force-dynamic/);
+  assert.match(page, /HomeView/);
+  assert.match(page, /initialQuotes/);
+  assert.match(homeView, /useSiteLocale/);
+  assert.match(homeView, /className="heroPhoto"/);
+  assert.match(homeView, /className="brandHeroCopy"/);
+  assert.match(homeView, /今日市場快速判讀/);
+  assert.match(homeView, /Today’s Gold Dashboard/);
+  assert.match(homeView, /本日の金情報/);
+  assert.match(homeView, /quoteEmptyPanel/);
+  assert.match(homeView, /正在取得即時報價/);
+  assert.match(homeView, /brandHero[\s\S]*marketRadar[\s\S]*marketHub/);
+  assert.doesNotMatch(homeView, /marketHub[\s\S]*marketRadar/);
+  assert.doesNotMatch(homeView, /brandCover|aspect-ratio:1200\/630/);
   assert.doesNotMatch(section, /<SiteHeader/);
   assert.match(section, /getGlobalQuotes/);
   assert.match(section, /buildSectionView/);
+  assert.match(section, /buildTaiwanGoldHistory/);
   assert.match(section, /redirect\("\/news"\)/);
   assert.match(section, /SectionView/);
   assert.doesNotMatch(section, /此頁尚無可驗證的即時資料/);
@@ -113,11 +120,12 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
 });
 
 test("keeps one locale source for header, homepage, global and section chrome", async () => {
-  const [localeMod, chrome, header, page, globalPage, sectionPage, sectionView] = await Promise.all([
+  const [localeMod, chrome, header, page, homeView, globalPage, sectionPage, sectionView] = await Promise.all([
     readFile(new URL("../app/locale.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/SiteChrome.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/SiteHeader.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/HomeView.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/global/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/[section]/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/[section]/SectionView.tsx", import.meta.url), "utf8"),
@@ -132,8 +140,9 @@ test("keeps one locale source for header, homepage, global and section chrome", 
   assert.match(chrome, /<SiteHeader \/>/);
   assert.doesNotMatch(chrome, /<SiteHeader[\s\S]*<SiteHeader/);
   assert.match(header, /setContextLocale/);
-  assert.match(page, /languageCopy\[locale\]/);
-  assert.doesNotMatch(page, /addEventListener\("golden-tide-locale"/);
+  assert.match(homeView, /languageCopy\[locale\]/);
+  assert.doesNotMatch(homeView, /addEventListener\("golden-tide-locale"/);
+  assert.match(page, /HomeView/);
   assert.match(globalPage, /國際市場參考行情/);
   assert.match(globalPage, /International market references/);
   assert.match(globalPage, /国際市場の参考相場/);
@@ -145,23 +154,29 @@ test("keeps one locale source for header, homepage, global and section chrome", 
   assert.match(sectionView, /Gold Recycling/);
   assert.match(sectionView, /No valid data/);
   assert.match(sectionView, /有効なデータなし/);
+  assert.match(sectionView, /今日賣出估計/);
+  assert.match(sectionView, /常見問題/);
+  assert.match(sectionView, /How to read buy, sell and recycle/);
+  assert.match(sectionView, /よくある質問/);
 });
 
 test("keeps quote history, data transparency and responsive styles wired", async () => {
-  const [page, chart, quoteApi, quoteRoute, historyApi, styles, layout] = await Promise.all([
+  const [page, homeView, chart, quoteApi, quoteRoute, historyApi, yahooChart, styles, layout] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/HomeView.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/MarketLineChart.tsx", import.meta.url), "utf8"),
     readFile(new URL("../lib/quotes.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/global-quotes/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/gold-history/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/yahoo-chart.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/quotes.css", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
   ]);
 
-  assert.match(page, /\["1D", "1W", "1M", "3M", "1Y"\]/);
-  assert.match(page, /非可成交報價/);
-  assert.match(page, /來源受限時改列 Gold API XAU\/USD/);
-  assert.match(page, /不顯示估造價格/);
+  assert.match(homeView, /\["1D", "1W", "1M", "3M", "1Y"\]/);
+  assert.match(homeView, /非可成交報價/);
+  assert.match(homeView, /來源受限時改列 Gold API XAU\/USD/);
+  assert.match(homeView, /不顯示估造價格/);
   assert.match(chart, /ResizeObserver/);
   assert.match(chart, /role="img"/);
   assert.match(quoteApi, /regularMarketDayHigh/);
@@ -172,15 +187,18 @@ test("keeps quote history, data transparency and responsive styles wired", async
   assert.match(quoteApi, /retrievedAt/);
   assert.match(quoteRoute, /getGlobalQuotes/);
   assert.match(quoteRoute, /lib\/quotes/);
-  assert.match(page, /行情時間/);
-  assert.match(page, /本站檢查/);
-  assert.match(page, /週末休市/);
-  assert.doesNotMatch(page, /api\/market-quotes\?t=|api\/global-quotes\?t=|api\/gold-history\?period=\$\{period\}&t=/);
-  assert.match(historyApi, /GC%3DF/);
+  assert.match(page, /getGlobalQuotes/);
+  assert.match(homeView, /行情時間/);
+  assert.match(homeView, /本站檢查/);
+  assert.match(homeView, /週末休市/);
+  assert.doesNotMatch(homeView, /api\/market-quotes\?t=|api\/global-quotes\?t=|api\/gold-history\?period=\$\{period\}&t=/);
+  assert.match(historyApi, /GC=F/);
   assert.match(historyApi, /periodConfig/);
   assert.match(historyApi, /quotedAt/);
   assert.match(historyApi, /retrievedAt/);
-  assert.doesNotMatch(page, /fallbackHistory|fallbackMetals/);
+  assert.match(yahooChart, /encodeURIComponent\(symbol\)/);
+  assert.match(yahooChart, /query1\.finance\.yahoo\.com/);
+  assert.doesNotMatch(homeView, /fallbackHistory|fallbackMetals/);
   assert.match(styles, /@media\(max-width:520px\)/);
   assert.match(styles, /prefers-reduced-motion/);
   assert.match(layout, /og-quotes-v2\.png/);
