@@ -58,35 +58,50 @@ type StoredBrief = {
   source_language?: string | null;
 };
 
-export function localizedBriefFields(row: StoredBrief, locale: NewsLocale) {
+function pickLocalizedTitle(localized: string, sourceTitle: string, locale: NewsLocale) {
+  const value = cleanSourceText(localized);
+  if (!value) return sourceTitle;
+  if (looksLikeTargetLocale(value, locale, sourceTitle)) return value;
+  if (locale === "en" && /[A-Za-z]/.test(value)) return value;
+  return sourceTitle;
+}
+
+function pickLocalizedSummary(localized: string, sourceSummary: string | null, locale: NewsLocale) {
+  const value = cleanSourceText(localized);
+  if (!value) return sourceSummary;
+  if (looksLikeTargetLocale(value, locale, sourceSummary ?? value)) return value;
+  if (locale === "en" && /[A-Za-z]/.test(value)) return value;
+  return sourceSummary;
+}
+
+export function needsTranslationBackfill(row: StoredBrief) {
   const sourceTitle = cleanSourceText(row.title);
-  const sourceSummary = row.summary ? cleanSourceText(row.summary) : null;
-  const titles = {
-    zh: row.title_zh?.trim() || "",
-    en: row.title_en?.trim() || "",
-    ja: row.title_ja?.trim() || "",
-  };
-  const summaries = {
-    zh: row.summary_zh?.trim() || "",
-    en: row.summary_en?.trim() || "",
-    ja: row.summary_ja?.trim() || "",
-  };
-  const title = looksLikeTargetLocale(titles[locale], locale, sourceTitle) || (locale === "en" && titles.en)
-    ? (titles[locale] || sourceTitle)
-    : sourceTitle;
-  const localeSummary = summaries[locale];
-  const summary = localeSummary
-    ? (looksLikeTargetLocale(localeSummary, locale, sourceSummary ?? localeSummary) || (locale === "en" && summaries.en)
-      ? localeSummary
-      : sourceSummary)
-    : sourceSummary;
+  if (!sourceTitle) return false;
+  return !looksLikeTargetLocale(row.title_zh ?? "", "zh", sourceTitle)
+    || !looksLikeTargetLocale(row.title_ja ?? "", "ja", sourceTitle);
+}
+
+export function localizedBriefFields(row: StoredBrief, locale: NewsLocale) {
+  const sourceTitle = cleanSourceText(row.title) || cleanSourceText(row.title_en ?? "") || "Market brief";
+  const sourceSummary = row.summary ? cleanSourceText(row.summary) : (row.summary_en ? cleanSourceText(row.summary_en) : null);
+  const title = pickLocalizedTitle(
+    locale === "zh" ? (row.title_zh ?? "") : locale === "ja" ? (row.title_ja ?? "") : (row.title_en ?? ""),
+    sourceTitle,
+    locale,
+  );
+  const summary = pickLocalizedSummary(
+    locale === "zh" ? (row.summary_zh ?? "") : locale === "ja" ? (row.summary_ja ?? "") : (row.summary_en ?? ""),
+    sourceSummary,
+    locale,
+  );
   const sourceLanguage = row.source_language === "zh" || row.source_language === "ja" ? row.source_language : "en";
   const provider = row.translation_provider ?? null;
   const translated = locale !== sourceLanguage
     && Boolean(provider && provider !== "source")
+    && Boolean(title)
     && title !== sourceTitle;
   return {
-    title,
+    title: title || sourceTitle,
     summary,
     translated,
     translationProvider: translated ? provider : null,

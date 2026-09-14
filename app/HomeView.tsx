@@ -6,7 +6,7 @@ import Link from "next/link";
 import { MarketLineChart, type MarketChartPoint } from "./MarketLineChart";
 import CoverImage from "./CoverImage";
 import SiteLinks from "./SiteLinks";
-import { categories, type NewsCategory } from "./news/categories";
+import { asNewsCategory, categories, type NewsCategory } from "./news/categories";
 import { useSiteLocale } from "./locale";
 import { jewelrySellFromBuy, parseQuotedNumber } from "../lib/section-quotes";
 import { bankOfTaiwanUsdSightSell, formatUsdTwdSightSell } from "../lib/fx-display";
@@ -20,7 +20,7 @@ const alertMarkets = [
   { id: "gram", label: "黃金每公克", value: Number.NaN, unit: "TWD／公克" },
 ] as const;
 
-type NewsItem = { id?: number | string; title: string; category?:NewsCategory; originalTitle?: string; summary?: string; date: string; url: string; image?: string; sourceName?: string; translated?: boolean; translationLabel?: string | null; translationProvider?: string | null; external?: boolean };
+type NewsItem = { id?: number | string; title: string; category?: NewsCategory; originalTitle?: string; summary?: string | null; date: string; url: string; image?: string; sourceName?: string; translated?: boolean; translationLabel?: string | null; translationProvider?: string | null; external?: boolean };
 type QuoteItem = { id?: string; label: string; code: string; price: string; unit: string; change: string; up: boolean | null };
 type HistoryPeriod = "1D" | "1W" | "1M" | "3M" | "1Y";
 type MarketStatus = "checking" | "open" | "delayed" | "daily-break" | "weekend-closed" | "unavailable";
@@ -170,7 +170,15 @@ function applyQuoteSnapshot(
   if (data.quoteSource || data.source) setters.setQuoteSource(data.quoteSource ?? data.source ?? "");
 }
 
-export default function HomeView({ initialQuotes = null, initialRatioPoints = [] }: { initialQuotes?: HomeQuoteSnapshot | null; initialRatioPoints?: MarketChartPoint[] }) {
+export default function HomeView({
+  initialQuotes = null,
+  initialRatioPoints = [],
+  initialNews = null,
+}: {
+  initialQuotes?: HomeQuoteSnapshot | null;
+  initialRatioPoints?: MarketChartPoint[];
+  initialNews?: { items?: NewsItem[]; updatedAt?: string; checkedAt?: string; scheduleStatus?: "healthy" | "delayed" | "error" | "pending" } | null;
+}) {
   const [activeTab, setActiveTab] = useState<"quotes" | "news" | "history" | "tools">("quotes");
   const [period, setPeriod] = useState<HistoryPeriod>("1M");
   const [manualPrice, setManualPrice] = useState("");
@@ -178,11 +186,11 @@ export default function HomeView({ initialQuotes = null, initialRatioPoints = []
   const [toolUnit, setToolUnit] = useState<"qian" | "gram" | "tael" | "ounce">("qian");
   const [purity, setPurity] = useState("0.9999");
   const [purchasePrice, setPurchasePrice] = useState("");
-  const [news, setNews] = useState<NewsItem[]>(fallbackNews);
+  const [news, setNews] = useState<NewsItem[]>(initialNews?.items ?? fallbackNews);
   const [newsCategory, setNewsCategory] = useState<NewsCategory | "all">("all");
-  const [newsUpdated, setNewsUpdated] = useState("正在取得最新消息");
-  const [newsCheckedAt, setNewsCheckedAt] = useState("");
-  const [newsScheduleStatus, setNewsScheduleStatus] = useState<"healthy" | "delayed" | "error" | "pending">("pending");
+  const [newsUpdated, setNewsUpdated] = useState(initialNews?.updatedAt ?? "正在取得最新消息");
+  const [newsCheckedAt, setNewsCheckedAt] = useState(initialNews?.checkedAt ?? "");
+  const [newsScheduleStatus, setNewsScheduleStatus] = useState<"healthy" | "delayed" | "error" | "pending">(initialNews?.scheduleStatus ?? "pending");
   const [quotes, setQuotes] = useState<QuoteItem[]>(initialQuotes?.items ?? []);
   const [quoteAt, setQuoteAt] = useState(initialQuotes?.quotedAt ?? initialQuotes?.updatedAt ?? "");
   const [quoteRetrievedAt, setQuoteRetrievedAt] = useState(initialQuotes?.retrievedAt ?? "");
@@ -438,6 +446,27 @@ export default function HomeView({ initialQuotes = null, initialRatioPoints = []
         <button type="button" onClick={() => { selectDashboardTab("history"); window.setTimeout(() => document.getElementById("top")?.scrollIntoView({ behavior: "smooth" }), 40); }}>{t("查看歷史走勢", "View history", "履歴を見る")} <b>→</b></button>
       </section>
 
+      {news.length > 0 ? (
+        <section className="homeNewsStrip" aria-labelledby="home-news-strip">
+          <div>
+            <p className="eyebrow">MARKET BRIEFS</p>
+            <h2 id="home-news-strip">{t("最新市場快訊", "Latest market briefs", "最新の市場速報")}</h2>
+          </div>
+          <ul>
+            {news.slice(0, 4).map((item) => {
+              const href = item.external ? `/news/${item.id}?lang=${locale}` : `/news/${item.id}`;
+              return (
+                <li key={String(item.id ?? item.url)}>
+                  <time dateTime={item.date}>{item.date}</time>
+                  <Link href={href}>{item.title}</Link>
+                </li>
+              );
+            })}
+          </ul>
+          <Link href={`/news?lang=${locale}`}>{t("全部市場新聞", "All market news", "市場ニュース一覧")} →</Link>
+        </section>
+      ) : null}
+
       <section className="marketHub" id="top"><div className="hubLead"><div><p className="eyebrow">GOLD MARKET DASHBOARD</p><h2>{copy.dashboard}</h2><p>{copy.dashboardText}</p></div>{goldQuote ? <div className="hubPrice"><span>{`${goldQuote.label}・${goldQuote.code}`}</span><strong>{goldQuote.price}</strong><em className={goldQuote.up === null ? "neutral" : goldQuote.up ? "up" : "down"}>{`${goldQuote.up === null ? "•" : goldQuote.up ? "▲" : "▼"} ${goldQuote.change}`}</em></div> : <p className="hubEmptyHint">{t("行情來源暫不可用", "Quote source unavailable", "相場ソースは現在利用できません")}</p>}</div><div className="marketTabs" role="tablist" aria-label="黃金資訊分類"><button role="tab" aria-selected={activeTab === "quotes"} className={activeTab === "quotes" ? "active" : ""} onClick={() => selectDashboardTab("quotes")}>{copy.quotes}</button><button role="tab" aria-selected={activeTab === "history"} className={activeTab === "history" ? "active" : ""} onClick={() => selectDashboardTab("history")}>{copy.history}</button><button role="tab" aria-selected={activeTab === "tools"} className={activeTab === "tools" ? "active" : ""} onClick={() => selectDashboardTab("tools")}>{copy.tools}</button><button role="tab" aria-selected={activeTab === "news"} className={activeTab === "news" ? "active" : ""} onClick={() => selectDashboardTab("news")}>{copy.news}</button></div>
 
         {activeTab === "quotes" && (
@@ -567,16 +596,16 @@ export default function HomeView({ initialQuotes = null, initialRatioPoints = []
             <p><Link href={`/news?lang=${locale}`}>{locale === "zh" ? "開啟新聞專區 →" : locale === "ja" ? "ニュース一覧 →" : "News library →"}</Link></p>
             <div className="newsFilters" aria-label={locale === "zh" ? "新聞分類" : locale === "ja" ? "ニュース分類" : "News categories"}>{newsCategories.map((category) => <button key={category} className={newsCategory === category ? "active" : ""} aria-pressed={newsCategory === category} onClick={() => setNewsCategory(category)}>{categories[category][locale]}</button>)}</div>
             <div className="newsGrid">{filteredNews.slice(0, 10).map((item) => {
-              const category = item.category ?? "macro";
+              const category = asNewsCategory(item.category);
               const key = String(item.id ?? item.url);
               const cover = item.image;
               const href = item.external ? `/news/${item.id}?lang=${locale}` : `/news/${item.id}`;
               const excerpt = newsExcerpt(item.summary);
               return <article key={key}>
-                <div className={cover ? "newsVisual hasImage" : "newsVisual officialSourceVisual"}>{cover ? <CoverImage src={cover} /> : <div className="newsSourceMark"><b>99</b><small>{t("市場快訊", "MARKET BRIEF", "市場速報")}</small></div>}</div>
+                <div className={cover ? "newsVisual hasImage" : "newsVisual officialSourceVisual"}>{cover ? <CoverImage src={cover} alt={item.title} /> : <div className="newsSourceMark"><b>99</b><small>{t("市場快訊", "MARKET BRIEF", "市場速報")}</small></div>}</div>
                 <p><b>{categories[category][locale]}</b><time>{item.date}</time></p>
                 <div className="newsSource"><span>{item.sourceName || t("市場快訊", "Market brief", "市場速報")}</span>{item.translated && <em>{item.translationLabel || t("自動翻譯", "Auto-translated", "自動翻訳")}</em>}</div>
-                <h3>{item.title}</h3>
+                <h3><Link href={href}>{item.title}</Link></h3>
                 {excerpt ? <p className="newsSynopsis">{excerpt}</p> : <p className="newsExcerptMuted">{item.external ? t("這則快訊沒有可顯示的摘要。", "No excerpt is available for this brief.", "この速報には表示できる要約がありません。") : t("這篇文章沒有可顯示的摘要。", "No excerpt is available for this article.", "この記事には表示できる要約がありません。")}</p>}
                 {cover && <small className="newsIllustrationLabel">{locale === "zh" ? "AI生成示意圖" : locale === "ja" ? "AI生成イメージ" : "AI-generated illustration"}</small>}
                 <a href={href}>{item.external ? t("閱讀快訊", "Read brief", "速報を読む") : copy.read}　→</a>

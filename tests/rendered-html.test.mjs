@@ -87,8 +87,12 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.doesNotMatch(page, /<SiteHeader/);
   assert.doesNotMatch(homeView, /<SiteHeader/);
   assert.match(page, /getGlobalQuotesOrNull/);
+  assert.match(page, /getDailyGoldNews/);
   assert.match(page, /force-dynamic/);
   assert.match(homeView, /useSiteLocale/);
+  assert.match(homeView, /homeNewsStrip/);
+  assert.match(homeView, /initialNews/);
+  assert.match(homeView, /最新市場快訊/);
   assert.match(homeView, /className="heroPhoto"/);
   assert.match(homeView, /className="brandHeroCopy"/);
   assert.match(homeView, /今日市場快速判讀/);
@@ -249,10 +253,13 @@ test("keeps quote history, data transparency and responsive styles wired", async
   assert.match(sitemap, /\/international/);
   assert.match(sitemap, /\/recycling/);
   assert.match(sitemap, /\/global/);
+  assert.match(sitemap, /news_candidates/);
+  assert.match(sitemap, /status = 'published'/);
+  assert.match(sitemap, /briefSitemapEntries/);
 });
 
 test("ships a scheduled auto-publish news pipeline", async () => {
-  const [script, deploy, service, pipeline, migration, translations, admin, sources, newsPage, homeView] = await Promise.all([
+  const [script, deploy, service, pipeline, migration, translations, admin, sources, newsPage, homeView, briefView, share] = await Promise.all([
     readFile(new URL("../scripts/run-news-pipeline.ts", import.meta.url), "utf8"),
     readFile(new URL("../DEPLOY-LINODE.md", import.meta.url), "utf8"),
     readFile(new URL("../app/api/news-service.ts", import.meta.url), "utf8"),
@@ -263,6 +270,8 @@ test("ships a scheduled auto-publish news pipeline", async () => {
     readFile(new URL("../lib/news/source-config.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/news/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/HomeView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/news/OfficialBriefView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/news/ShareBrief.tsx", import.meta.url), "utf8"),
   ]);
   assert.match(script, /runNewsPipeline/);
   assert.match(script, /news:pipeline|--manual|cron/);
@@ -281,7 +290,8 @@ test("ships a scheduled auto-publish news pipeline", async () => {
   assert.doesNotMatch(deploy, /快訊仍須在 `\/admin` 核准/);
   assert.match(pipeline, /status = 'published'/);
   assert.match(pipeline, /status IN \('pending', 'approved'\)/);
-  assert.match(pipeline, /AUTO_PIPELINE_REVIEWER/);
+  assert.match(pipeline, /backfillPublishedTranslations/);
+  assert.match(pipeline, /needsTranslationBackfill/);
   assert.match(pipeline, /translateOfficialBrief/);
   assert.match(pipeline, /news_pipeline_completed/);
   assert.match(migration, /CREATE TABLE `news_candidates`/);
@@ -296,8 +306,11 @@ test("ships a scheduled auto-publish news pipeline", async () => {
   assert.doesNotMatch(sources, /bank-of-england-speeches/);
   assert.doesNotMatch(service, /fetch\(/);
   assert.match(service, /localizedBriefFields/);
+  assert.match(service, /asNewsCategory/);
   assert.match(service, /briefLabels/);
   assert.doesNotMatch(service, /sourceName:r\.source_name/);
+  assert.match(newsPage, /newsIndexFaq/);
+  assert.match(newsPage, /itemListJsonLd/);
   assert.match(newsPage, /無需人工核准/);
   assert.match(newsPage, /市場快訊/);
   assert.match(newsPage, /editorialLabels\[language\]\.all/);
@@ -308,6 +321,11 @@ test("ships a scheduled auto-publish news pipeline", async () => {
   assert.match(homeView, /MARKET BRIEF/);
   assert.match(homeView, /\/news\/\$\{item\.id\}\?lang=\$\{locale\}/);
   assert.doesNotMatch(homeView, /<small>OFFICIAL SOURCE<\/small>/);
+  assert.match(briefView, /ShareBrief/);
+  assert.match(briefView, /articleJsonLd/);
+  assert.match(briefView, /briefFaq/);
+  assert.match(share, /navigator\.share/);
+  assert.match(share, /social-plugins\.line\.me/);
 });
 
 test("wires 30-90 day charts, metal comparison, browser alerts, OG route and PWA shell", async () => {
@@ -353,10 +371,15 @@ test("wires 30-90 day charts, metal comparison, browser alerts, OG route and PWA
   assert.match(jewelryView, /PriceHistoryChart/);
   assert.match(jewelryView, /歷史匯率換算參考/);
   assert.match(jewelryView, /\/api\/jewelry-history/);
+  assert.match(jewelryView, /onPeriodChange/);
+  assert.match(jewelryView, /jewelryTableDisplay/);
+  assert.match(jewelryView, /lib\/jewelry-table/);
+  assert.match(jewelryView, /與上方圖表同一期間/);
   assert.match(sectionPage, /getJewelryHistoryOrNull/);
   assert.match(sectionView, /section === "international"/);
   assert.match(sectionView, /PriceHistoryChart/);
-  assert.match(chart, /endpoint = "\/api\/gold-history"/);
+  assert.match(chart, /onPeriodChange/);
+  assert.match(chart, /onHistoryData/);
   assert.match(chart, /\$\{endpoint\}\?period=\$\{period\}/);
   assert.match(globalView, /metalCompare/);
   assert.match(globalView, /金銀鉑鈀對照/);
@@ -370,6 +393,9 @@ test("wires 30-90 day charts, metal comparison, browser alerts, OG route and PWA
   assert.match(og, /ImageResponse/);
   assert.match(og, /taiwanQianValue/);
   assert.match(seo, /DEFAULT_OG_IMAGE = "\/og"/);
+  assert.match(seo, /articleJsonLd/);
+  assert.match(seo, /itemListJsonLd/);
+  assert.match(seo, /newsIndexFaq/);
   assert.match(layout, /manifest: "\/manifest.webmanifest"/);
   assert.match(layout, /PwaRegister/);
   assert.match(manifest, /"display": "standalone"/);

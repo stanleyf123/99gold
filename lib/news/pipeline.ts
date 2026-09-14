@@ -5,6 +5,7 @@ import {
   AUTO_PIPELINE_REVIEWER,
   cleanSourceText,
   looksLikeTargetLocale,
+  needsTranslationBackfill,
   translateOfficialBrief,
   type LocalizedBrief,
   type TranslationProvider,
@@ -35,6 +36,7 @@ export type NewsRunSummary = {
   candidatesAdded: number;
   duplicatesSkipped: number;
   publishedCount: number;
+  retranslatedCount: number;
   errorCount: number;
   sources: NewsSourceRunDetail[];
 };
@@ -169,6 +171,58 @@ export async function publishReadyCandidates(db: NewsDatabase, now = new Date().
     publishedCount += await markCandidatePublished(db, candidate, now, AUTO_PIPELINE_REVIEWER);
   }
   return publishedCount;
+}
+
+const BACKFILL_BATCH = 3;
+const BACKFILL_GAP_MS = 250;
+
+function sleep(ms: number) {
+  if (ms <= 0) return Promise.resolve();
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export async function backfillPublishedTranslations(
+  db: NewsDatabase,
+  now = new Date().toISOString(),
+  limit = BACKFILL_BATCH,
+) {
+  const published = await db.prepare(`SELECT ${candidateSelect}
+    FROM news_candidates
+    WHERE status = 'published'
+    ORDER BY published_at DESC LIMIT 40`).all<PublishableCandidate>();
+  let retranslatedCount = 0;
+  for (const candidate of published?.results ?? []) {
+    if (retranslatedCount >= limit) break;
+    if (!needsTranslationBackfill(candidate)) continue;
+    const translated = await translateOfficialBrief(
+      candidate.title,
+      candidate.summary,
+      candidate.source_language || "en",
+      { delayMs: 160 },
+    );
+    if (!translated.translated) continue;
+    const result = await db.prepare(`UPDATE news_candidates SET
+      title_zh = ?, title_en = ?, title_ja = ?,
+      summary_zh = ?, summary_en = ?, summary_ja = ?,
+      translation_provider = ?, translated_at = ?
+      WHERE id = ? AND status = 'published'`)
+      .bind(
+        translated.titles.zh,
+        translated.titles.en,
+        translated.titles.ja,
+        translated.summaries.zh,
+        translated.summaries.en,
+        translated.summaries.ja,
+        translated.provider,
+        now,
+        candidate.id,
+      ).run();
+    if (result.meta?.changes) {
+      retranslatedCount += 1;
+      await sleep(BACKFILL_GAP_MS);
+    }
+  }
+  return retranslatedCount;
 }
 
 export type NewsReviewResult = {
@@ -336,6 +390,7 @@ export async function runNewsPipeline(
   }
 
   const publishedCount = await publishReadyCandidates(db, scheduledFor.toISOString());
+  const retranslatedCount = await backfillPublishedTranslations(db, scheduledFor.toISOString());
   const status: NewsRunSummary["status"] = errorCount === 0 ? "succeeded" : errorCount < newsSources.length ? "partial" : "failed";
   const finishedAt = new Date().toISOString();
   await db.prepare(`UPDATE news_runs SET
@@ -363,6 +418,7 @@ export async function runNewsPipeline(
     candidatesAdded,
     duplicatesSkipped,
     publishedCount,
+    retranslatedCount,
     errorCount,
     sources: sourceDetails,
   };

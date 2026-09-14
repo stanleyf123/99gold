@@ -47,11 +47,11 @@ test("old events are excluded instead of receiving a new publication date",()=>{
  assert.equal(data.recentEditorials("zh",Date.parse("2026-09-20T12:00:00Z")).length,0);
 });
 test("reader API returns original work and local images without a translation request",async()=>{
- const api=moduleFrom("../app/api/news-service.ts",{"../news/editorial":data,"../../lib/news/feed-client":feedClient,"../../lib/news/translate":translate});
+ const api=moduleFrom("../app/api/news-service.ts",{"../news/editorial":data,"../news/categories":categories,"../../lib/news/feed-client":feedClient,"../../lib/news/translate":translate});
  for(const lang of ["zh","en","ja"]){const result=await api.getDailyGoldNews(lang);assert.equal(result.items.length,6);assert.ok(result.items[0].id.endsWith("-"+lang));assert.equal(result.items[0].translated,false);assert.ok(result.items[0].image.startsWith("/"));assert.equal(result.items[0].category,"policy");}
 });
 test("official briefs expose locale-specific translations from stored fields",async()=>{
- const api=moduleFrom("../app/api/news-service.ts",{"../news/editorial":data,"../../lib/news/feed-client":feedClient,"../../lib/news/translate":translate});
+ const api=moduleFrom("../app/api/news-service.ts",{"../news/editorial":data,"../news/categories":categories,"../../lib/news/feed-client":feedClient,"../../lib/news/translate":translate});
  const official={
   id:"fed-1",title:"Federal Reserve issues FOMC statement",summary:"Official policy decision",
   canonical_url:"https://www.federalreserve.gov/newsevents/pressreleases/monetary20260913a.htm",
