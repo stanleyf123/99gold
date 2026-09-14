@@ -200,7 +200,7 @@ test("allowlists first-party gold and macro RSS that use https", () => {
   const ons = sources.newsSources.find((source) => source.id === "ons-release-calendar");
   const treasury = sources.newsSources.find((source) => source.id === "hm-treasury-news");
   assert.equal(ons.feedUrl, "https://www.ons.gov.uk/releasecalendar?rss");
-  assert.match(treasury.feedUrl, /gov\.uk\/search\/news-and-communications\.atom/);
+  assert.match(treasury.feedUrl, /gov\.uk\/government\/organisations\/hm-treasury\.atom/);
   assert.equal(ons.allowedHosts.join(","), "ons.gov.uk");
   assert.equal(treasury.allowedHosts.join(","), "gov.uk");
   for (const source of sources.newsSources) {
@@ -396,7 +396,7 @@ test("pipeline stays succeeded without BoE and enqueues recent ONS and Treasury 
   assert.equal(summary.errorCount, 0);
   assert.ok(!requested.some((url) => /bankofengland/i.test(url)));
   assert.ok(requested.some((url) => url.includes("ons.gov.uk/releasecalendar")));
-  assert.ok(requested.some((url) => url.includes("news-and-communications.atom")));
+  assert.ok(requested.some((url) => url.includes("hm-treasury.atom")));
   const ons = summary.sources.find((source) => source.source === "ons-release-calendar");
   const treasury = summary.sources.find((source) => source.source === "hm-treasury-news");
   assert.equal(ons?.status, "ok");

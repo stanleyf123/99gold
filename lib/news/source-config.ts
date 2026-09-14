@@ -100,7 +100,7 @@ export const newsSources: NewsSource[] = [
     // Treasury speeches and news — UK policy coverage without BoE's datacenter 403.
     id: "hm-treasury-news",
     name: "HM Treasury",
-    feedUrl: "https://www.gov.uk/search/news-and-communications.atom?organisations%5B%5D=hm-treasury",
+    feedUrl: "https://www.gov.uk/government/organisations/hm-treasury.atom",
     allowedHosts: ["gov.uk"],
     language: "en",
     category: "policy",

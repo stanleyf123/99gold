@@ -153,7 +153,7 @@ sudo systemctl enable --now 99gold-news.timer
 英國／總體替代來源（已從 datacenter 實測 200）：
 
 - ONS release calendar：`https://www.ons.gov.uk/releasecalendar?rss`
-- HM Treasury 新聞 Atom：`https://www.gov.uk/search/news-and-communications.atom?organisations%5B%5D=hm-treasury`
+- HM Treasury 新聞 Atom：`https://www.gov.uk/government/organisations/hm-treasury.atom`
 
 若 SQLite 裡還留著 `news_source_state.source_id = bank-of-england-speeches` 的連續 403，那是歷史列，管理後台只顯示目前白名單，不會再把它當成排程故障。可選清理：
 
