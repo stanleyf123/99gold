@@ -47,16 +47,17 @@ export default function GoldSilverRatioPanel({
       </div>
       <PriceHistoryChart
         locale={locale}
-        title={t(locale, "歷史金銀比（近 30／90 日）", "Historical gold/silver ratio (30 / 90 days)", "金銀比の履歴（30／90日）")}
+        title={t(locale, "歷史金銀比（30日／90日／1／3／5年）", "Historical gold/silver ratio (30D / 90D / 1Y / 3Y / 5Y)", "金銀比の履歴（30日／90日／1／3／5年）")}
         ariaLabel={t(locale, "金銀比歷史走勢", "Gold/silver ratio history", "金銀比の履歴")}
         initialPoints={initialPoints}
         endpoint="/api/gold-silver-ratio"
         formatValue={(value) => formatGoldSilverRatio(value)}
+        periods={["1M", "3M", "1Y", "3Y", "5Y"]}
         note={t(
           locale,
-          "各日以當日 GC 與 SI 收盤相除；缺金或缺銀的交易日不列，不補估。",
-          "Each session is that day’s GC close ÷ SI close. Days missing gold or silver are omitted, never filled in.",
-          "各日はその日のGC終値÷SI終値。金または銀が欠けた取引日は掲載せず、補完しません。",
+          "各日以當日 GC 與 SI 收盤相除；缺金或缺銀的交易日不列，不補估。3 年與 5 年圖表改繪每週最後一個可配對交易日，方便手機閱讀；未改寫價格。",
+          "Each session is that day’s GC close ÷ SI close. Days missing gold or silver are omitted, never filled in. 3Y and 5Y charts use each week’s last paired close for readability — prices are never invented.",
+          "各日はその日のGC終値÷SI終値。金または銀が欠けた取引日は掲載せず、補完しません。3年・5年は可読性のため、各週最後の突合終値で描画し、価格は作りません。",
         )}
       />
     </section>

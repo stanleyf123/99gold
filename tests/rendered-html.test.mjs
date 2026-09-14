@@ -221,6 +221,9 @@ test("keeps quote history, data transparency and responsive styles wired", async
   assert.match(historyLib, /encodeURIComponent\(symbol\)/);
   assert.match(historyLib, /GC=F/);
   assert.match(historyLib, /historyPeriodConfig/);
+  assert.match(historyLib, /"3Y"/);
+  assert.match(historyLib, /"5Y"/);
+  assert.match(historyLib, /windowHistoryPoints/);
   assert.match(historyApi, /getGoldHistory/);
   assert.match(historyLib, /quotedAt/);
   assert.match(historyLib, /retrievedAt/);
@@ -361,4 +364,11 @@ test("wires gold/silver ratio math, history API, and charts on global, internati
   assert.match(homeView, /GoldSilverRatioPanel/);
   assert.match(homePage, /getGoldSilverRatioHistoryOrNull/);
   assert.match(chart, /endpoint/);
+  assert.match(panel, /\["1M", "3M", "1Y", "3Y", "5Y"\]/);
+  assert.match(panel, /1Y \/ 3Y \/ 5Y/);
+  assert.match(chart, /case "5Y"/);
+  assert.match(chart, /資料不足/);
+  assert.match(ratioLib, /interval: "1d"/);
+  assert.match(ratioLib, /downsampleToUtcWeekCloses/);
+  assert.match(ratioApi, /isRatioHistoryPeriod/);
 });

@@ -5,20 +5,40 @@ import { MarketLineChart, type MarketChartPoint } from "./MarketLineChart";
 import { type Locale, t } from "./locale";
 import { type HistoryPeriod } from "../lib/gold-history";
 
-type ChartPeriod = Extract<HistoryPeriod, "1M" | "3M">;
+export type ChartPeriod = Extract<HistoryPeriod, "1M" | "3M" | "1Y" | "3Y" | "5Y">;
 
 type HistoryPayload = {
   points?: MarketChartPoint[];
   stats?: { open: number; close: number; high: number; low: number; changePercent: number };
   retrievedAt?: string;
   source?: string;
+  coverage?: "full" | "partial";
+  sampled?: "daily" | "weekly";
 };
 
 type RemoteHistory = {
   period: ChartPeriod;
   status: "ok" | "fail";
   points: MarketChartPoint[];
+  coverage: "full" | "partial";
 };
+
+const DEFAULT_PERIODS: ChartPeriod[] = ["1M", "3M"];
+
+function periodLabel(locale: Locale, period: ChartPeriod): string {
+  switch (period) {
+    case "1M":
+      return t(locale, "30日", "30D", "30日");
+    case "3M":
+      return t(locale, "90日", "90D", "90日");
+    case "1Y":
+      return t(locale, "1年", "1Y", "1年");
+    case "3Y":
+      return t(locale, "3年", "3Y", "3年");
+    case "5Y":
+      return t(locale, "5年", "5Y", "5年");
+  }
+}
 
 export function PriceHistoryChart({
   locale,
@@ -31,6 +51,7 @@ export function PriceHistoryChart({
   note,
   endpoint = "/api/gold-history",
   formatValue,
+  periods = DEFAULT_PERIODS,
 }: {
   locale: Locale;
   currency?: "USD" | "TWD";
@@ -42,6 +63,7 @@ export function PriceHistoryChart({
   note?: string;
   endpoint?: string;
   formatValue?: (value: number) => string;
+  periods?: ChartPeriod[];
 }) {
   const [period, setPeriod] = useState<ChartPeriod>(initialPeriod);
   const [remote, setRemote] = useState<RemoteHistory | null>(null);
@@ -63,10 +85,15 @@ export function PriceHistoryChart({
             close: convertClose ? convertClose(point.close) : point.close,
           }))
           .filter((point) => Number.isFinite(point.close) && point.close > 0);
-        setRemote({ period, status: next.length > 1 ? "ok" : "fail", points: next });
+        setRemote({
+          period,
+          status: next.length > 1 ? "ok" : "fail",
+          points: next,
+          coverage: data.coverage === "partial" ? "partial" : "full",
+        });
       })
       .catch(() => {
-        if (!disposed) setRemote({ period, status: "fail", points: [] });
+        if (!disposed) setRemote({ period, status: "fail", points: [], coverage: "full" });
       });
     return () => { disposed = true; };
   }, [convertClose, currency, endpoint, initialPeriod, period]);
@@ -76,9 +103,7 @@ export function PriceHistoryChart({
     [initialPoints, period, remote, usingInitial],
   );
   const loading = !usingInitial && !cannotConvert && remote?.period !== period;
-  const failed = usingInitial
-    ? initialPoints.length < 2
-    : cannotConvert || (remote?.period === period && (remote.status === "fail" || remote.points.length < 2));
+  const partial = !usingInitial && remote?.period === period && remote.status === "ok" && remote.coverage === "partial";
 
   const positive = useMemo(() => {
     if (points.length < 2) return true;
@@ -93,9 +118,9 @@ export function PriceHistoryChart({
           <h3>{title}</h3>
         </div>
         <div className="sectionChartPeriods" role="group" aria-label={t(locale, "走勢期間", "Chart period", "チャート期間")}>
-          {(["1M", "3M"] as const).map((item) => (
+          {periods.map((item) => (
             <button key={item} type="button" className={period === item ? "selected" : ""} aria-pressed={period === item} onClick={() => setPeriod(item)}>
-              {item === "1M" ? t(locale, "近 30 日", "30 days", "30日") : t(locale, "近 90 日", "90 days", "90日")}
+              {periodLabel(locale, item)}
             </button>
           ))}
         </div>
@@ -115,11 +140,14 @@ export function PriceHistoryChart({
         <div className="marketChartUnavailable">
           {loading
             ? t(locale, "正在取得歷史行情", "Loading historical data", "履歴データを取得中")
-            : failed
-              ? t(locale, "目前沒有可驗證的歷史行情", "No verified historical data is currently available", "現在、検証済み履歴データはありません")
-              : t(locale, "尚無足夠的歷史點位可繪圖", "Not enough history points to draw a chart", "チャートに必要な履歴点がありません")}
+            : t(locale, "資料不足", "Insufficient data", "データ不足")}
         </div>
       )}
+      {partial ? (
+        <p className="sectionChartNote" role="status">
+          {t(locale, "資料不足完整區間，僅顯示可配對的歷史。", "Insufficient coverage; only paired history is shown.", "期間全体のデータが不足しているため、突合できた履歴のみ表示します。")}
+        </p>
+      ) : null}
       {note ? <p className="sectionChartNote">{note}</p> : null}
     </section>
   );
