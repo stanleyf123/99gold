@@ -30,12 +30,19 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# local sqlite
+/data/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
 
 # vercel
 .vercel
 
 # typescript
-next-env.d.ts
 *.tsbuildinfo
 /dist/
 /.wrangler/

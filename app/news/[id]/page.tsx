@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { env } from "cloudflare:workers";
 import { editorials } from "../editorial";
 import EditorialView from "../EditorialView";
 import type { Article } from "../../api/news-service";
+import { getRawDb } from "../../../db";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +14,7 @@ const labels = {
 };
 
 async function getArticle(id: string) {
-  return env.DB.prepare("SELECT * FROM news_articles WHERE id = ?").bind(id).first<Article>();
+  return getRawDb().prepare("SELECT * FROM news_articles WHERE id = ?").bind(id).first<Article>();
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   }
   const row = await getArticle(id);
   if (!row) return { title: "Article unavailable", robots: { index: false } };
-  const related = (await env.DB.prepare("SELECT id,locale FROM news_articles WHERE source_url = ?").bind(row.source_url).all<{ id: string; locale: string }>()).results;
+  const related = (await getRawDb().prepare("SELECT id,locale FROM news_articles WHERE source_url = ?").bind(row.source_url).all<{ id: string; locale: string }>()).results;
   return {
     title: row.title,
     description: row.body.slice(0, 150),

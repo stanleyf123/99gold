@@ -27,7 +27,7 @@ async function scheduledNews(database?:NewsDatabase) {
 }
 
 // Reader requests only read published work. Discovery and publication happen in
-// the scheduled Worker pipeline, never during a visitor request.
+// the scheduled news pipeline (`npm run news:pipeline`), never during a visitor request.
 export async function getDailyGoldNews(inputLocale="zh",database?:NewsDatabase) {
  const locale:Locale=inputLocale==="en"||inputLocale==="ja"?inputLocale:"zh";
  const rows=recentEditorials(locale);
