@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { BANK_OF_TAIWAN_RATE_URL, parseBankOfTaiwanUsdSpotRate, type BankOfTaiwanUsdSpotRate } from "../bank-of-taiwan-fx";
 import { getGoldMarketStatus } from "../quote-timing";
 
 type FxResponse = {
@@ -59,6 +60,7 @@ type MetalQuote = {
 };
 
 type MarketQuoteItem = {
+  id: "gold-reference" | "taiwan-qian" | "taiwan-gram" | "usd-twd";
   label: string;
   code: string;
   price: string;
@@ -71,7 +73,7 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
-async function getCurrencies() {
+async function getMarketCurrencies() {
   const currencies: Record<string, number> = { USD: 1 };
   try {
     const response = await fetch("https://open.er-api.com/v6/latest/USD", {
@@ -93,7 +95,47 @@ async function getCurrencies() {
   }
 }
 
-function buildMarketItems(gold: MetalQuote, usdTwd: number | null): MarketQuoteItem[] {
+async function getBankOfTaiwanUsdRate(): Promise<BankOfTaiwanUsdSpotRate | null> {
+  try {
+    const response = await fetch(BANK_OF_TAIWAN_RATE_URL, {
+      headers: {
+        Accept: "text/html,application/xhtml+xml",
+        "User-Agent": "99gold.net quote-monitor/1.0 (+https://99gold.net)",
+      },
+      redirect: "follow",
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) return null;
+    const contentLength = Number(response.headers.get("content-length"));
+    if (Number.isFinite(contentLength) && contentLength > 2_000_000) return null;
+    return parseBankOfTaiwanUsdSpotRate(await response.text());
+  } catch {
+    return null;
+  }
+}
+
+async function getCurrencies() {
+  const [marketFx, bankOfTaiwan] = await Promise.all([getMarketCurrencies(), getBankOfTaiwanUsdRate()]);
+  const marketUsdTwd = isFiniteNumber(marketFx.currencies.TWD) && marketFx.currencies.TWD > 0
+    ? marketFx.currencies.TWD
+    : null;
+  const selectedUsdTwd = bankOfTaiwan?.bankSellsUsd ?? marketUsdTwd;
+  const currencies = { ...marketFx.currencies };
+  if (selectedUsdTwd !== null) currencies.TWD = selectedUsdTwd;
+  else delete currencies.TWD;
+
+  return {
+    currencies,
+    marketQuotedAt: marketFx.quotedAt,
+    bankOfTaiwan,
+    selectedUsdTwd,
+    fxQuotedAt: bankOfTaiwan?.quotedAt ?? marketFx.quotedAt,
+    fxSource: bankOfTaiwan ? "臺灣銀行美元即期賣出" : marketUsdTwd !== null ? "open.er-api.com 市場參考匯率（備援）" : null,
+    fxBasis: bankOfTaiwan ? "bank-sight-sell" as const : marketUsdTwd !== null ? "market-reference" as const : null,
+  };
+}
+
+function buildMarketItems(gold: MetalQuote, fx: Awaited<ReturnType<typeof getCurrencies>>): MarketQuoteItem[] {
   const changeAvailable = isFiniteNumber(gold.changePercent);
   const numericChange = changeAvailable ? gold.changePercent as number : 0;
   const direction = numericChange >= 0 ? "+" : "−";
@@ -101,19 +143,40 @@ function buildMarketItems(gold: MetalQuote, usdTwd: number | null): MarketQuoteI
   const up = changeAvailable ? (numericChange > 0 ? true : numericChange < 0 ? false : null) : null;
   const referenceLabel = gold.basis === "futures" ? "COMEX 黃金期貨參考" : "國際黃金現貨參考";
   const referenceCode = `${gold.symbol} · ${gold.basis === "futures" ? "Yahoo Finance" : "Gold API"}`;
-  const conversionCode = `${gold.symbol} × USD/TWD`;
+  const conversionCode = fx.bankOfTaiwan
+    ? `${gold.symbol} × 臺銀美元即期賣出`
+    : `${gold.symbol} × USD/TWD 市場備援`;
 
   const items: MarketQuoteItem[] = [
-    { label: referenceLabel, code: referenceCode, price: gold.price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), unit: "美元／金衡盎司", change: `${changeLabel} · ${gold.basis === "futures" ? "期貨參考" : "現貨參考"}`, up },
+    { id: "gold-reference", label: referenceLabel, code: referenceCode, price: gold.price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), unit: "美元／金衡盎司", change: `${changeLabel} · ${gold.basis === "futures" ? "期貨參考" : "現貨參考"}`, up },
   ];
-  if (usdTwd === null) return items;
+  if (fx.selectedUsdTwd === null) return items;
 
-  const twdPerGram = gold.price * usdTwd / 31.1034768;
+  const twdPerGram = gold.price * fx.selectedUsdTwd / 31.1034768;
   const twdPerQian = twdPerGram * 3.75;
+  const rateItem: MarketQuoteItem = fx.bankOfTaiwan
+    ? {
+        id: "usd-twd",
+        label: "臺銀美元即期",
+        code: "USD / TWD · 臺灣銀行",
+        price: `${fx.bankOfTaiwan.bankBuysUsd.toFixed(4)}–${fx.bankOfTaiwan.bankSellsUsd.toFixed(4)}`,
+        unit: "新台幣／美元",
+        change: `買入 ${fx.bankOfTaiwan.bankBuysUsd.toFixed(4)} · 賣出 ${fx.bankOfTaiwan.bankSellsUsd.toFixed(4)} · 換算採賣出`,
+        up: null,
+      }
+    : {
+        id: "usd-twd",
+        label: "美元市場參考匯率",
+        code: "USD / TWD · open.er-api.com",
+        price: fx.selectedUsdTwd.toFixed(4),
+        unit: "新台幣／美元",
+        change: "臺銀暫不可用 · 備援換算",
+        up: null,
+      };
   return [...items,
-    { label: "台灣理論金價", code: conversionCode, price: Math.round(twdPerQian).toLocaleString("en-US"), unit: "新台幣／錢", change: "參考換算", up },
-    { label: "黃金每公克", code: conversionCode, price: Math.round(twdPerGram).toLocaleString("en-US"), unit: "新台幣／公克", change: "參考換算", up },
-    { label: "美元參考匯率", code: "USD / TWD · ExchangeRate-API", price: usdTwd.toFixed(4), unit: "新台幣", change: "非銀行即期牌告", up: null },
+    { id: "taiwan-qian", label: "台灣理論買進成本", code: conversionCode, price: Math.round(twdPerQian).toLocaleString("en-US"), unit: "新台幣／錢", change: "未含銀樓價差與費用", up },
+    { id: "taiwan-gram", label: "黃金每公克", code: conversionCode, price: Math.round(twdPerGram).toLocaleString("en-US"), unit: "新台幣／公克", change: "未含銀樓價差與費用", up },
+    rateItem,
   ];
 }
 
@@ -219,8 +282,6 @@ export async function GET() {
     // Resolve gold first so optional symbols cannot cause Yahoo burst limits to hide the main quote.
     const [gold, fx] = await Promise.all([getQuote(instruments[0]), getCurrencies()]);
     if (!gold) throw new Error("Gold quote missing");
-    const usdTwd = isFiniteNumber(fx.currencies.TWD) && fx.currencies.TWD > 0 ? fx.currencies.TWD : null;
-
     const optionalMetals = await Promise.all(instruments.slice(1).map(getQuote));
     const metals = [gold, ...optionalMetals.filter((metal): metal is MetalQuote => metal !== null)];
     const sources = [...new Set(metals.map((metal) => metal.source))];
@@ -229,14 +290,18 @@ export async function GET() {
     return NextResponse.json({
       metals,
       currencies: fx.currencies,
-      items: buildMarketItems(gold, usdTwd),
+      items: buildMarketItems(gold, fx),
       quotedAt: gold.quotedAt,
       updatedAt: gold.quotedAt,
       retrievedAt,
-      fxQuotedAt: fx.quotedAt,
+      fxQuotedAt: fx.fxQuotedAt,
+      fxSource: fx.fxSource,
+      fxBasis: fx.fxBasis,
+      bankOfTaiwan: fx.bankOfTaiwan,
+      marketFxQuotedAt: fx.marketQuotedAt,
       marketStatus: getGoldMarketStatus(new Date(retrievedAt), gold.quotedAt),
       quoteSource: gold.source,
-      source: `${sources.join(" + ")}${usdTwd === null ? "" : " · open.er-api.com FX"}`,
+      source: `${sources.join(" + ")}${fx.bankOfTaiwan ? " · 臺灣銀行美元即期牌告" : fx.selectedUsdTwd === null ? "" : " · open.er-api.com FX 備援"}${Object.keys(fx.currencies).some((code) => !["USD", "TWD"].includes(code)) ? " · open.er-api.com 全球匯率" : ""}`,
     }, { headers: { "Cache-Control": "public, max-age=180, s-maxage=180" } });
   } catch {
     return NextResponse.json(
