@@ -94,11 +94,11 @@ export default async function NewsIndex({ searchParams }: { searchParams: Promis
     <p className="newsOperationsNote">{locale === "zh" ? "官方來源每 3 小時自動檢查、翻譯並上架快訊，無需人工核准。" : locale === "ja" ? "公式情報源を3時間ごとに確認し、速報を自動翻訳して公開します。管理者の承認は不要です。" : "Official sources are checked every 3 hours; briefs are auto-translated and published without manual approval."}</p>
     <nav className="editorialCategoryFilters" aria-label={locale === "zh" ? "新聞分類" : locale === "ja" ? "ニュース分類" : "News categories"}>{(Object.keys(categories) as Category[]).map((entry) => <Link key={entry} href={`/news?lang=${locale}&category=${entry}`} aria-current={category === entry ? "page" : undefined}>{categories[entry][locale]} <span>{countFor(entry)}</span></Link>)}</nav>
 
-    <div className="editorialList">{editorialRows.map((article) => {
+    <div className="editorialList">{editorialRows.map((article, index) => {
       const excerpt = newsExcerpt(article.description);
       return <article key={article.id} className="newsCard">
       <Link href={`/news/${article.id}`}>
-        <CoverImage src={article.image} alt={article.imageAlt} />
+        <CoverImage src={article.image} alt={article.imageAlt} priority={index === 0} />
         <p className="articleKicker">{categories[article.category ?? "macro"][locale]} · {labels.event}: {article.eventDate}</p>
         <h2>{article.title}</h2>
       </Link>

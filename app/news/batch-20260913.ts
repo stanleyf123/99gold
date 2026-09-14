@@ -21,7 +21,7 @@ const editions: Edition[] = [
     id: "saudi-pipeline-energy-gold-20260913-zh", group: "saudi-pipeline-energy-gold-20260913", locale: "zh", category: "macro",
     title: "沙烏地輸油管暫停運作：能源風險如何傳導到黃金市場",
     description: "沙烏地阿拉伯在無人機攻擊後預防性關閉東西向輸油管。本文區分已知事實與本站分析，整理油價、通膨、利率和避險需求可能如何影響黃金。",
-    eventDate: "2026-09-12", image: "/news-energy-pipeline-20260913.png",
+    eventDate: "2026-09-12", image: "/news-energy-pipeline-20260913.webp",
     imageAlt: "沙漠輸油管、能源設施與金條構成的AI概念示意圖。",
     sources: pipelineSource,
     sections: [
@@ -45,7 +45,7 @@ const editions: Edition[] = [
     id: "saudi-pipeline-energy-gold-20260913-en", group: "saudi-pipeline-energy-gold-20260913", locale: "en", category: "macro",
     title: "Saudi pipeline shutdown: how an energy shock could reach the gold market",
     description: "Saudi Arabia temporarily shut its East-West oil pipeline as a precaution after a drone attack. We separate reported facts from analysis of the possible oil, inflation, rates and safe-haven channels to gold.",
-    eventDate: "2026-09-12", image: "/news-energy-pipeline-20260913.png",
+    eventDate: "2026-09-12", image: "/news-energy-pipeline-20260913.webp",
     imageAlt: "AI concept illustration combining a desert oil pipeline, energy infrastructure and gold bars.",
     sources: pipelineSource,
     sections: [
@@ -69,7 +69,7 @@ const editions: Edition[] = [
     id: "saudi-pipeline-energy-gold-20260913-ja", group: "saudi-pipeline-energy-gold-20260913", locale: "ja", category: "macro",
     title: "サウジの送油管停止、エネルギーリスクは金市場へどう波及するか",
     description: "サウジアラビアはドローン攻撃後、東西送油管を予防的に停止しました。報道で確認できた事実と、原油・インフレ・金利・安全資産需要を通じた金への影響を分けて解説します。",
-    eventDate: "2026-09-12", image: "/news-energy-pipeline-20260913.png",
+    eventDate: "2026-09-12", image: "/news-energy-pipeline-20260913.webp",
     imageAlt: "砂漠の送油管、エネルギー施設、金の延べ棒を組み合わせたAI概念図。",
     sources: pipelineSource,
     sections: [
@@ -93,7 +93,7 @@ const editions: Edition[] = [
     id: "kocher-oil-ecb-gold-20260913-zh", group: "kocher-oil-ecb-gold-20260913", locale: "zh", category: "policy",
     title: "油價若守在100美元附近，ECB官員稱仍可能升息：黃金該看什麼",
     description: "奧地利央行總裁Martin Kocher表示，若油價接近100美元並持續至年底，歐洲央行可能需要再升息。這是條件式個人觀點，而非ECB既定決策。",
-    eventDate: "2026-09-12", image: "/news-ecb-oil-20260913.png",
+    eventDate: "2026-09-12", image: "/news-ecb-oil-20260913.webp",
     imageAlt: "歐洲央行意象、油桶、利率曲線與金條的AI概念示意圖。",
     sources: kocherSource,
     sections: [
@@ -117,7 +117,7 @@ const editions: Edition[] = [
     id: "kocher-oil-ecb-gold-20260913-en", group: "kocher-oil-ecb-gold-20260913", locale: "en", category: "policy",
     title: "ECB official says $100 oil could require another hike: what gold watchers should track",
     description: "Austrian central bank governor Martin Kocher said the ECB might need another rate increase if oil remains near $100 through year-end. It is a conditional individual view, not a committed ECB decision.",
-    eventDate: "2026-09-12", image: "/news-ecb-oil-20260913.png",
+    eventDate: "2026-09-12", image: "/news-ecb-oil-20260913.webp",
     imageAlt: "AI concept illustration of the ECB, oil barrels, an interest-rate curve and gold bars.",
     sources: kocherSource,
     sections: [
@@ -141,7 +141,7 @@ const editions: Edition[] = [
     id: "kocher-oil-ecb-gold-20260913-ja", group: "kocher-oil-ecb-gold-20260913", locale: "ja", category: "policy",
     title: "原油100ドルが続けばECB追加利上げも、金市場が確認すべき点",
     description: "オーストリア中銀のMartin Kocher総裁は、原油が年末まで100ドル前後で推移すればECBは追加利上げを迫られる可能性があると述べました。これは条件付きの個人見解で、決定済みの政策ではありません。",
-    eventDate: "2026-09-12", image: "/news-ecb-oil-20260913.png",
+    eventDate: "2026-09-12", image: "/news-ecb-oil-20260913.webp",
     imageAlt: "ECBを想起させる建物、原油樽、金利曲線、金の延べ棒を組み合わせたAI概念図。",
     sources: kocherSource,
     sections: [

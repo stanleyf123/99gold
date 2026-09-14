@@ -40,7 +40,7 @@ Legend: **PASS** = works end-to-end in code + live (or local reasoning where liv
 
 Do **not** treat these as merge blockers for this audit PR.
 
-- **SEO score / new features** (roadmap later phases): richer meta, FAQ expansion, Core Web Vitals, extra landing pages. *(Sitemap, brief Article/FAQ JSON-LD, jewelry period-synced table, share buttons, and homepage crawlable briefs shipped after this audit.)*
+- **SEO score / new features** (roadmap later phases): extra landing pages / large Core Web Vitals rewrite. *(Sitemap, brief Article/FAQ JSON-LD, jewelry period-synced table, share buttons, homepage crawlable briefs, unique OG alts, and news listing WebP covers shipped after this audit.)*
 - **OpenAI translation**: several 市場快訊 titles remain English or mixed (e.g. ECB speeches). MyMemory is the current default; `OPENAI_API_KEY` is documented in `.env.example` but not required here. Rate-limit-safe MyMemory backfill now retries published rows with empty/English zh·ja titles.
 - **Sitemap for auto-published briefs**: shipped after this audit (`news_candidates` `status=published` with lastmod + hreflang).
 - **Jewelry daily table vs chart period**: shipped after this audit (table, range stats, and chart share 30D/90D/1Y/3Y; long ranges cap the table at 90 rows).

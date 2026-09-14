@@ -20,7 +20,7 @@ export default function EditorialView({article:a}:{article:Editorial}) {
       <div className="editorialDates"><span>{t.event}: <time dateTime={a.eventDate}>{a.eventDate}</time></span><span>{t.published}: <time dateTime={a.publishedAt}>{new Date(a.publishedAt).toLocaleString(a.locale==="zh"?"zh-TW":a.locale,{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false})} UTC+8</time></span></div>
       {Date.parse(a.eventDate)<ARCHIVE_CUTOFF_TIMESTAMP&&<p className="editorialArchive">{t.archived}</p>}
       <figure className="editorialFigure">
-        <CoverImage src={a.image} alt={a.imageAlt} />
+        <CoverImage src={a.image} alt={a.imageAlt} priority />
         <figcaption>{t.image}</figcaption>
       </figure>
       {a.sections.map((s,i)=><section key={i}><h2>{s.heading}</h2>{s.paragraphs.map((p,j)=><p key={j}>{p}</p>)}{s.source!==undefined&&<p className="editorialCitation"><a href={a.sources[s.source].url} target="_blank" rel="noreferrer">{t.facts}: {a.sources[s.source].title} ↗</a></p>}</section>)}

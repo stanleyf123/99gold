@@ -139,6 +139,8 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.match(editorial, /alt=\{a\.imageAlt\}/);
   assert.match(cover, /onError/);
   assert.match(cover, /coverFallback/);
+  assert.match(cover, /fetchPriority/);
+  assert.match(cover, /priority \? "eager" : "lazy"/);
 });
 
 test("keeps one locale source for header, homepage, global and section chrome", async () => {

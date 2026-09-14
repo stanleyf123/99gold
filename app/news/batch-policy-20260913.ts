@@ -5,7 +5,7 @@ const common = {
   publishedAt: "2026-09-13T11:27:00Z",
   eventDate: "2026-09-13",
   category: "policy" as const,
-  image: "/news-central-bank-week-20260913.png",
+  image: "/news-central-bank-week-20260913.webp",
   sources: [
     { title: "Financial Times · Will the Fed defy Trump and raise rates?", url: "https://www.ft.com/content/1fd5bbf6-9bb6-4848-a01b-7c94b3e59b6e", date: "2026-09-13" },
     { title: "Federal Reserve · FOMC calendars", url: "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm", date: "2026-09-13" },
