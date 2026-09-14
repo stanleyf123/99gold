@@ -1,20 +1,10 @@
 import { NextResponse } from "next/server";
-import { GET as getGlobalQuotes } from "../global-quotes/route";
+import { getGlobalQuotes } from "../../../lib/quotes";
 
 export async function GET() {
   try {
-    const response = await getGlobalQuotes();
-    if (!response.ok) throw new Error("Source unavailable");
-    const data = await response.json() as {
-      items?: Array<{ label: string; code: string; price: string; unit: string; change: string; up: boolean | null }>;
-      quotedAt?: string;
-      retrievedAt?: string;
-      fxQuotedAt?: string | null;
-      marketStatus?: "open" | "delayed" | "daily-break" | "weekend-closed" | "unavailable";
-      quoteSource?: string;
-      source?: string;
-    };
-    if (!data.items?.length || !data.quotedAt || !data.retrievedAt) throw new Error("Gold unavailable");
+    const data = await getGlobalQuotes();
+    if (!data.items.length || !data.quotedAt || !data.retrievedAt) throw new Error("Gold unavailable");
 
     return NextResponse.json({
       items: data.items,
