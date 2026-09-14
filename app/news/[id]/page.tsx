@@ -4,7 +4,6 @@ import { env } from "cloudflare:workers";
 import { editorials } from "../editorial";
 import EditorialView from "../EditorialView";
 import type { Article } from "../../api/news-service";
-import SiteHeader, { type Locale } from "../../SiteHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -52,22 +51,17 @@ export default async function NewsArticle({ params }: { params: Promise<{ id: st
   const row = await getArticle(id);
   if (!row) notFound();
   const t = labels[row.locale];
-  const related = (await env.DB.prepare("SELECT id,locale FROM news_articles WHERE source_url = ?").bind(row.source_url).all<{ id: string; locale: string }>()).results;
-  const localeHrefs = Object.fromEntries(related.map((item) => [item.locale, `/news/${item.id}`])) as Partial<Record<Locale, string>>;
   const structured = { "@context": "https://schema.org", "@type": "NewsArticle", headline: row.title, datePublished: row.published_at, inLanguage: row.locale === "zh" ? "zh-Hant" : row.locale, isBasedOn: row.source_url };
   return (
-    <>
-      <SiteHeader locale={row.locale} localeHrefs={localeHrefs} />
-      <main className="articlePage articleShell" lang={row.locale === "zh" ? "zh-Hant" : row.locale}>
-        <article>
-          <p className="articleKicker">FEDERAL RESERVE · {row.published_at.slice(0, 10)}</p>
-          <h1>{row.title}</h1>
-          <p>{t.note}</p>
-          {row.body.split(/\n\n+/).map((paragraph, index) => <p key={index} style={{ lineHeight: 1.9, marginBottom: "1.25rem" }}>{paragraph}</p>)}
-          <p className="articleSource">{t.saved}: {row.fetched_at}<br /><a href={row.source_url} target="_blank" rel="noreferrer">{t.source} ↗</a></p>
-        </article>
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structured).replace(/</g, "\\u003c") }} />
-      </main>
-    </>
+    <main className="articlePage articleShell" lang={row.locale === "zh" ? "zh-Hant" : row.locale}>
+      <article>
+        <p className="articleKicker">FEDERAL RESERVE · {row.published_at.slice(0, 10)}</p>
+        <h1>{row.title}</h1>
+        <p>{t.note}</p>
+        {row.body.split(/\n\n+/).map((paragraph, index) => <p key={index} style={{ lineHeight: 1.9, marginBottom: "1.25rem" }}>{paragraph}</p>)}
+        <p className="articleSource">{t.saved}: {row.fetched_at}<br /><a href={row.source_url} target="_blank" rel="noreferrer">{t.source} ↗</a></p>
+      </article>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structured).replace(/</g, "\\u003c") }} />
+    </main>
   );
 }

@@ -7,8 +7,9 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { MarketLineChart, type MarketChartPoint } from "./MarketLineChart";
+import CoverImage from "./CoverImage";
 import { categories, type NewsCategory } from "./news/categories";
-import SiteHeader, { type Locale } from "./SiteHeader";
+import { type Locale } from "./SiteHeader";
 
 const initialQuotes: QuoteItem[] = [];
 
@@ -148,17 +149,25 @@ export default function Home() {
       .catch(() => undefined);
   }, []);
   useEffect(() => {
+    const applyLocale = (next: Locale) => {
+      setLocale(next);
+      document.documentElement.lang = next === "zh" ? "zh-Hant" : next;
+    };
     const saved = window.localStorage.getItem("golden-tide-locale") as Locale | null;
     if (saved && saved in languageCopy) {
-      document.documentElement.lang = saved === "zh" ? "zh-Hant" : saved;
-      window.setTimeout(() => setLocale(saved), 0);
-      return;
+      window.setTimeout(() => applyLocale(saved), 0);
+    } else {
+      fetch("/api/visitor-locale", { cache: "no-store" }).then((response) => response.ok ? response.json() as Promise<{ locale?: Locale }> : null).then((data) => {
+        if (!data?.locale || !(data.locale in languageCopy)) return;
+        applyLocale(data.locale);
+      }).catch(() => undefined);
     }
-    fetch("/api/visitor-locale", { cache: "no-store" }).then((response) => response.ok ? response.json() as Promise<{ locale?: Locale }> : null).then((data) => {
-      if (!data?.locale || !(data.locale in languageCopy)) return;
-      setLocale(data.locale);
-      document.documentElement.lang = data.locale === "zh" ? "zh-Hant" : data.locale;
-    }).catch(() => undefined);
+    const onLocale = (event: Event) => {
+      const next = (event as CustomEvent<Locale>).detail;
+      if (next && next in languageCopy) applyLocale(next);
+    };
+    window.addEventListener("golden-tide-locale", onLocale);
+    return () => window.removeEventListener("golden-tide-locale", onLocale);
   }, []);
   useEffect(() => {
     let disposed = false;
@@ -280,15 +289,7 @@ export default function Home() {
     if (tab === "history" && activeTab !== "history") setHistoryLoading(true);
     setActiveTab(tab);
   };
-  const openDashboardSection = (tab: typeof activeTab) => {
-    selectDashboardTab(tab);
-    window.setTimeout(() => document.getElementById("top")?.scrollIntoView({ behavior: "smooth" }), 40);
-  };
-  const changeLocale = (next: Locale) => {
-    setLocale(next);
-    try { window.localStorage.setItem("golden-tide-locale", next); } catch { /* ignore */ }
-    document.documentElement.lang = next === "zh" ? "zh-Hant" : next;
-  };
+  const quotesUnavailable = quotes.length === 0;
   const toolResult = useMemo(() => {
     const weight = Number.parseFloat(goldWeight) || 0;
     const unitToQian = { qian: 1, gram: 1 / 3.75, tael: 10, ounce: 31.1034768 / 3.75 };
@@ -368,26 +369,11 @@ export default function Home() {
   return (
     <main>
       <div className="topline"><span>{marketStatusLabel}</span><span>{t("行情時間", "Quote time", "相場時刻")} {quoteTimeLabel} · {t("本站檢查", "Site check", "サイト確認")} {quoteCheckTimeLabel}{quoteLastSuccessLabel ? ` · ${t("上次成功", "Last success", "最終成功")} ${quoteLastSuccessLabel}` : ""} (GMT+8)</span></div>
-      <SiteHeader
-        locale={locale}
-        onLocaleChange={changeLocale}
-        brandName={siteSettings.brandName}
-        englishName={siteSettings.englishName}
-        extras={<>
-          <div className="menuQuote"><span>{quotes[0]?.label ?? "報價暫不可用"}</span><strong>{quotes[0]?.price ?? "—"}</strong><small>{quotes[0]?.code ?? "等待有效來源"}　<b>{quotes[0]?.change ?? ""}</b></small></div>
-          <nav className="menuFunctions">
-            <button type="button" onClick={() => openDashboardSection("quotes")}><span>專業報價<small>PRO QUOTES</small></span><b>→</b></button>
-            <button type="button" onClick={() => openDashboardSection("history")}><span>歷史金價<small>PRICE HISTORY</small></span><b>→</b></button>
-            <button type="button" onClick={() => openDashboardSection("tools")}><span>黃金工具<small>GOLD TOOLKIT</small></span><b>→</b></button>
-            <button type="button" onClick={() => openDashboardSection("news")}><span>市場新聞<small>MARKET NEWS</small></span><b>→</b></button>
-            <button type="button" onClick={() => { window.setTimeout(() => document.getElementById("price-alerts")?.scrollIntoView({ behavior: "smooth" }), 40); }}><span>到價標記<small>MY WATCHLIST</small></span><b>→</b></button>
-          </nav>
-          <p>報價與試算僅供參考</p>
-        </>}
-      />
 
       <section className="brandHero" aria-label={`${siteSettings.fullName}｜${siteSettings.tagline}`}>
-        <Image className="brandHeroPhoto" src="/og.jpg" alt="" fill priority unoptimized sizes="100vw" />
+        <div className="heroPhoto" aria-hidden="true">
+          <Image className="brandHeroPhoto" src="/og.jpg" alt="" fill priority unoptimized sizes="(max-width: 900px) 100vw, 62vw" />
+        </div>
         <div className="brandHeroShade" aria-hidden="true" />
         <div className="brandHeroCopy">
           <p className="eyebrow">{siteSettings.englishName}</p>
@@ -396,18 +382,24 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="marketRadar">
+      <section className={`marketRadar${quotesUnavailable ? " radarEmpty" : ""}`}>
         <div>
           <p className="eyebrow">MARKET RADAR</p>
           <h2>{t("今日市場快速判讀", "Today’s market snapshot", "本日の市場早わかり")}</h2>
         </div>
-        <div className="tool"><span>{quotes[0]?.label ?? "國際黃金參考"}</span><strong>US$ {quotes[0]?.price ?? "—"}</strong><small>{quotes[0]?.unit ?? "美元／金衡盎司"}</small></div>
-        <div className="tool"><span>{quotes[1]?.label ?? "台灣理論金價"}</span><strong>NT$ {quotes[1]?.price ?? "—"}</strong><small>{quotes[1]?.unit ?? "台幣／錢"}</small></div>
-        <div className="tool"><span>USD / TWD</span><strong>{quotes[3]?.price ?? currencies.TWD?.toFixed(4) ?? "—"}</strong><small>{t("匯率時間", "FX time", "為替時刻")} {fxQuotedAt ? formatSiteTime(fxQuotedAt) : "—"}</small></div>
+        {quotesUnavailable ? (
+          <p className="radarEmptyNote">{t("目前沒有可驗證的即時報價，系統每 3 分鐘重試。", "No verified live quotes right now. The site retries every 3 minutes.", "検証可能な即時相場はありません。3分ごとに再試行します。")}</p>
+        ) : (
+          <>
+            <div className="tool"><span>{quotes[0]?.label ?? "國際黃金參考"}</span><strong>US$ {quotes[0]?.price ?? "—"}</strong><small>{quotes[0]?.unit ?? "美元／金衡盎司"}</small></div>
+            <div className="tool"><span>{quotes[1]?.label ?? "台灣理論金價"}</span><strong>NT$ {quotes[1]?.price ?? "—"}</strong><small>{quotes[1]?.unit ?? "台幣／錢"}</small></div>
+            <div className="tool"><span>USD / TWD</span><strong>{quotes[3]?.price ?? currencies.TWD?.toFixed(4) ?? "—"}</strong><small>{t("匯率時間", "FX time", "為替時刻")} {fxQuotedAt ? formatSiteTime(fxQuotedAt) : "—"}</small></div>
+          </>
+        )}
         <button type="button" onClick={() => { selectDashboardTab("history"); window.setTimeout(() => document.getElementById("top")?.scrollIntoView({ behavior: "smooth" }), 40); }}>{t("查看歷史走勢", "View history", "履歴を見る")} <b>→</b></button>
       </section>
 
-      <section className="marketHub" id="top"><div className="hubLead"><div><p className="eyebrow">GOLD MARKET DASHBOARD</p><h1>{copy.dashboard}</h1><p>{copy.dashboardText}</p></div><div className="hubPrice"><span>{quotes[0] ? `${quotes[0].label}・${quotes[0].code}` : t("等待有效行情", "Waiting for valid quote", "有効な相場を待っています")}</span><strong>{quotes[0]?.price ?? "—"}</strong><em className={quotes[0] ? (quotes[0].up === null ? "neutral" : quotes[0].up ? "up" : "down") : undefined}>{quotes[0] ? `${quotes[0].up === null ? "•" : quotes[0].up ? "▲" : "▼"} ${quotes[0].change}` : t("來源暫不可用", "SOURCE UNAVAILABLE", "データ取得不可")}</em></div></div><div className="marketTabs" role="tablist" aria-label="黃金資訊分類"><button role="tab" aria-selected={activeTab === "quotes"} className={activeTab === "quotes" ? "active" : ""} onClick={() => selectDashboardTab("quotes")}>{copy.quotes}</button><button role="tab" aria-selected={activeTab === "history"} className={activeTab === "history" ? "active" : ""} onClick={() => selectDashboardTab("history")}>{copy.history}</button><button role="tab" aria-selected={activeTab === "tools"} className={activeTab === "tools" ? "active" : ""} onClick={() => selectDashboardTab("tools")}>{copy.tools}</button><button role="tab" aria-selected={activeTab === "news"} className={activeTab === "news" ? "active" : ""} onClick={() => selectDashboardTab("news")}>{copy.news}</button></div>
+      <section className="marketHub" id="top"><div className="hubLead"><div><p className="eyebrow">GOLD MARKET DASHBOARD</p><h1>{copy.dashboard}</h1><p>{copy.dashboardText}</p></div>{quotes[0] ? <div className="hubPrice"><span>{`${quotes[0].label}・${quotes[0].code}`}</span><strong>{quotes[0].price}</strong><em className={quotes[0].up === null ? "neutral" : quotes[0].up ? "up" : "down"}>{`${quotes[0].up === null ? "•" : quotes[0].up ? "▲" : "▼"} ${quotes[0].change}`}</em></div> : <p className="hubEmptyHint">{t("行情來源暫不可用", "Quote source unavailable", "相場ソースは現在利用できません")}</p>}</div><div className="marketTabs" role="tablist" aria-label="黃金資訊分類"><button role="tab" aria-selected={activeTab === "quotes"} className={activeTab === "quotes" ? "active" : ""} onClick={() => selectDashboardTab("quotes")}>{copy.quotes}</button><button role="tab" aria-selected={activeTab === "history"} className={activeTab === "history" ? "active" : ""} onClick={() => selectDashboardTab("history")}>{copy.history}</button><button role="tab" aria-selected={activeTab === "tools"} className={activeTab === "tools" ? "active" : ""} onClick={() => selectDashboardTab("tools")}>{copy.tools}</button><button role="tab" aria-selected={activeTab === "news"} className={activeTab === "news" ? "active" : ""} onClick={() => selectDashboardTab("news")}>{copy.news}</button></div>
 
         {activeTab === "quotes" && (
           <div className="hubPanel proQuotePanel" role="tabpanel" id="quotes">
@@ -424,6 +416,9 @@ export default function Home() {
               </div>
             </div>
 
+            {quotesUnavailable ? (
+              <p className="quoteEmptyPanel">{t("目前沒有可驗證的即時報價，系統每 3 分鐘重試。", "No verified live quotes are available. The site retries every 3 minutes.", "検証可能な即時相場はありません。システムは3分ごとに再試行します。")}</p>
+            ) : (
             <div className="quoteTerminal">
               <section className="primaryQuoteBlock" aria-label={t("國際黃金主報價", "Primary gold reference", "国際金参考価格")}>
                 <div className="quoteInstrument">
@@ -505,6 +500,7 @@ export default function Home() {
               {["TWD", "HKD", "CNY", "JPY", "EUR"].map((code) => <div key={code}><small>USD / {code}</small><strong>{currencies[code]?.toLocaleString("en-US", { minimumFractionDigits: code === "JPY" ? 2 : 4, maximumFractionDigits: 4 }) ?? "—"}</strong></div>)}
             </div>
             <p className="quoteMethodology"><b>{t("讀價說明：", "How to read these prices: ", "価格の見方：")}</b>{t("報價優先採 Yahoo Finance GC=F 期貨參考；來源受限時改列 Gold API XAU/USD 公開現貨參考，商品代碼、來源與缺少欄位會如實標示。台灣理論價未含銀樓溢價、工費、稅費與即時買賣價差；無有效來源時不顯示估造價格。", "Quotes prefer the Yahoo Finance GC=F futures reference. If it is limited, the site clearly switches to the public Gold API XAU/USD spot reference and leaves unsupported fields blank. Taiwan conversions exclude dealer premiums, workmanship, taxes and live spreads; no estimated price is shown without a valid source.", "相場はYahoo FinanceのGC=F先物を優先し、制限時はGold APIのXAU/USD公開現物参考値へ明示的に切り替え、未提供項目は空欄にします。台湾換算値に店頭プレミアム、加工費、税金、スプレッドは含まず、有効な情報源がない場合は推定値を表示しません。")}</p>
+            )}
           </div>
         )}
 
@@ -527,7 +523,7 @@ export default function Home() {
               const cover = item.image;
               const href = item.external ? item.url : `/news/${item.id}`;
               return <article key={key}>
-                <div className={cover ? "newsVisual hasImage" : "newsVisual officialSourceVisual"}>{cover ? <img src={cover} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.display = "none"; }}/> : <div className="newsSourceMark"><b>99</b><small>OFFICIAL SOURCE</small></div>}</div>
+                <div className={cover ? "newsVisual hasImage" : "newsVisual officialSourceVisual"}>{cover ? <CoverImage src={cover} /> : <div className="newsSourceMark"><b>99</b><small>OFFICIAL SOURCE</small></div>}</div>
                 <p><b>{categories[category][locale]}</b><time>{item.date}</time></p>
                 <div className="newsSource"><span>{item.sourceName || "國際新聞"}</span>{item.translated && <em>自動翻譯</em>}</div>
                 <h3>{item.title}</h3>

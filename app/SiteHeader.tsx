@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 export type Locale = "zh" | "en" | "ja";
 
 const STORAGE_KEY = "golden-tide-locale";
+const LOCALE_EVENT = "golden-tide-locale";
 
 const navCopy = {
   zh: {
@@ -50,17 +51,52 @@ const navItems = [
   { href: "/news", key: "news" as const, match: (path: string) => path.startsWith("/news") || path.startsWith("/insights") },
 ];
 
+function isLocale(value: string | null | undefined): value is Locale {
+  return value === "zh" || value === "en" || value === "ja";
+}
+
 function applyDocumentLang(locale: Locale) {
   document.documentElement.lang = locale === "zh" ? "zh-Hant" : locale;
 }
 
-function persistLocale(locale: Locale) {
+export function persistLocale(locale: Locale) {
   try {
     window.localStorage.setItem(STORAGE_KEY, locale);
   } catch {
     /* device storage may be unavailable */
   }
   applyDocumentLang(locale);
+  window.dispatchEvent(new CustomEvent<Locale>(LOCALE_EVENT, { detail: locale }));
+}
+
+function localeFromLocation(pathname: string, search: string): Locale | null {
+  const lang = new URLSearchParams(search).get("lang");
+  if (isLocale(lang)) return lang;
+  const article = pathname.match(/\/news\/[^/]+-(zh|en|ja)$/);
+  return article && isLocale(article[1]) ? article[1] : null;
+}
+
+function localeHrefsFromLocation(pathname: string, search: string): Partial<Record<Locale, string>> | undefined {
+  if (pathname === "/news") {
+    const category = new URLSearchParams(search).get("category") || "all";
+    return {
+      zh: `/news?lang=zh&category=${category}`,
+      en: `/news?lang=en&category=${category}`,
+      ja: `/news?lang=ja&category=${category}`,
+    };
+  }
+  const article = pathname.match(/^(\/news\/.+)-(zh|en|ja)$/);
+  if (!article) return undefined;
+  const base = article[1];
+  return {
+    zh: `${base}-zh`,
+    en: `${base}-en`,
+    ja: `${base}-ja`,
+  };
+}
+
+function readLocationSearch() {
+  return typeof window === "undefined" ? "" : window.location.search;
 }
 
 type SiteHeaderProps = {
@@ -75,24 +111,40 @@ type SiteHeaderProps = {
 export default function SiteHeader({
   locale: controlledLocale,
   onLocaleChange,
-  localeHrefs,
+  localeHrefs: controlledHrefs,
   brandName = "玖久黃金報價網",
   englishName = "99GOLD.NET",
   extras,
 }: SiteHeaderProps) {
   const pathname = usePathname() || "/";
+  const [search, setSearch] = useState("");
   const [locale, setLocale] = useState<Locale>(controlledLocale ?? "zh");
   const [menuOpen, setMenuOpen] = useState(false);
+  const derivedHrefs = useMemo(() => localeHrefsFromLocation(pathname, search), [pathname, search]);
+  const localeHrefs = controlledHrefs ?? derivedHrefs;
   const copy = navCopy[locale];
+
+  useEffect(() => {
+    const syncSearch = () => setSearch(readLocationSearch());
+    syncSearch();
+    window.addEventListener("popstate", syncSearch);
+    return () => window.removeEventListener("popstate", syncSearch);
+  }, [pathname]);
 
   useEffect(() => {
     if (controlledLocale) {
       setLocale(controlledLocale);
       return;
     }
-    const saved = window.localStorage.getItem(STORAGE_KEY) as Locale | null;
-    if (saved && saved in navCopy) setLocale(saved);
-  }, [controlledLocale]);
+    const fromUrl = localeFromLocation(pathname, search || readLocationSearch());
+    if (fromUrl) {
+      setLocale(fromUrl);
+      persistLocale(fromUrl);
+      return;
+    }
+    const saved = window.localStorage.getItem(STORAGE_KEY);
+    if (isLocale(saved)) setLocale(saved);
+  }, [controlledLocale, pathname, search]);
 
   useEffect(() => {
     if (!menuOpen) return;

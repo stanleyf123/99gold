@@ -20,7 +20,7 @@ test("build emits the complete 99gold professional quote workspace", async () =>
 });
 
 test("uses a shared SiteHeader and coherent homepage layout", async () => {
-  const [page, header, chrome, layout, section, globalPage, news, article, editorial] = await Promise.all([
+  const [page, header, chrome, layout, section, globalPage, news, article, editorial, cover] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/SiteHeader.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/site-chrome.css", import.meta.url), "utf8"),
@@ -30,6 +30,7 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
     readFile(new URL("../app/news/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/news/[id]/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/news/EditorialView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/CoverImage.tsx", import.meta.url), "utf8"),
   ]);
 
   assert.match(header, /今日金價/);
@@ -40,24 +41,32 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.match(header, /市場情報/);
   assert.match(header, /className="siteHeader"/);
   assert.match(layout, /site-chrome\.css/);
+  assert.match(layout, /SiteChrome/);
   assert.match(chrome, /--page-gutter:/);
   assert.match(chrome, /--page-max:\s*1240px/);
-  assert.match(chrome, /--hero-height:\s*clamp\(220px/);
+  assert.match(chrome, /--hero-height:\s*clamp\(/);
+  assert.match(chrome, /heroPhoto/);
   assert.match(chrome, /brandHeroCopy/);
   assert.doesNotMatch(chrome, /aspect-ratio:\s*1200\/630/);
-  assert.match(page, /<SiteHeader/);
+  assert.doesNotMatch(page, /<SiteHeader/);
+  assert.match(page, /className="heroPhoto"/);
   assert.match(page, /className="brandHeroCopy"/);
   assert.match(page, /今日市場快速判讀/);
-  assert.match(page, /SiteHeader[\s\S]*brandHero[\s\S]*marketRadar[\s\S]*marketHub/);
+  assert.match(page, /quoteEmptyPanel/);
+  assert.match(page, /brandHero[\s\S]*marketRadar[\s\S]*marketHub/);
   assert.doesNotMatch(page, /marketHub[\s\S]*marketRadar/);
   assert.doesNotMatch(page, /brandCover|aspect-ratio:1200\/630/);
-  assert.match(section, /<SiteHeader/);
-  assert.match(globalPage, /<SiteHeader/);
+  assert.doesNotMatch(section, /<SiteHeader/);
+  assert.doesNotMatch(globalPage, /<SiteHeader/);
   assert.doesNotMatch(globalPage, /globalNav/);
-  assert.match(news, /<SiteHeader/);
+  assert.doesNotMatch(news, /<SiteHeader/);
   assert.doesNotMatch(news, /articleNav/);
-  assert.match(article, /<SiteHeader/);
-  assert.match(editorial, /<SiteHeader/);
+  assert.doesNotMatch(news, /alt=\{article\.imageAlt\}/);
+  assert.doesNotMatch(article, /<SiteHeader/);
+  assert.doesNotMatch(editorial, /<SiteHeader/);
+  assert.doesNotMatch(editorial, /alt=\{a\.imageAlt\}/);
+  assert.match(cover, /onError/);
+  assert.match(cover, /coverFallback/);
 });
 
 test("keeps quote history, data transparency and responsive styles wired", async () => {

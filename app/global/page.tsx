@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import SiteHeader from "../SiteHeader";
 import "./global.css";
 
 type MarketStatus = "checking" | "open" | "delayed" | "daily-break" | "weekend-closed" | "unavailable";
@@ -131,7 +130,6 @@ export default function GlobalMarketPage() {
   const lastSuccessLabel = checkFailed && data.retrievedAt ? formatTaipeiTime(data.retrievedAt) : "";
 
   return <main className="globalPage">
-    <SiteHeader />
     <section className="globalHero">
       <p>GLOBAL PRECIOUS METALS</p>
       <h1>全球貴金屬報價中心</h1>
@@ -146,6 +144,9 @@ export default function GlobalMarketPage() {
           <small>本站檢查 {formatTaipeiTime(lastAttemptAt || data.retrievedAt)}{lastSuccessLabel ? ` · 上次成功 ${lastSuccessLabel}` : ""} · 每 3 分鐘</small>
         </div>
       </div>
+      {data.metals.length === 0 ? (
+        <p className="quoteEmptyPanel">目前沒有可驗證的即時報價，系統每 3 分鐘重試。</p>
+      ) : (
       <div className="metalGrid">{data.metals.map((item) => {
         const hasChange = item.changePercent !== null && Number.isFinite(item.changePercent);
         const direction = hasChange ? Math.sign(item.changePercent!) : 0;
@@ -156,6 +157,7 @@ export default function GlobalMarketPage() {
           <small>每金衡盎司</small>
         </button>;
       })}</div>
+      )}
     </section>
     <section className="converter">
       <div><p>CURRENCY CONVERTER</p><h2>貴金屬幣別換算</h2><span>依有效國際參考報價與匯率估算</span></div>

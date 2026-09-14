@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import SiteHeader from "../SiteHeader";
 
 const pages = {
   international: ["GLOBAL SPOT MARKET", "國際金價", "追蹤 XAU/USD 現貨價格與主要貴金屬市場的盤中脈動。", "4,424.50", "美元／盎司", "+18.43　+0.42%", [["紐約黃金期貨", "4,430.20", "美元／盎司", "+0.38%"], ["國際白銀", "54.31", "美元／盎司", "+1.12%"], ["美元指數", "97.48", "DXY", "−0.07%"]], "價格以國際市場報價為參考；受到匯率、利率預期與市場情緒影響，盤中價格可能快速變動。"],
@@ -17,7 +16,6 @@ export default async function SectionPage({ params }: { params: Promise<{ sectio
   return (
     <main className="subpage">
       <div className="topline"><span>資料來源校正中</span><span>未連接有效行情時不顯示數字</span></div>
-      <SiteHeader />
       <section className="subHero">
         <p className="eyebrow">{eyebrow}</p>
         <h1>{title}</h1>

@@ -5,7 +5,7 @@ import { getDailyGoldNews } from "../api/news-service";
 import { recentEditorials, type NewsLocale } from "./editorial";
 import { editorialLabels } from "./EditorialView";
 import { categories } from "./categories";
-import SiteHeader from "../SiteHeader";
+import CoverImage from "../CoverImage";
 
 export const dynamic = "force-dynamic";
 type Query = { lang?: string; category?: string };
@@ -53,14 +53,7 @@ export default async function NewsIndex({ searchParams }: { searchParams: Promis
   const countFor = (entry: Category) => editorials.filter((article) => entry === "all" || (article.category ?? "macro") === entry).length
     + official.filter((item) => entry === "all" || safeItemCategory(item.category) === entry).length;
 
-  const localeHrefs = {
-    zh: `/news?lang=zh&category=${category}`,
-    en: `/news?lang=en&category=${category}`,
-    ja: `/news?lang=ja&category=${category}`,
-  };
-
-  return <>
-    <SiteHeader locale={locale} localeHrefs={localeHrefs} />
+  return (
     <main className="articlePage editorialPage articleShell" lang={locale === "zh" ? "zh-Hant" : locale}>
     <h1>{labels.all}</h1>
     <p className="editorialLead">{labels.introduction}</p>
@@ -69,8 +62,7 @@ export default async function NewsIndex({ searchParams }: { searchParams: Promis
 
     <div className="editorialList">{editorialRows.map((article) => <article key={article.id}>
       <Link href={`/news/${article.id}`}>
-        {/* eslint-disable-next-line @next/next/no-img-element -- Editorial artwork paths are controlled article data and preserve their source dimensions. */}
-        <img src={article.image} alt={article.imageAlt} width="1536" height="1024" loading="lazy"/>
+        <CoverImage src={article.image} />
         <p className="articleKicker">{categories[article.category ?? "macro"][locale]} · {labels.event}: {article.eventDate}</p>
         <h2>{article.title}</h2>
       </Link>
@@ -89,5 +81,5 @@ export default async function NewsIndex({ searchParams }: { searchParams: Promis
     </section>}
     {!editorialRows.length && !officialRows.length && <p>{labels.noNews}</p>}
   </main>
-  </>;
+  );
 }

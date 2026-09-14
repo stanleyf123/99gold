@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import SiteChrome from "./SiteChrome";
 import "./globals.css";
 import "./quotes.css";
 import "./site-chrome.css";
@@ -37,7 +38,7 @@ export default function RootLayout({
   return (
     <html lang="zh-Hant">
       <body>
-        {children}
+        <SiteChrome>{children}</SiteChrome>
         <Script src="https://www.googletagmanager.com/gtag/js?id=G-QF9X3TLYZT" strategy="afterInteractive" />
         <Script id="google-analytics" strategy="afterInteractive">
           {`window.dataLayer = window.dataLayer || [];
