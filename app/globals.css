@@ -92,6 +92,10 @@
 .offlineBanner{position:sticky;top:0;z-index:1400;background:#172128;color:#f7f2e6;padding:10px 16px;text-align:center;font-size:13px;line-height:1.55}
 .alertNotifyRow{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px}
 .alertNotifyRow p{margin:0;color:#6f766f;font-size:13px;line-height:1.65;max-width:62em}
+.alertChannelRow{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px}
+.alertChannelRow label{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#1b282d}
+.alertChannelRow label:has(input:disabled){color:#8a8378;font-weight:600}
+.alertChannelRow p{margin:0;color:#6f766f;font-size:13px;line-height:1.65;max-width:62em}
 .notifyEnable{min-height:40px;border:1px solid #1b282d;background:#fffdf8;color:#1b282d;padding:0 16px;font-weight:700}
 .compactAlerts{grid-template-columns:1fr;padding-top:36px;padding-bottom:48px;gap:22px;background:#f3eee4;border-top:1px solid #d5ccba}
 .compactAlerts .alertIntro>p:last-child{max-width:none}

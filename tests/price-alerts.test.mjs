@@ -47,6 +47,14 @@ test("below-target alerts recross after the quote moves away", () => {
   assert.equal(shouldFireAlert(reset, 15900), true);
 });
 
+test("loads notifyEmail / notifyLine flags from storage without dropping browser alerts", () => {
+  const alerts = parseStoredAlerts(JSON.stringify([{
+    id: 11, market: "qian", target: 17000, direction: "above", notifyEmail: true, notifyLine: false,
+  }]));
+  assert.equal(alerts[0].notifyEmail, true);
+  assert.equal(alerts[0].notifyLine, false);
+});
+
 test("loads legacy localStorage alerts without a direction field", () => {
   const alerts = parseStoredAlerts(JSON.stringify([{ id: 9, market: "gram", target: "4416" }]));
   assert.equal(alerts.length, 1);

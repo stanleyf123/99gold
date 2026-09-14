@@ -259,6 +259,10 @@ test("ships a scheduled auto-publish news pipeline", async () => {
   assert.match(deploy, /OnCalendar=0\/3:00:00/);
   assert.match(deploy, /99gold-news\.timer/);
   assert.match(deploy, /npm run news:pipeline/);
+  assert.match(deploy, /npm run alerts:dispatch/);
+  assert.match(deploy, /ALERT_EMAIL_TO/);
+  assert.match(deploy, /LINE_CHANNEL_ACCESS_TOKEN/);
+  assert.match(deploy, /99gold-alerts\.timer/);
   assert.match(deploy, /127\.0\.0\.1:3000/);
   assert.match(deploy, /Akamai Access Denied HTML 403/);
   assert.match(deploy, /ons\.gov\.uk\/releasecalendar\?rss/);
@@ -336,7 +340,9 @@ test("wires 30-90 day charts, metal comparison, browser alerts, OG route and PWA
 
   assert.match(sectionPage, /getGoldHistoryOrNull\("1M"\)/);
   assert.match(jewelryView, /PriceHistoryChart/);
-  assert.match(jewelryView, /近 30／90 日/);
+  assert.match(jewelryView, /歷史匯率換算參考/);
+  assert.match(jewelryView, /\/api\/jewelry-history/);
+  assert.match(sectionPage, /getJewelryHistoryOrNull/);
   assert.match(sectionView, /section === "international"/);
   assert.match(sectionView, /PriceHistoryChart/);
   assert.match(chart, /endpoint = "\/api\/gold-history"/);
@@ -347,7 +353,8 @@ test("wires 30-90 day charts, metal comparison, browser alerts, OG route and PWA
   assert.match(homeView, /<PriceAlerts/);
   assert.match(globalView, /<PriceAlerts/);
   assert.match(alerts, /Notification.requestPermission/);
-  assert.match(alerts, /LINE／Email/);
+  assert.match(alerts, /Email／LINE/);
+  assert.match(alerts, /\/api\/price-alerts/);
   assert.match(alertsLib, /PRICE_ALERTS_STORAGE_KEY/);
   assert.match(og, /ImageResponse/);
   assert.match(og, /taiwanQianValue/);

@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit --incremental false",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
-    "news:pipeline": "tsx scripts/run-news-pipeline.ts"
+    "news:pipeline": "tsx scripts/run-news-pipeline.ts",
+    "alerts:dispatch": "tsx scripts/run-price-alerts.ts"
   },
   "dependencies": {
     "better-sqlite3": "12.4.1",

@@ -48,6 +48,21 @@ NODE_ENV=production
 # OPENAI_API_KEY=
 # TRANSLATE_API_KEY=
 # MYMEMORY_EMAIL=
+
+# 到價提醒 Email（擇一：Resend HTTP 或 SMTP 465）。未設定時前台仍有瀏覽器通知。
+# ALERT_EMAIL_TO=stanleys1225@gmail.com
+# ALERT_EMAIL_FROM=99GOLD.NET <alerts@99gold.net>
+# RESEND_API_KEY=
+# SMTP_HOST=smtp.resend.com
+# SMTP_PORT=465
+# SMTP_USER=resend
+# SMTP_PASS=
+
+# 到價提醒 LINE（擇一）。LINE Notify 已停用，請優先 Messaging API。
+# LINE_CHANNEL_ACCESS_TOKEN=
+# LINE_USER_ID=
+# LINE_NOTIFY_TOKEN=
+# LINE_WEBHOOK_URL=
 ```
 
 產生權杖範例：`openssl rand -hex 32`。不要把真實權杖寫進 git。
@@ -140,6 +155,63 @@ WantedBy=timers.target
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable --now 99gold-news.timer
+```
+
+## 5b. systemd timer：到價提醒 Email／LINE
+
+瀏覽器 Notification 仍在訪客裝置上檢查。Email／LINE 則由伺服器發送（同一目標 6 小時冷卻，另有 30 秒全域間隔以免洗版）。金鑰寫在 `/etc/99gold.env` 一次即可；收件人與 LINE 使用者 ID 也可在 `/admin` 儲存。
+
+```bash
+cd /var/www/99gold
+sudo -u www-data npm run alerts:dispatch
+```
+
+`/etc/systemd/system/99gold-alerts.service`：
+
+```ini
+[Unit]
+Description=99gold.net price alert dispatch
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/99gold
+EnvironmentFile=/etc/99gold.env
+ExecStart=/usr/bin/npm run alerts:dispatch
+Nice=10
+```
+
+`/etc/systemd/system/99gold-alerts.timer`：
+
+```ini
+[Unit]
+Description=Dispatch 99gold price alerts every 10 minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=10min
+AccuracySec=1min
+Persistent=true
+Unit=99gold-alerts.service
+
+[Install]
+WantedBy=timers.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now 99gold-alerts.timer
+```
+
+未設定 `RESEND_API_KEY`／`SMTP_HOST` 與 LINE token 時，指令會成功但 `fired` 為 0，不影響網站。前台「我的到價提醒」仍可開瀏覽器通知。
+
+等價 crontab：
+
+```cron
+*/10 * * * * www-data cd /var/www/99gold && /usr/bin/npm run alerts:dispatch >> /var/log/99gold-alerts.log 2>&1
 ```
 
 等價 crontab（若不用 systemd timer）：
@@ -244,7 +316,7 @@ curl -sS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3000/
 curl -sS http://127.0.0.1:3000/api/global-quotes | head
 curl -sS http://127.0.0.1:3000/robots.txt
 curl -sS http://127.0.0.1:3000/sitemap.xml | head
-sudo systemctl status 99gold.service 99gold-news.timer
+sudo systemctl status 99gold.service 99gold-news.timer 99gold-alerts.timer
 ```
 
 ## 8. SEO

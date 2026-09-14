@@ -4,12 +4,32 @@ import vm from "node:vm";
 import test from "node:test";
 import ts from "typescript";
 
-const code = ts.transpileModule(
-  readFileSync(new URL("../lib/section-quotes.ts", import.meta.url), "utf8"),
-  { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } },
-).outputText;
-const context = { exports: {}, module: { exports: {} }, Intl, Date, Number, Math, String, Array };
-vm.runInNewContext(code, context);
+function load(path, requireMap = {}) {
+  const code = ts.transpileModule(readFileSync(new URL(path, import.meta.url), "utf8"), {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+  }).outputText;
+  const context = {
+    exports: {},
+    module: { exports: {} },
+    require: (id) => {
+      if (requireMap[id]) return requireMap[id];
+      throw new Error(`unexpected require: ${id}`);
+    },
+    Intl,
+    Date,
+    Number,
+    Math,
+    String,
+    Array,
+    Map,
+    Set,
+    JSON,
+  };
+  vm.runInNewContext(code, context);
+  return context.exports;
+}
+
+const historicalFx = load("../lib/historical-fx.ts");
 const {
   JEWELRY_SELL_PREMIUM_RATE,
   RECYCLE_PURITY,
@@ -28,7 +48,7 @@ const {
   jewelryRangeFromRows,
   jewelryLiveExtras,
   jewelryFaqEntries,
-} = context.exports;
+} = load("../lib/section-quotes.ts", { "./historical-fx": historicalFx });
 
 const quotes = {
   metals: [
@@ -130,9 +150,35 @@ test("jewelry live extras and history rows use existing quote math", () => {
   assert.equal(range?.count, 2);
   assert.equal(range?.sellHigh, Math.max(rows[0].sell, rows[1].sell));
   const faq = jewelryFaqEntries(extras);
-  assert.equal(faq.length, 5);
+  assert.equal(faq.length, 6);
   assert.match(faq[0].answer, /16,560/);
   assert.match(faq[1].answer, /4%/);
+  assert.match(faq[5].answer, /歷史匯率換算參考/);
+  assert.match(faq[5].answer, /最近前一營業日/);
+});
+
+test("jewelry history rows pair each close with same-day FX and omit missing rates", () => {
+  const friday = Date.parse("2026-09-11T04:00:00Z") / 1000;
+  const saturday = Date.parse("2026-09-12T04:00:00Z") / 1000;
+  const monday = Date.parse("2026-09-14T04:00:00Z") / 1000;
+  const rates = [
+    { date: "2026-09-11", usdTwd: 31.5, source: "bot-sight-sell" },
+    { date: "2026-09-14", usdTwd: 32.0, source: "bot-sight-sell" },
+  ];
+  const rows = jewelryHistoryRows([
+    { timestamp: friday, close: 2000 },
+    { timestamp: saturday, close: 2000 },
+    { timestamp: monday, close: 2100 },
+    { timestamp: Date.parse("2026-08-01T00:00:00Z") / 1000, close: 1800 },
+  ], rates);
+  assert.equal(rows.length, 3);
+  assert.equal(rows[0].usdTwd, 31.5);
+  assert.equal(rows[0].fxDate, "2026-09-11");
+  assert.equal(rows[1].usdTwd, 31.5);
+  assert.equal(rows[1].fxDate, "2026-09-11");
+  assert.equal(rows[2].usdTwd, 32);
+  assert.equal(rows[2].buy, qianFromUsdOz(2100, 32));
+  assert.notEqual(rows[0].buy, qianFromUsdOz(2000, 32));
 });
 
 test("empty quotes keep dashes only when upstream data is missing", () => {

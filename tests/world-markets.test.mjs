@@ -21,12 +21,15 @@ function load(path, requireMap = {}) {
     Math,
     String,
     Array,
+    Map,
+    Set,
   };
   vm.runInNewContext(code, context);
   return context.exports;
 }
 
-const section = load("../lib/section-quotes.ts");
+const historicalFx = load("../lib/historical-fx.ts");
+const section = load("../lib/section-quotes.ts", { "./historical-fx": historicalFx });
 const {
   HONG_KONG_TAEL_GRAMS,
   CHINA_SHI_TAEL_GRAMS,
