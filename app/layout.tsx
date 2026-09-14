@@ -1,29 +1,25 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import JsonLd from "./JsonLd";
 import SiteChrome from "./SiteChrome";
+import { DEFAULT_OG_ALT, DEFAULT_OG_IMAGE, SITE_NAME_EN, SITE_URL, organizationJsonLd, pageMetadata, websiteJsonLd } from "../lib/seo";
 import "./globals.css";
 import "./quotes.css";
 import "./site-chrome.css";
 
+const home = pageMetadata("home");
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://99gold.net"),
-  title: "玖久黃金報價網｜即時黃金報價與市場情報",
-  description: "真金價值，長久相伴。掌握專業黃金報價、COMEX 走勢、台灣黃金換算、全球貴金屬與完整歷史金價。",
+  metadataBase: new URL(SITE_URL),
+  title: home.title,
+  description: home.description,
+  alternates: { canonical: SITE_URL },
   openGraph: {
-    title: "玖久黃金報價網｜專業黃金報價與歷史金價",
-    description: "國際參考、台灣換算、COMEX 走勢、全球貴金屬與歷史金價，一頁掌握。",
-    url: "/",
-    siteName: "99GOLD.NET",
-    locale: "zh_TW",
-    type: "website",
-    images: [{ url: "/og-quotes-v2.png", width: 1200, height: 630, alt: "玖久黃金報價網專業黃金報價與歷史金價" }],
+    ...home.openGraph,
+    siteName: SITE_NAME_EN,
+    images: [{ url: DEFAULT_OG_IMAGE, width: 1200, height: 630, alt: DEFAULT_OG_ALT }],
   },
-  twitter: {
-    card: "summary_large_image",
-    title: "玖久黃金報價網｜專業黃金報價與歷史金價",
-    description: "國際參考、台灣換算、COMEX 走勢與完整歷史金價。",
-    images: ["/og-quotes-v2.png"],
-  },
+  twitter: home.twitter,
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
@@ -39,6 +35,8 @@ export default function RootLayout({
     <html lang="zh-Hant">
       <body>
         <SiteChrome>{children}</SiteChrome>
+        <JsonLd data={organizationJsonLd()} />
+        <JsonLd data={websiteJsonLd()} />
         <Script src="https://www.googletagmanager.com/gtag/js?id=G-QF9X3TLYZT" strategy="afterInteractive" />
         <Script id="google-analytics" strategy="afterInteractive">
           {`window.dataLayer = window.dataLayer || [];

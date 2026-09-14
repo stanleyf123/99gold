@@ -23,11 +23,16 @@ const {
   buildSectionView,
   formatTaipeiTime,
   marketStatusLabel,
+  qianFromUsdOz,
+  jewelryHistoryRows,
+  jewelryRangeFromRows,
+  jewelryLiveExtras,
+  jewelryFaqEntries,
 } = context.exports;
 
 const quotes = {
   metals: [
-    { id: "gold", symbol: "GC=F", name: "黃金期貨", price: 4424.5, change: 18.43, changePercent: 0.42, source: "Yahoo Finance chart" },
+    { id: "gold", symbol: "GC=F", name: "黃金期貨", price: 4424.5, previousClose: 4400, change: 18.43, changePercent: 0.42, source: "Yahoo Finance chart" },
     { id: "silver", symbol: "SI=F", name: "白銀期貨", price: 54.31, change: 0.6, changePercent: 1.12, source: "Yahoo Finance chart" },
     { id: "platinum", symbol: "PL=F", name: "鉑金期貨", price: 1410.2, change: -2.1, changePercent: -0.15, source: "Yahoo Finance chart" },
   ],
@@ -40,6 +45,7 @@ const quotes = {
   retrievedAt: "2026-09-14T08:01:00.000Z",
   source: "Yahoo Finance chart · 臺灣銀行美元即期牌告",
   marketStatus: "open",
+  currencies: { TWD: 32 },
 };
 
 test("parses locale-formatted taiwan-qian prices", () => {
@@ -102,6 +108,31 @@ test("jewelry stays empty when gold exists but taiwan-qian is missing", () => {
   const view = buildSectionView("jewelry", { ...quotes, items: quotes.items.filter((item) => item.id !== "taiwan-qian") });
   assert.equal(view.connected, false);
   assert.equal(view.price, "—");
+});
+
+test("jewelry live extras and history rows use existing quote math", () => {
+  assert.equal(qianFromUsdOz(2000, 32), Math.round(2000 * 32 / 31.1034768 * 3.75));
+  const extras = jewelryLiveExtras(quotes);
+  assert.equal(extras?.buy, 16560);
+  assert.equal(extras?.sell, 17222);
+  assert.equal(extras?.sellChange, 17222 - jewelrySellFromBuy(qianFromUsdOz(4400, quotes.currencies.TWD)));
+  const rows = jewelryHistoryRows([
+    { timestamp: 1, close: 2000 },
+    { timestamp: 2, close: 2100 },
+  ], 32);
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].buy, qianFromUsdOz(2000, 32));
+  assert.equal(rows[0].sell, jewelrySellFromBuy(rows[0].buy));
+  assert.equal(rows[0].recycleFine, recycleFromQian(rows[0].buy, 1));
+  assert.equal(rows[0].change, null);
+  assert.equal(rows[1].change, rows[1].sell - rows[0].sell);
+  const range = jewelryRangeFromRows(rows);
+  assert.equal(range?.count, 2);
+  assert.equal(range?.sellHigh, Math.max(rows[0].sell, rows[1].sell));
+  const faq = jewelryFaqEntries(extras);
+  assert.equal(faq.length, 5);
+  assert.match(faq[0].answer, /16,560/);
+  assert.match(faq[1].answer, /4%/);
 });
 
 test("empty quotes keep dashes only when upstream data is missing", () => {

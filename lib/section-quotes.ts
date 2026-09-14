@@ -17,6 +17,8 @@ export const WEIGHT_TO_QIAN: Record<RecycleWeightUnit, number> = {
   tael: QIAN_PER_TAEL,
 };
 
+export const TROY_OUNCE_GRAMS = 31.1034768;
+
 export type SectionName = "international" | "jewelry" | "recycling";
 export type SectionCard = { name: string; price: string; unit: string; change: string };
 export type SectionView = {
@@ -212,7 +214,11 @@ function jewelryView(quotes: GlobalQuotes): SectionView | null {
   if (buy === null) return null;
   const sell = jewelrySellFromBuy(buy);
   const gold = quotes.metals.find((metal) => metal.id === "gold");
-  const buyChange = gold ? metalChange(gold) : (itemById(quotes.items, "taiwan-qian")?.change ?? "未含銀樓價差與費用");
+  const extras = jewelryLiveExtras(quotes);
+  const buyChange = extras?.buyChange;
+  const buyChangeLabel = buyChange == null
+    ? (gold ? metalChange(gold) : (itemById(quotes.items, "taiwan-qian")?.change ?? "未含銀樓價差與費用"))
+    : `${buyChange >= 0 ? "+" : "−"}${formatTwdAmount(Math.abs(buyChange))}${extras?.changePercent != null && Number.isFinite(extras.changePercent) ? `　${extras.changePercent >= 0 ? "+" : "−"}${Math.abs(extras.changePercent).toFixed(2)}%` : ""}`;
   const page = copy.jewelry;
   return {
     eyebrow: page.eyebrow,
@@ -222,7 +228,7 @@ function jewelryView(quotes: GlobalQuotes): SectionView | null {
     price: formatTwdAmount(sell),
     change: `估計溢價 ${(JEWELRY_SELL_PREMIUM_RATE * 100).toFixed(0)}%`,
     cards: [
-      { name: "999.9 黃金買進", price: formatTwdAmount(buy), unit: "台幣／錢", change: buyChange },
+      { name: "999.9 黃金買進", price: formatTwdAmount(buy), unit: "台幣／錢", change: buyChangeLabel },
       { name: "999.9 黃金賣出估計", price: formatTwdAmount(sell), unit: "台幣／錢", change: `估計溢價 ${(JEWELRY_SELL_PREMIUM_RATE * 100).toFixed(0)}%（非店家牌價）` },
       gramValue !== null
         ? { name: gram?.label ?? "黃金每公克", price: formatTwdAmount(gramValue), unit: gram?.unit ?? "台幣／公克", change: gram?.change ?? "未含銀樓價差與費用" }
@@ -263,4 +269,131 @@ export function buildSectionView(section: SectionName, quotes: GlobalQuotes | nu
       ? jewelryView(quotes)
       : recyclingView(quotes);
   return view ?? emptyView(section);
+}
+
+export function usdTwdFromQuotes(quotes: GlobalQuotes | null | undefined): number | null {
+  const rate = quotes?.currencies?.TWD;
+  return typeof rate === "number" && Number.isFinite(rate) && rate > 0 ? rate : null;
+}
+
+export function qianFromUsdOz(usdPerOz: number, usdTwd: number): number {
+  return Math.round(usdPerOz * usdTwd / TROY_OUNCE_GRAMS * GRAMS_PER_QIAN);
+}
+
+export type JewelryDayRow = {
+  timestamp: number;
+  buy: number;
+  sell: number;
+  change: number | null;
+  recycleFine: number;
+};
+
+export type JewelryRange = {
+  sellHigh: number;
+  sellLow: number;
+  sellAvg: number;
+  buyHigh: number;
+  buyLow: number;
+  buyAvg: number;
+  count: number;
+};
+
+export type JewelryLiveExtras = {
+  buy: number;
+  sell: number;
+  buyChange: number | null;
+  sellChange: number | null;
+  changePercent: number | null;
+  usdTwd: number | null;
+};
+
+export function jewelryHistoryRows(
+  points: Array<{ timestamp: number; close: number }>,
+  usdTwd: number,
+): JewelryDayRow[] {
+  if (!(usdTwd > 0) || points.length === 0) return [];
+  const rows: JewelryDayRow[] = [];
+  for (let index = 0; index < points.length; index += 1) {
+    const point = points[index];
+    if (!Number.isFinite(point.close) || point.close <= 0) continue;
+    const buy = qianFromUsdOz(point.close, usdTwd);
+    const sell = jewelrySellFromBuy(buy);
+    const previous = rows.at(-1);
+    rows.push({
+      timestamp: point.timestamp,
+      buy,
+      sell,
+      change: previous ? sell - previous.sell : null,
+      recycleFine: recycleFromQian(buy, RECYCLE_PURITY["999.9"]),
+    });
+  }
+  return rows;
+}
+
+export function jewelryRangeFromRows(rows: JewelryDayRow[]): JewelryRange | null {
+  if (rows.length === 0) return null;
+  const sells = rows.map((row) => row.sell);
+  const buys = rows.map((row) => row.buy);
+  const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
+  return {
+    sellHigh: Math.max(...sells),
+    sellLow: Math.min(...sells),
+    sellAvg: Math.round(sum(sells) / sells.length),
+    buyHigh: Math.max(...buys),
+    buyLow: Math.min(...buys),
+    buyAvg: Math.round(sum(buys) / buys.length),
+    count: rows.length,
+  };
+}
+
+export function jewelryLiveExtras(quotes: GlobalQuotes | null): JewelryLiveExtras | null {
+  if (!quotes) return null;
+  const buy = taiwanQianValue(quotes.items);
+  const usdTwd = usdTwdFromQuotes(quotes);
+  if (buy === null) return null;
+  const sell = jewelrySellFromBuy(buy);
+  const gold = quotes.metals.find((metal) => metal.id === "gold");
+  const previousClose = gold && Number.isFinite(gold.previousClose) && (gold.previousClose as number) > 0
+    ? gold.previousClose as number
+    : null;
+  const prevBuy = previousClose !== null && usdTwd !== null ? qianFromUsdOz(previousClose, usdTwd) : null;
+  const prevSell = prevBuy !== null ? jewelrySellFromBuy(prevBuy) : null;
+  const changePercent = gold && Number.isFinite(gold.changePercent) ? gold.changePercent : null;
+  return {
+    buy,
+    sell,
+    buyChange: prevBuy !== null ? buy - prevBuy : null,
+    sellChange: prevSell !== null ? sell - prevSell : null,
+    changePercent,
+    usdTwd,
+  };
+}
+
+export type JewelryFaqEntry = { question: string; answer: string };
+
+export function jewelryFaqEntries(live: JewelryLiveExtras | null): JewelryFaqEntry[] {
+  const buyText = live ? `${formatTwdAmount(live.buy)} 元／錢` : "見本頁上方即時數字";
+  const sellText = live ? `${formatTwdAmount(live.sell)} 元／錢` : "見本頁上方即時數字";
+  return [
+    {
+      question: "今天台灣黃金一錢多少錢？",
+      answer: `本站今日理論買進約 ${buyText}，估計賣出約 ${sellText}。這是以 COMEX 黃金參考價乘上臺銀美元即期賣出後換算的理論值，不是某一家銀樓的成交牌價。`,
+    },
+    {
+      question: "買進和賣出在本站分別代表什麼？",
+      answer: "買進是 GC 黃金參考價與臺銀美元即期賣出換算後的理論成本，未含店家價差、工費與稅費。賣出是在該理論成本上加上 4% 估計溢價，方便對照銀樓常見賣出區間，並非店家牌告。",
+    },
+    {
+      question: "為什麼跟銀樓掛牌不一樣？",
+      answer: "銀樓會再加自己的買賣價差、成色認定、工費與庫存風險。本站只公開可驗證的國際金價與匯率換算，因此數字會與門市不同；實際買賣請向店家確認。",
+    },
+    {
+      question: "回收價是怎麼估算的？",
+      answer: "理論回收依台灣理論買進成本乘上成色比例（999.9、916、750）。未扣除檢測、耗損或手續費，也不能代表條塊或飾金的店家回收價。",
+    },
+    {
+      question: "資料多久更新一次？",
+      answer: "國際金價來源約每 3 分鐘檢查一次；臺銀匯率依牌告時間更新。市場休市時會保留最後有效行情，並標示休市狀態。",
+    },
+  ];
 }

@@ -324,3 +324,11 @@ export async function getGlobalQuotes(): Promise<GlobalQuotes> {
     source: `${sources.join(" + ")}${fx.bankOfTaiwan ? " · 臺灣銀行美元即期牌告" : fx.selectedUsdTwd === null ? "" : " · open.er-api.com FX 備援"}${Object.keys(fx.currencies).some((code) => !["USD", "TWD"].includes(code)) ? " · open.er-api.com 全球匯率" : ""}`,
   };
 }
+
+export async function getGlobalQuotesOrNull(): Promise<GlobalQuotes | null> {
+  try {
+    return await getGlobalQuotes();
+  } catch {
+    return null;
+  }
+}
