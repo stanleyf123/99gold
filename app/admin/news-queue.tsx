@@ -14,6 +14,11 @@ type Candidate = {
   status: "pending" | "approved" | "published" | "rejected";
   scheduled_for: string | null;
   published_at: string | null;
+  translation_provider: string | null;
+  reviewed_by: string | null;
+  title_zh: string | null;
+  title_en: string | null;
+  title_ja: string | null;
 };
 type SourceState = {
   source_id: string;
@@ -111,7 +116,7 @@ export default function NewsQueue() {
     <p className="newsQueueStatus">{status}</p>
     <div className="newsScheduleSummary">
       <article><span>自動檢查</span><strong>每 3 小時</strong><small>僅限白名單官方 RSS</small></article>
-      <article><span>發布方式</span><strong>人工核准</strong><small>核准後由排程發布</small></article>
+      <article><span>發布方式</span><strong>自動上架</strong><small>抓取後翻譯並立即發布</small></article>
       <article><span>最近執行</span><strong>{latestRun ? statusNames[latestRun.status as keyof typeof statusNames] ?? latestRun.status : "尚無紀錄"}</strong><small>{latestRun ? formatTime(latestRun.finished_at) : "等待首次排程"}</small></article>
     </div>
     <div className="sourceHealth">
@@ -133,10 +138,11 @@ export default function NewsQueue() {
       {visibleCandidates.length ? visibleCandidates.map((candidate) => <article key={candidate.id}>
         <div className="candidateMeta"><span className={`candidateStatus ${candidate.status}`}>{statusNames[candidate.status]}</span><span>{candidate.source_name}</span><time>{formatTime(candidate.source_published_at)}</time></div>
         <h4><a href={candidate.canonical_url} target="_blank" rel="noreferrer">{candidate.title} ↗</a></h4>
+        {candidate.title_zh && candidate.title_zh !== candidate.title && <p lang="zh-Hant">{candidate.title_zh}</p>}
         {candidate.summary && <p>{candidate.summary}</p>}
         {candidate.status === "pending" && <div className="candidateActions"><button disabled={busy} onClick={() => void review(candidate.id, "approve")}>核准並排程</button><button disabled={busy} className="secondary" onClick={() => void review(candidate.id, "reject")}>拒絕</button></div>}
         {candidate.status === "approved" && <small>預定：{formatTime(candidate.scheduled_for)}</small>}
-        {candidate.status === "published" && <small>本站發布：{formatTime(candidate.published_at)}</small>}
+        {candidate.status === "published" && <small>本站發布：{formatTime(candidate.published_at)}{candidate.reviewed_by ? ` · ${candidate.reviewed_by}` : ""}{candidate.translation_provider ? ` · ${candidate.translation_provider}` : ""}</small>}
       </article>) : <p>目前沒有候選新聞；可立即檢查來源，或等待下一個排程。</p>}
     </div>
   </section>;

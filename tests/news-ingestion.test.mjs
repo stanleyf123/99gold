@@ -38,11 +38,12 @@ const normalize = moduleFrom("../lib/news/normalize.ts");
 const sources = moduleFrom("../lib/news/source-config.ts");
 const feedClient = moduleFrom("../lib/news/feed-client.ts");
 
-function loadPipeline() {
+function loadPipeline(translate = defaultTranslate()) {
   const mocks = {
     "./normalize": normalize,
     "./source-config": sources,
     "./feed-client": feedClient,
+    "./translate": translate,
   };
   return moduleFrom("../lib/news/pipeline.ts", {
     require: (id) => {
@@ -52,9 +53,25 @@ function loadPipeline() {
   });
 }
 
-function memoryDb() {
+function defaultTranslate() {
+  return {
+    AUTO_PIPELINE_REVIEWER: "auto-pipeline",
+    translateOfficialBrief: async (title, summary) => ({
+      titles: { zh: `中文：${title}`, en: title, ja: `日本語：${title}` },
+      summaries: {
+        zh: summary ? `中文摘要：${summary}` : null,
+        en: summary,
+        ja: summary ? `日本語要約：${summary}` : null,
+      },
+      provider: "mymemory",
+      translated: true,
+    }),
+  };
+}
+
+function memoryDb(seed = []) {
   const sourceState = new Map();
-  const candidates = [];
+  const candidates = [...seed];
   const runs = [];
   return {
     candidates,
@@ -87,11 +104,39 @@ function memoryDb() {
             return { meta: { changes: 1 } };
           }
           if (q.includes("INSERT OR IGNORE INTO news_candidates")) {
-            const row = { id: bound[0], url: bound[3], title: bound[4], status: "pending" };
+            const row = {
+              id: bound[0],
+              url: bound[3],
+              title: bound[4],
+              summary: bound[6] ?? null,
+              source_language: bound[8] ?? "en",
+              status: "pending",
+              reviewed_by: null,
+              translation_provider: null,
+              title_zh: null,
+              title_en: null,
+              title_ja: null,
+            };
             if (candidates.some((item) => item.id === row.id || item.url === row.url)) {
               return { meta: { changes: 0 } };
             }
             candidates.push(row);
+            return { meta: { changes: 1 } };
+          }
+          if (q.includes("UPDATE news_candidates") && q.includes("title_zh")) {
+            const id = bound[bound.length - 1];
+            const row = candidates.find((item) => item.id === id && (item.status === "pending" || item.status === "approved"));
+            if (!row) return { meta: { changes: 0 } };
+            row.title_zh = bound[0];
+            row.title_en = bound[1];
+            row.title_ja = bound[2];
+            row.summary_zh = bound[3];
+            row.summary_en = bound[4];
+            row.summary_ja = bound[5];
+            row.translation_provider = bound[6];
+            row.status = "published";
+            row.reviewed_by = bound[10];
+            row.published_at = bound[11];
             return { meta: { changes: 1 } };
           }
           if (q.includes("UPDATE news_candidates") && q.includes("published")) return { meta: { changes: 0 } };
@@ -105,11 +150,16 @@ function memoryDb() {
         async first() {
           if (q.includes("FROM news_source_state")) return null;
           if (q.includes("FROM news_candidates")) {
-            return candidates.find((item) => item.url === bound[0]) ?? null;
+            return candidates.find((item) => item.url === bound[0] || item.id === bound[0]) ?? null;
           }
           return null;
         },
         async all() {
+          if (q.includes("FROM news_candidates") && q.includes("pending")) {
+            return {
+              results: candidates.filter((item) => item.status === "pending" || item.status === "approved"),
+            };
+          }
           return { results: [] };
         },
       };
@@ -272,7 +322,10 @@ test("pipeline records per-source 403 errors instead of empty success", async ()
   assert.ok(blocked.every((source) => /HTTP 403/.test(source.error ?? "")));
   assert.ok(seenHeaders.every((headers) => headers["user-agent"] === feedClient.NEWS_FEED_USER_AGENT));
   assert.ok(db.candidates.length >= 1);
-  assert.equal(db.candidates[0].status, "pending");
+  assert.equal(db.candidates[0].status, "published");
+  assert.equal(db.candidates[0].reviewed_by, "auto-pipeline");
+  assert.match(db.candidates[0].title_zh, /中文：/);
+  assert.ok(summary.publishedCount >= 1);
 });
 
 test("pipeline counts parsed feed items even when they are older than the candidate window", async () => {
@@ -407,6 +460,48 @@ test("pipeline stays succeeded without BoE and enqueues recent ONS and Treasury 
   assert.equal(treasury?.added, 1);
   assert.ok(summary.itemsSeen >= 2);
   assert.ok(summary.candidatesAdded >= 2);
+  assert.ok(summary.publishedCount >= 2);
   assert.ok(db.candidates.some((item) => item.url.includes("ons.gov.uk")));
   assert.ok(db.candidates.some((item) => item.url.includes("gov.uk/government/speeches")));
+  assert.ok(db.candidates.every((item) => item.status === "published"));
+  assert.ok(db.candidates.every((item) => item.reviewed_by === "auto-pipeline"));
+});
+
+test("pipeline auto-publishes existing pending rows and never publishes rejected ones", async () => {
+  const { runNewsPipeline } = loadPipeline();
+  const db = memoryDb([
+    {
+      id: "old-pending",
+      url: "https://www.federalreserve.gov/old.htm",
+      title: "Old pending brief",
+      summary: "Queued earlier",
+      source_language: "en",
+      status: "pending",
+    },
+    {
+      id: "approved-row",
+      url: "https://www.federalreserve.gov/approved.htm",
+      title: "Previously approved brief",
+      summary: "Waiting on schedule",
+      source_language: "en",
+      status: "approved",
+    },
+    {
+      id: "rejected-1",
+      url: "https://www.federalreserve.gov/rejected.htm",
+      title: "Rejected brief",
+      summary: "Do not publish",
+      source_language: "en",
+      status: "rejected",
+    },
+  ]);
+  const fetcher = async () => jsonResponse(200, `<rss><channel><title>empty</title></channel></rss>`);
+  const summary = await runNewsPipeline(db, new Date("2026-09-14T13:00:00Z"), "manual", fetcher);
+  assert.equal(summary.publishedCount, 2);
+  assert.equal(db.candidates.find((item) => item.id === "old-pending")?.status, "published");
+  assert.equal(db.candidates.find((item) => item.id === "old-pending")?.reviewed_by, "auto-pipeline");
+  assert.equal(db.candidates.find((item) => item.id === "old-pending")?.translation_provider, "mymemory");
+  assert.equal(db.candidates.find((item) => item.id === "approved-row")?.status, "published");
+  assert.equal(db.candidates.find((item) => item.id === "rejected-1")?.status, "rejected");
+  assert.equal(db.candidates.find((item) => item.id === "rejected-1")?.title_zh, undefined);
 });

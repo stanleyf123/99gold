@@ -78,7 +78,7 @@ export default async function NewsIndex({ searchParams }: { searchParams: Promis
     <JsonLd data={breadcrumbJsonLd([{ name: "首頁", path: "/" }, sectionCrumbs.news])} />
     <h1>{labels.all}</h1>
     <p className="editorialLead">{labels.introduction}</p>
-    <p className="newsOperationsNote">{locale === "zh" ? "官方來源每 3 小時自動檢查；快訊經管理者核准後排程發布。" : locale === "ja" ? "公式情報源を3時間ごとに確認し、承認済み速報を予定公開します。" : "Official sources are checked every 3 hours; approved briefs are published on schedule."}</p>
+    <p className="newsOperationsNote">{locale === "zh" ? "官方來源每 3 小時自動檢查、翻譯並上架快訊，無需人工核准。" : locale === "ja" ? "公式情報源を3時間ごとに確認し、速報を自動翻訳して公開します。管理者の承認は不要です。" : "Official sources are checked every 3 hours; briefs are auto-translated and published without manual approval."}</p>
     <nav className="editorialCategoryFilters" aria-label={locale === "zh" ? "新聞分類" : locale === "ja" ? "ニュース分類" : "News categories"}>{(Object.keys(categories) as Category[]).map((entry) => <Link key={entry} href={`/news?lang=${locale}&category=${entry}`} aria-current={category === entry ? "page" : undefined}>{categories[entry][locale]} <span>{countFor(entry)}</span></Link>)}</nav>
 
     <div className="editorialList">{editorialRows.map((article) => {
@@ -103,7 +103,7 @@ export default async function NewsIndex({ searchParams }: { searchParams: Promis
         <p><b>{categories[safeItemCategory(item.category)][locale]}</b><time dateTime={item.sourcePublishedAt}>{item.date}</time></p>
         <h3><a href={item.url} target="_blank" rel="noreferrer">{item.title} ↗</a></h3>
         {excerpt ? <p className="newsExcerpt">{excerpt}</p> : <p className="newsExcerptMuted">{locale === "zh" ? "來源未提供摘要。" : locale === "ja" ? "情報源に要約がありません。" : "The source did not provide an excerpt."}</p>}
-        <small>{item.sourceName}</small>
+        <small>{item.sourceName}{item.translationLabel ? ` · ${item.translationLabel}` : ""}</small>
       </article>;
       })}</div>
     </section>}

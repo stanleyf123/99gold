@@ -44,6 +44,10 @@ ADMIN_EMAIL=stanleys1225@gmail.com
 ADMIN_NAME=
 ADMIN_TOKEN=請改成足夠長的隨機字串
 NODE_ENV=production
+# 可選：較佳的 zh-Hant／ja 翻譯。未設定時使用公開 MyMemory（不必金鑰）。
+# OPENAI_API_KEY=
+# TRANSLATE_API_KEY=
+# MYMEMORY_EMAIL=
 ```
 
 產生權杖範例：`openssl rand -hex 32`。不要把真實權杖寫進 git。
@@ -144,7 +148,15 @@ sudo systemctl enable --now 99gold-news.timer
 0 */3 * * * www-data cd /var/www/99gold && /usr/bin/npm run news:pipeline >> /var/log/99gold-news.log 2>&1
 ```
 
-快訊仍須在 `/admin` 核准後才會發布。timer 只負責抓來源與發布「已核准且到期」的項目；新抓到的項目進入 pending 佇列，不會自動上 `/news`。
+部署或更新後請先跑 migration，再手動跑一次管線，讓既有 `pending` 候選一次回填為已發布：
+
+```bash
+cd /var/www/99gold
+sudo -u www-data npm run db:migrate
+sudo -u www-data npm run news:pipeline
+```
+
+成功時摘要裡的 `publishedCount` 應增加，新快訊會出現在 `https://99gold.net/news`（以及 `?lang=zh`／`en`／`ja`），不必登入 `/admin` 核准。timer 之後每 3 小時重複：抓取白名單 RSS → 翻譯標題與摘要 → 直接上架。已 `rejected` 的列不會自動發布。管理後台仍可列出項目與拒絕尚未發布的列，但快樂路徑不再需要人工核准。
 
 ### 新聞來源與 Linode IP 封鎖
 

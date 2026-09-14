@@ -1,6 +1,7 @@
 import { inspectFeedResponse, newsFeedHeaders } from "./feed-client";
 import { canonicalizeUrl, normalizedTitle, parseFeed, sha256 } from "./normalize";
 import { newsSources, sourceAcceptsTitle } from "./source-config";
+import { AUTO_PIPELINE_REVIEWER, translateOfficialBrief } from "./translate";
 
 type StatementResult = { meta?: { changes?: number } };
 type NewsStatement = {
@@ -76,12 +77,51 @@ async function recordSourceFailure(db: NewsDatabase, sourceId: string, attempted
     .bind(sourceId, attemptedAt, message).run();
 }
 
-async function publishApprovedCandidates(db: NewsDatabase, now: string) {
-  const result = await db.prepare(`UPDATE news_candidates
-    SET status = 'published', published_at = ?
-    WHERE status = 'approved' AND scheduled_for IS NOT NULL AND scheduled_for <= ?`)
-    .bind(now, now).run();
-  return result.meta?.changes ?? 0;
+type PublishableCandidate = {
+  id: string;
+  title: string;
+  summary: string | null;
+  source_language: string;
+};
+
+async function autoPublishReadyCandidates(db: NewsDatabase, now: string) {
+  const pending = await db.prepare(`SELECT id, title, summary, source_language
+    FROM news_candidates
+    WHERE status IN ('pending', 'approved')
+    ORDER BY source_published_at DESC`).all<PublishableCandidate>();
+  const rows = pending?.results ?? [];
+  let publishedCount = 0;
+  for (const candidate of rows) {
+    const translated = await translateOfficialBrief(
+      candidate.title,
+      candidate.summary,
+      candidate.source_language || "en",
+    );
+    const result = await db.prepare(`UPDATE news_candidates SET
+      title_zh = ?, title_en = ?, title_ja = ?,
+      summary_zh = ?, summary_en = ?, summary_ja = ?,
+      translation_provider = ?, translated_at = ?,
+      status = 'published', scheduled_for = ?, reviewed_at = ?,
+      reviewed_by = ?, published_at = ?
+      WHERE id = ? AND status IN ('pending', 'approved')`)
+      .bind(
+        translated.titles.zh,
+        translated.titles.en,
+        translated.titles.ja,
+        translated.summaries.zh,
+        translated.summaries.en,
+        translated.summaries.ja,
+        translated.provider,
+        now,
+        now,
+        now,
+        AUTO_PIPELINE_REVIEWER,
+        now,
+        candidate.id,
+      ).run();
+    publishedCount += result.meta?.changes ?? 0;
+  }
+  return publishedCount;
 }
 
 export async function runNewsPipeline(
@@ -199,7 +239,7 @@ export async function runNewsPipeline(
     }
   }
 
-  const publishedCount = await publishApprovedCandidates(db, new Date().toISOString());
+  const publishedCount = await autoPublishReadyCandidates(db, new Date().toISOString());
   const status: NewsRunSummary["status"] = errorCount === 0 ? "succeeded" : errorCount < newsSources.length ? "partial" : "failed";
   const finishedAt = new Date().toISOString();
   await db.prepare(`UPDATE news_runs SET

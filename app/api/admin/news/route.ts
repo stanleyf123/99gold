@@ -20,7 +20,8 @@ export async function GET() {
     const db = getRawDb();
     const [candidates, sources, runs] = await Promise.all([
       db.prepare(`SELECT id, title, summary, canonical_url, source_name, category,
-        source_published_at, first_seen_at, status, scheduled_for, published_at
+        source_published_at, first_seen_at, status, scheduled_for, published_at,
+        translation_provider, reviewed_by, title_zh, title_en, title_ja
         FROM news_candidates
         ORDER BY CASE status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 WHEN 'published' THEN 2 ELSE 3 END,
         source_published_at DESC LIMIT 100`).all(),
