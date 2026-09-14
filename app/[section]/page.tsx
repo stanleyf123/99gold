@@ -13,5 +13,32 @@ export default async function SectionPage({ params }: { params: Promise<{ sectio
   const page = pages[section as keyof typeof pages];
   if (!page) notFound();
   const [eyebrow, title, , , unit, , cards, note] = page;
-  return <main className="subpage"><div className="topline"><span>資料來源校正中</span><span>未連接有效行情時不顯示數字</span></div><nav className="nav"><Link className="brand" href="/"><i>99</i><span>玖久黃金報價網<br/><em>99GOLD.NET</em></span></Link><div className="navlinks"><Link href="/#quotes">今日金價</Link><Link className={section === "international" ? "active" : ""} href="/international">國際金價</Link><Link className={section === "jewelry" ? "active" : ""} href="/jewelry">銀樓價格</Link><Link className={section === "recycling" ? "active" : ""} href="/recycling">黃金回收</Link><Link className={section === "insights" ? "active" : ""} href="/insights">市場情報</Link></div><span className="subnavMark">99GOLD.NET</span></nav><section className="subHero"><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p>此頁尚無可驗證的即時資料。請至全球報價查看附來源的期貨參考，銀樓成交價請直接向店家確認。</p><div className="subStat"><span>{unit}</span><strong>—</strong><b>尚無有效資料</b></div></section><section className="subContent"><div className="sectionHead"><div><p className="eyebrow">TODAY&apos;S REFERENCE</p><h2>重點數據</h2></div><p>最後更新時間以頁面顯示為準。</p></div><div className="subCards">{cards.map(([name, , cardUnit]) => <article key={name}><p>{name}</p><strong>—</strong><span>{cardUnit}</span><b>尚無有效資料</b></article>)}</div><div className="guide"><span>玖久黃金報價網提示</span><p>{note}</p><Link href="/#quotes">回到即時報價　→</Link></div></section><footer><Link className="brand" href="/"><i>99</i><span>玖久黃金報價網<br/><em>99GOLD.NET</em></span></Link><p>真金價值，長久相伴。</p><span>© 2026 玖久黃金報價網</span></footer></main>;
+  return (
+    <main className="subpage">
+      <div className="topline"><span>資料來源校正中</span><span>未連接有效行情時不顯示數字</span></div>
+      <section className="subHero">
+        <p className="eyebrow">{eyebrow}</p>
+        <h1>{title}</h1>
+        <p>此頁尚無可驗證的即時資料。請至全球報價查看附來源的期貨參考，銀樓成交價請直接向店家確認。</p>
+        <div className="subStat"><span>{unit}</span><strong>—</strong><b>尚無有效資料</b></div>
+      </section>
+      <section className="subContent">
+        <div className="sectionHead">
+          <div><p className="eyebrow">TODAY&apos;S REFERENCE</p><h2>重點數據</h2></div>
+          <p>最後更新時間以頁面顯示為準。</p>
+        </div>
+        <div className="subCards">{cards.map(([name, , cardUnit]) => <article key={name}><p>{name}</p><strong>—</strong><span>{cardUnit}</span><b>尚無有效資料</b></article>)}</div>
+        <div className="guide">
+          <span>玖久黃金報價網提示</span>
+          <p>{note}</p>
+          <Link href="/#quotes">回到即時報價　→</Link>
+        </div>
+      </section>
+      <footer>
+        <Link className="brand" href="/"><i>99</i><span>玖久黃金報價網<br/><em>99GOLD.NET</em></span></Link>
+        <p>真金價值，長久相伴。</p>
+        <span>© 2026 玖久黃金報價網</span>
+      </footer>
+    </main>
+  );
 }
