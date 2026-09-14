@@ -9,6 +9,7 @@ import SiteLinks from "./SiteLinks";
 import { categories, type NewsCategory } from "./news/categories";
 import { useSiteLocale } from "./locale";
 import { jewelrySellFromBuy, parseQuotedNumber } from "../lib/section-quotes";
+import { bankOfTaiwanUsdSightSell, formatUsdTwdSightSell } from "../lib/fx-display";
 import PriceAlerts from "./PriceAlerts";
 import GoldSilverRatioPanel from "./GoldSilverRatio";
 import { newsExcerpt } from "../lib/news-excerpt";
@@ -124,6 +125,7 @@ function normalizeMetal(metal: {
   };
 }
 
+type BankOfTaiwanSpot = { bankSellsUsd?: number | null; quotedAt?: string | null };
 type HomeQuoteSnapshot = {
   items?: QuoteItem[];
   metals?: Array<Parameters<typeof normalizeMetal>[0]>;
@@ -132,6 +134,8 @@ type HomeQuoteSnapshot = {
   updatedAt?: string;
   retrievedAt?: string;
   fxQuotedAt?: string | null;
+  fxBasis?: "bank-sight-sell" | "market-reference" | null;
+  bankOfTaiwan?: BankOfTaiwanSpot | null;
   marketStatus?: MarketStatus;
   quoteSource?: string;
   source?: string;
@@ -147,6 +151,8 @@ function applyQuoteSnapshot(
     setQuoteRetrievedAt: (value: string) => void;
     setQuoteAttemptedAt: (value: string) => void;
     setFxQuotedAt: (value: string) => void;
+    setFxBasis: (value: "bank-sight-sell" | "market-reference" | null) => void;
+    setBankOfTaiwan: (value: BankOfTaiwanSpot | null) => void;
     setMarketStatus: (status: MarketStatus) => void;
     setQuoteSource: (value: string) => void;
   },
@@ -158,6 +164,8 @@ function applyQuoteSnapshot(
   setters.setQuoteRetrievedAt(data.retrievedAt ?? "");
   setters.setQuoteAttemptedAt(data.retrievedAt ?? new Date().toISOString());
   setters.setFxQuotedAt(data.fxQuotedAt ?? "");
+  setters.setFxBasis(data.fxBasis ?? null);
+  setters.setBankOfTaiwan(data.bankOfTaiwan ?? null);
   setters.setMarketStatus(data.marketStatus ?? "delayed");
   if (data.quoteSource || data.source) setters.setQuoteSource(data.quoteSource ?? data.source ?? "");
 }
@@ -180,6 +188,8 @@ export default function HomeView({ initialQuotes = null, initialRatioPoints = []
   const [quoteRetrievedAt, setQuoteRetrievedAt] = useState(initialQuotes?.retrievedAt ?? "");
   const [quoteAttemptedAt, setQuoteAttemptedAt] = useState(initialQuotes?.retrievedAt ?? "");
   const [fxQuotedAt, setFxQuotedAt] = useState(initialQuotes?.fxQuotedAt ?? "");
+  const [fxBasis, setFxBasis] = useState<"bank-sight-sell" | "market-reference" | null>(initialQuotes?.fxBasis ?? null);
+  const [bankOfTaiwan, setBankOfTaiwan] = useState(initialQuotes?.bankOfTaiwan ?? null);
   const [marketStatus, setMarketStatus] = useState<MarketStatus>(initialQuotes?.marketStatus ?? (initialQuotes?.items?.length ? "delayed" : "checking"));
   const [quoteCheckFailed, setQuoteCheckFailed] = useState(false);
   const [quoteSource, setQuoteSource] = useState(initialQuotes?.quoteSource ?? initialQuotes?.source ?? "Yahoo Finance GC 黃金期貨與公開匯率資料");
@@ -218,7 +228,7 @@ export default function HomeView({ initialQuotes = null, initialRatioPoints = []
     const controller = new AbortController();
     const setters = {
       setQuotes, setGlobalMetals, setCurrencies, setQuoteAt, setQuoteRetrievedAt,
-      setQuoteAttemptedAt, setFxQuotedAt, setMarketStatus, setQuoteSource,
+      setQuoteAttemptedAt, setFxQuotedAt, setFxBasis, setBankOfTaiwan, setMarketStatus, setQuoteSource,
     };
     const refreshQuotes = async () => {
       if (disposed || inFlight || document.visibilityState === "hidden") return;
@@ -303,6 +313,8 @@ export default function HomeView({ initialQuotes = null, initialRatioPoints = []
   const qianQuote = quotes.find((quote) => quote.id === "taiwan-qian");
   const buyQian = qianQuote ? parseQuotedNumber(qianQuote.price) : null;
   const sellQian = buyQian !== null ? jewelrySellFromBuy(buyQian) : null;
+  const usdSightSell = bankOfTaiwanUsdSightSell({ fxBasis, bankOfTaiwan, currencies });
+  const usdSightSellText = formatUsdTwdSightSell(usdSightSell);
   const quotesUnavailable = quotes.length === 0;
   const toolResult = useMemo(() => {
     const weight = Number.parseFloat(goldWeight) || 0;
@@ -344,7 +356,7 @@ export default function HomeView({ initialQuotes = null, initialRatioPoints = []
   });
   const historyAvailable = historyPoints.length > 1 && Number.isFinite(historyStats.close);
   const t = (zh: string, en: string, ja = en) => locale === "zh" ? zh : locale === "ja" ? ja : en;
-  const formatSiteTime = (value: string) => {
+  const formatTaipeiTime = (value: string, withSeconds: boolean) => {
     const date = new Date(value);
     if (!value || Number.isNaN(date.getTime())) return t("取得中", "Checking", "確認中");
     return new Intl.DateTimeFormat(locale === "zh" ? "zh-TW" : locale === "ja" ? "ja-JP" : "en-GB", {
@@ -353,11 +365,13 @@ export default function HomeView({ initialQuotes = null, initialRatioPoints = []
       day: "2-digit",
       hour: "2-digit",
       minute: "2-digit",
-      second: "2-digit",
+      ...(withSeconds ? { second: "2-digit" as const } : {}),
       hour12: false,
       timeZone: "Asia/Taipei",
     }).format(date);
   };
+  const formatSiteTime = (value: string) => formatTaipeiTime(value, true);
+  const formatRadarFxTime = (value: string) => formatTaipeiTime(value, false);
   const marketStatusLabel = quoteCheckFailed
     ? quotes.length
       ? t("本次檢查失敗 · 保留最後有效行情", "Latest check failed · showing last valid quote", "今回の確認失敗・最終有効値を表示")
@@ -411,6 +425,14 @@ export default function HomeView({ initialQuotes = null, initialRatioPoints = []
             <div className="tool"><span>{goldQuote?.label ?? "國際黃金參考"}</span><strong>US$ {goldQuote?.price ?? "—"}</strong><small>{goldQuote?.unit ?? "美元／金衡盎司"}</small></div>
             <div className="tool"><span>{t("理論買進", "Theoretical buy", "理論買")}</span><strong>NT$ {qianQuote?.price ?? "—"}</strong><small>{qianQuote?.unit ?? "台幣／錢"}</small></div>
             <div className="tool"><span>{t("估計賣出", "Estimated sell", "売値推定")}</span><strong>NT$ {sellQian !== null ? sellQian.toLocaleString("en-US") : "—"}</strong><small>{t("理論買進＋4% 參考溢價", "Theoretical buy + 4% reference premium", "理論買＋4%参考プレミアム")}</small></div>
+            <div className="tool">
+              <span>{t("臺銀美金即期賣出", "BOT USD spot sell", "台湾銀行米ドル直物売り")}</span>
+              <strong>NT$ {usdSightSellText}</strong>
+              <small>
+                {t("新台幣／美元", "TWD / USD", "台湾ドル／米ドル")}
+                {usdSightSell !== null && fxQuotedAt ? ` · ${formatRadarFxTime(fxQuotedAt)}` : ""}
+              </small>
+            </div>
           </>
         )}
         <button type="button" onClick={() => { selectDashboardTab("history"); window.setTimeout(() => document.getElementById("top")?.scrollIntoView({ behavior: "smooth" }), 40); }}>{t("查看歷史走勢", "View history", "履歴を見る")} <b>→</b></button>

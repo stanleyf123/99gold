@@ -266,7 +266,7 @@ footer {
 
 .marketRadar {
   display: grid;
-  grid-template-columns: minmax(148px, auto) repeat(3, minmax(0, 1fr)) auto;
+  grid-template-columns: minmax(148px, auto) repeat(4, minmax(0, 1fr)) auto;
   align-items: center;
   gap: 8px 20px;
   padding-top: 12px !important;
@@ -320,6 +320,7 @@ footer {
   font-size: 12px;
   color: #7b8079;
   line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 .marketRadar > button {
@@ -593,7 +594,7 @@ footer {
   }
 
   .marketRadar {
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 10px 14px;
   }
 
@@ -602,7 +603,7 @@ footer {
     grid-column: 1 / -1;
   }
 
-  .marketRadar .tool:first-of-type {
+  .marketRadar .tool:nth-of-type(even) {
     border-left: 0;
     padding-left: 0;
   }

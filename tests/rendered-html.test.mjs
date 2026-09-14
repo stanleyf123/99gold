@@ -91,6 +91,12 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.match(homeView, /className="heroPhoto"/);
   assert.match(homeView, /className="brandHeroCopy"/);
   assert.match(homeView, /今日市場快速判讀/);
+  assert.match(homeView, /臺銀美金即期賣出/);
+  assert.match(homeView, /BOT USD spot sell/);
+  assert.match(homeView, /台湾銀行米ドル直物売り/);
+  assert.match(homeView, /新台幣／美元/);
+  assert.match(homeView, /bankOfTaiwanUsdSightSell/);
+  assert.match(chrome, /repeat\(4, minmax\(0, 1fr\)\)/);
   assert.match(homeView, /Today’s Gold Dashboard/);
   assert.match(homeView, /本日の金情報/);
   assert.match(homeView, /quoteEmptyPanel/);
