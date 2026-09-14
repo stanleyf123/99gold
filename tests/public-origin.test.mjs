@@ -32,6 +32,14 @@ test("redirect Location host is the SITE_URL host when env is set", () => {
   assert.notEqual(location.hostname, "localhost");
 });
 
+test("does not regress production hotfix Location https://99gold.net/admin", () => {
+  const { publicAbsoluteUrl } = load({ SITE_URL: "https://99gold.net" });
+  const fromLocalhost = publicAbsoluteUrl("/admin", "http://localhost:3000/api/admin/session");
+  const fromLoopback = publicAbsoluteUrl("/admin", "http://127.0.0.1:3000/api/admin/session");
+  assert.equal(fromLocalhost.href, "https://99gold.net/admin");
+  assert.equal(fromLoopback.href, "https://99gold.net/admin");
+});
+
 test("trims trailing slash on SITE_URL before building redirects", () => {
   const { publicOrigin, publicAbsoluteUrl } = load();
   assert.equal(publicOrigin(UPSTREAM, "https://99gold.net/"), SITE);
