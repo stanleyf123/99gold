@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useCallback, useState } from "react";
 import SiteLinks from "../SiteLinks";
-import PriceHistoryChart from "../PriceHistoryChart";
+import PriceHistoryChart, { type ChartPeriod } from "../PriceHistoryChart";
+import { jewelryTableDisplay } from "../../lib/jewelry-table";
 import { type Locale, t, useSiteLocale } from "../locale";
 import "./jewelry.css";
 
@@ -85,8 +87,9 @@ function formatTaipeiTime(value: string, locale: Locale) {
   }).format(date);
 }
 
-function formatDate(timestamp: number, locale: Locale) {
+function formatDate(timestamp: number, locale: Locale, withYear = false) {
   return new Intl.DateTimeFormat(locale === "zh" ? "zh-TW" : locale === "ja" ? "ja-JP" : "en-US", {
+    ...(withYear ? { year: "numeric" as const } : {}),
     month: "2-digit",
     day: "2-digit",
     weekday: "short",
@@ -241,6 +244,56 @@ export default function JewelryView({
         )
   } ${t(locale, "非店家牌價。", "Not a shop price.", "店頭価格ではありません。")}`;
   const fxBadge = t(locale, "歷史匯率換算參考", "Historical FX reference", "歴史的為替の参考");
+  const [period, setPeriod] = useState<ChartPeriod>("1M");
+  const [remoteHistory, setRemoteHistory] = useState<{
+    period: ChartPeriod;
+    rows: JewelryDayRow[];
+    range: JewelryRange | null;
+    omitted: number;
+    source: string;
+  } | null>(null);
+
+  const onHistoryData = useCallback((nextPeriod: ChartPeriod, data: {
+    rows?: Array<{ timestamp: number; buy?: number; sell?: number; change?: number | null; recycleFine?: number; usdTwd?: number; fxDate?: string | null; fxSource?: string | null }>;
+    range?: JewelryRange | null;
+    omitted?: number;
+    source?: string;
+    points?: Array<{ timestamp: number; close: number }>;
+  }) => {
+    const rows = (data.rows ?? [])
+      .filter((row) => Number.isFinite(row.timestamp) && Number.isFinite(row.buy) && (row.buy as number) > 0)
+      .map((row) => ({
+        timestamp: row.timestamp,
+        buy: row.buy as number,
+        sell: row.sell as number,
+        change: row.change ?? null,
+        recycleFine: row.recycleFine as number,
+        usdTwd: row.usdTwd,
+        fxDate: row.fxDate,
+        fxSource: row.fxSource,
+      }));
+    setRemoteHistory({
+      period: nextPeriod,
+      rows,
+      range: data.range ?? null,
+      omitted: data.omitted ?? 0,
+      source: data.source ?? "",
+    });
+  }, []);
+
+  const periodRows = period === "1M" ? historyRows : (remoteHistory?.period === period ? remoteHistory.rows : []);
+  const periodRange = period === "1M" ? historyRange : (remoteHistory?.period === period ? remoteHistory.range : null);
+  const periodOmitted = period === "1M" ? omitted : (remoteHistory?.period === period ? remoteHistory.omitted : omitted);
+  const periodSource = period === "1M" ? historySource : (remoteHistory?.period === period && remoteHistory.source ? remoteHistory.source : historySource);
+  const tableLoading = period !== "1M" && remoteHistory?.period !== period;
+  const display = jewelryTableDisplay(periodRows);
+  const periodName = period === "1M"
+    ? t(locale, "近月", "Past month", "直近1か月")
+    : period === "3M"
+      ? t(locale, "近 90 日", "Past 90 days", "直近90日")
+      : period === "1Y"
+        ? t(locale, "近 1 年", "Past year", "直近1年")
+        : t(locale, "近 3 年", "Past 3 years", "直近3年");
 
   return (
     <main className="subpage" lang={locale === "zh" ? "zh-Hant" : locale}>
@@ -270,19 +323,19 @@ export default function JewelryView({
             <b className={live?.sellChange == null ? "neutral" : live.sellChange >= 0 ? "up" : "down"}>{changeLabel(locale, live?.sellChange ?? null, live?.changePercent ?? null)}</b>
           </article>
         </div>
-        {historyRange ? (
-          <div className="jewelryRange" aria-label={t(locale, "近一個月交易日區間", "Recent month trading-day range", "直近1か月の取引日レンジ")}>
+        {periodRange ? (
+          <div className="jewelryRange" aria-label={`${periodName} ${t(locale, "交易日區間", "trading-day range", "取引日レンジ")}`}>
             <div>
-              <span>{t(locale, "近月賣出高／低", "Month sell high / low", "月間売 高／安")}</span>
-              <strong>{money(historyRange.sellHigh)} – {money(historyRange.sellLow)}</strong>
+              <span>{t(locale, `${periodName}賣出高／低`, `${periodName} sell high / low`, `${periodName}売 高／安`)}</span>
+              <strong>{money(periodRange.sellHigh)} – {money(periodRange.sellLow)}</strong>
             </div>
             <div>
-              <span>{t(locale, "近月賣出均價", "Month sell average", "月間売平均")}</span>
-              <strong>{money(historyRange.sellAvg)}</strong>
+              <span>{t(locale, `${periodName}賣出均價`, `${periodName} sell average`, `${periodName}売平均`)}</span>
+              <strong>{money(periodRange.sellAvg)}</strong>
             </div>
             <div>
-              <span>{t(locale, "近月買進均價", "Month buy average", "月間買平均")}</span>
-              <strong>{money(historyRange.buyAvg)}</strong>
+              <span>{t(locale, `${periodName}買進均價`, `${periodName} buy average`, `${periodName}買平均`)}</span>
+              <strong>{money(periodRange.buyAvg)}</strong>
             </div>
           </div>
         ) : null}
@@ -322,24 +375,31 @@ export default function JewelryView({
           initialPoints={historyRows.map((row) => ({ timestamp: row.timestamp, close: row.buy }))}
           endpoint="/api/jewelry-history"
           periods={["1M", "3M", "1Y", "3Y"]}
+          period={period}
+          onPeriodChange={setPeriod}
+          onHistoryData={onHistoryData}
           note={chartNote}
         />
 
         <div className="sectionHead" style={{ marginTop: 36 }}>
           <div><p className="eyebrow">DAILY TABLE</p><h2>{t(locale, "每日理論牌價", "Daily theoretical prices", "日次の理論価格")}</h2></div>
-          <p>{historyRows.length
+          <p>{tableLoading
+            ? t(locale, `正在取得${periodName}歷史資料…`, `Loading ${periodName} history…`, `${periodName}の履歴を取得中…`)
+            : display.total
             ? t(
               locale,
-              `COMEX 收盤 × 當日／最近前一營業日匯率 · ${historyRows.length} 個交易日${omitted > 0 ? `（略過 ${omitted} 日缺匯率）` : ""}`,
-              `COMEX close × same-day / prior-session FX · ${historyRows.length} sessions${omitted > 0 ? ` (${omitted} days omitted for missing FX)` : ""}`,
-              `COMEX終値×当日／直前営業日為替 · ${historyRows.length}取引日${omitted > 0 ? `（為替なし ${omitted}日を省略）` : ""}`,
+              `與上方圖表同一期間（${periodName}）· COMEX 收盤 × 當日／最近前一營業日匯率 · ${display.total} 個交易日${periodOmitted > 0 ? `（略過 ${periodOmitted} 日缺匯率）` : ""}${display.hidden > 0 ? ` · 表格顯示最近 ${display.rows.length} 日` : ""}`,
+              `Same range as the chart (${periodName}) · COMEX close × same-day / prior FX · ${display.total} sessions${periodOmitted > 0 ? ` (${periodOmitted} omitted)` : ""}${display.hidden > 0 ? ` · table shows latest ${display.rows.length}` : ""}`,
+              `上のチャートと同じ期間（${periodName}）· COMEX終値×当日／直前営業日為替 · ${display.total}取引日${periodOmitted > 0 ? `（為替なし ${periodOmitted}日を省略）` : ""}${display.hidden > 0 ? ` · 表は直近 ${display.rows.length}日` : ""}`,
             )
-            : t(locale, "目前沒有可驗證的近月歷史資料，故不列出表格。", "No verified recent history, so the table is omitted.", "検証可能な直近履歴がないため表は表示しません。")}</p>
+            : t(locale, "目前沒有可驗證的歷史資料，故不列出表格。", "No verified history, so the table is omitted.", "検証可能な履歴がないため表は表示しません。")}</p>
         </div>
-        {historyRows.length > 0 ? (
+        {tableLoading ? (
+          <p className="jewelryTableStatus" role="status">{t(locale, "表格會跟著所選期間更新。", "The table follows the selected period.", "表は選択した期間に連動します。")}</p>
+        ) : display.rows.length > 0 ? (
           <div className="jewelryTableWrap">
             <table className="jewelryTable">
-              <caption className="srOnly">{t(locale, "台灣理論金價每日表：賣出、買進、漲跌、999.9 理論回收與當日匯率", "Daily Taiwan theoretical gold table: sell, buy, change, 999.9 recycle and that day’s FX", "台湾理論金価格の日次表")}</caption>
+              <caption className="srOnly">{t(locale, `台灣理論金價表（${periodName}）：賣出、買進、漲跌、999.9 理論回收與當日匯率`, `Taiwan theoretical gold table (${periodName}): sell, buy, change, 999.9 recycle and that day’s FX`, `台湾理論金価格表（${periodName}）`)}</caption>
               <thead>
                 <tr>
                   <th>{t(locale, "日期", "Date", "日付")}</th>
@@ -351,9 +411,9 @@ export default function JewelryView({
                 </tr>
               </thead>
               <tbody>
-                {[...historyRows].reverse().map((row) => (
+                {[...display.rows].reverse().map((row) => (
                   <tr key={row.timestamp}>
-                    <td><time dateTime={new Date(row.timestamp * 1000).toISOString()}>{formatDate(row.timestamp, locale)}</time></td>
+                    <td><time dateTime={new Date(row.timestamp * 1000).toISOString()}>{formatDate(row.timestamp, locale, period !== "1M")}</time></td>
                     <td>{money(row.sell)}</td>
                     <td>{money(row.buy)}</td>
                     <td>
@@ -371,14 +431,14 @@ export default function JewelryView({
             </table>
           </div>
         ) : null}
-        {historyRows.length > 0 ? (
+        {display.rows.length > 0 && !tableLoading ? (
           <p className="quoteMethodology">
             <b>{t(locale, "歷史換算說明：", "History conversion note: ", "履歴換算の注記：")}</b>
             {t(
               locale,
-              `各列以該日 COMEX 收盤，配上當日或最近前一營業日匯率後換算。缺匯率則略過，不用今日匯率改寫過去。回收欄 = 當日理論買進 × 999.9。來源：${historySource || "COMEX GC"}。`,
-              `Each row converts that day’s COMEX close with same-day or nearest prior FX. Missing FX is omitted; today’s rate is not applied to the past. Recycle = that day’s theoretical buy × 999.9. Source: ${historySource || "COMEX GC"}.`,
-              `各行はその日のCOMEX終値を当日または直前営業日の為替で換算。為替がなければ省略し、今日のレートで過去を書き換えません。買取欄＝当日の理論買×999.9。出典：${historySource || "COMEX GC"}。`,
+              `表格期間與圖表相同。各列以該日 COMEX 收盤，配上當日或最近前一營業日匯率後換算。缺匯率則略過，不用今日匯率改寫過去。回收欄 = 當日理論買進 × 999.9。來源：${periodSource || "COMEX GC"}。`,
+              `The table uses the same period as the chart. Each row converts that day’s COMEX close with same-day or nearest prior FX. Missing FX is omitted; today’s rate is not applied to the past. Recycle = that day’s theoretical buy × 999.9. Source: ${periodSource || "COMEX GC"}.`,
+              `表の期間はチャートと同じです。各行はその日のCOMEX終値を当日または直前営業日の為替で換算。為替がなければ省略し、今日のレートで過去を書き換えません。買取欄＝当日の理論買×999.9。出典：${periodSource || "COMEX GC"}。`,
             )}
           </p>
         ) : null}

@@ -50,6 +50,8 @@ const {
   jewelryFaqEntries,
 } = load("../lib/section-quotes.ts", { "./historical-fx": historicalFx });
 
+const { jewelryTableDisplay, JEWELRY_TABLE_MAX_ROWS } = load("../lib/jewelry-table.ts");
+
 const quotes = {
   metals: [
     { id: "gold", symbol: "GC=F", name: "黃金期貨", price: 4424.5, previousClose: 4400, change: 18.43, changePercent: 0.42, source: "Yahoo Finance chart" },
@@ -189,4 +191,15 @@ test("empty quotes keep dashes only when upstream data is missing", () => {
   assert.equal(marketStatusLabel("open", true), "市場交易中");
   assert.equal(marketStatusLabel("open", false), "行情暫不可用");
   assert.match(formatTaipeiTime("2026-09-14T08:00:00.000Z"), /2026/);
+});
+
+test("jewelry table display keeps short series and caps long ranges", () => {
+  const short = jewelryTableDisplay([{ timestamp: 1 }, { timestamp: 2 }]);
+  assert.equal(short.hidden, 0);
+  assert.equal(short.rows.length, 2);
+  const long = jewelryTableDisplay(Array.from({ length: JEWELRY_TABLE_MAX_ROWS + 12 }, (_, index) => ({ timestamp: index })));
+  assert.equal(long.total, JEWELRY_TABLE_MAX_ROWS + 12);
+  assert.equal(long.hidden, 12);
+  assert.equal(long.rows.length, JEWELRY_TABLE_MAX_ROWS);
+  assert.equal(long.rows[0].timestamp, 12);
 });

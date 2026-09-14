@@ -5,7 +5,7 @@ import EditorialView from "../EditorialView";
 import OfficialBriefView from "../OfficialBriefView";
 import type { Article } from "../../api/news-service";
 import { getRawDb } from "../../../db";
-import { categories, type NewsCategory } from "../categories";
+import { asNewsCategory, type NewsCategory } from "../categories";
 import { localizedBriefFields } from "../../../lib/news/translate";
 import { SITE_URL } from "../../../lib/seo";
 
@@ -40,9 +40,7 @@ function localeOf(value?: string | null): NewsLocale {
 }
 
 function briefCategory(value?: string): NewsCategory {
-  return value && value !== "all" && Object.prototype.hasOwnProperty.call(categories, value)
-    ? value as NewsCategory
-    : "macro";
+  return asNewsCategory(value);
 }
 
 async function getLegacyArticle(id: string) {
@@ -89,10 +87,11 @@ export async function generateMetadata(
           "zh-Hant": `${SITE_URL}/news/${id}?lang=zh`,
           en: `${SITE_URL}/news/${id}?lang=en`,
           ja: `${SITE_URL}/news/${id}?lang=ja`,
+          "x-default": `${SITE_URL}/news/${id}?lang=zh`,
         },
       },
-      openGraph: { type: "article", title: localized.title, description: localized.summary ?? localized.title },
-      twitter: { title: localized.title, description: localized.summary ?? localized.title },
+      openGraph: { type: "article", title: localized.title, description: localized.summary ?? localized.title, url: canonical, images: [{ url: `${SITE_URL}/og`, width: 1200, height: 630, alt: localized.title }] },
+      twitter: { card: "summary_large_image", title: localized.title, description: localized.summary ?? localized.title, images: [`${SITE_URL}/og`] },
     };
   }
   const row = await getLegacyArticle(id);

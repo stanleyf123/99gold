@@ -16,7 +16,7 @@ const common = {
   group: "gold-inflation-20260912",
   publishedAt: "2026-09-12T08:13:44Z",
   eventDate: "2026-09-11",
-  image: "/gold-inflation-editorial-20260912.png",
+  image: "/gold-inflation-editorial-20260912.webp",
   sources: [{ title: "U.S. Bureau of Labor Statistics · August 2026 CPI", url: "https://www.bls.gov/news.release/archives/cpi_09112026.htm", date: "2026-09-11" }],
 };
 export const editorials: Editorial[] = [

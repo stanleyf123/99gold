@@ -40,10 +40,10 @@ Legend: **PASS** = works end-to-end in code + live (or local reasoning where liv
 
 Do **not** treat these as merge blockers for this audit PR.
 
-- **SEO score / new features** (roadmap later phases): richer meta, FAQ expansion, Core Web Vitals, extra landing pages.
-- **OpenAI translation**: several 市場快訊 titles remain English or mixed (e.g. ECB speeches). MyMemory is the current default; `OPENAI_API_KEY` is documented in `.env.example` but not required here.
-- **Sitemap for auto-published briefs**: `sitemap.xml` lists editorials + legacy `news_articles`, not `news_candidates` with `status=published`.
-- **Jewelry daily table vs chart period**: table is the SSR 1M series; 90D/1Y/3Y only update the chart. Acceptable; could lift period state if product wants one table per range (3Y would be hundreds of rows).
+- **SEO score / new features** (roadmap later phases): extra landing pages / large Core Web Vitals rewrite. *(Sitemap, brief Article/FAQ JSON-LD, jewelry period-synced table, share buttons, homepage crawlable briefs, unique OG alts, and news listing WebP covers shipped after this audit.)*
+- **OpenAI translation**: several 市場快訊 titles remain English or mixed (e.g. ECB speeches). MyMemory is the current default; `OPENAI_API_KEY` is documented in `.env.example` but not required here. Rate-limit-safe MyMemory backfill now retries published rows with empty/English zh·ja titles.
+- **Sitemap for auto-published briefs**: shipped after this audit (`news_candidates` `status=published` with lastmod + hreflang).
+- **Jewelry daily table vs chart period**: shipped after this audit (table, range stats, and chart share 30D/90D/1Y/3Y; long ranges cap the table at 90 rows).
 - **Email/LINE dispatch**: needs `RESEND_API_KEY` or SMTP + `LINE_CHANNEL_ACCESS_TOKEN` in `/etc/99gold.env` and `99gold-alerts.timer`. Without keys, browser alerts still work.
 - **Cloudflare `cf-ipcountry`**: if a CDN is added later, JP/US geo-detect will start working; until then everyone without a stored locale stays zh.
 

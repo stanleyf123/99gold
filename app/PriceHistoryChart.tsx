@@ -9,9 +9,21 @@ export type ChartPeriod = Extract<HistoryPeriod, "1M" | "3M" | "1Y" | "3Y" | "5Y
 
 type HistoryPayload = {
   points?: MarketChartPoint[];
+  rows?: Array<{
+    timestamp: number;
+    buy?: number;
+    sell?: number;
+    change?: number | null;
+    recycleFine?: number;
+    usdTwd?: number;
+    fxDate?: string | null;
+    fxSource?: string | null;
+  }>;
+  range?: { sellHigh: number; sellLow: number; sellAvg: number; buyHigh: number; buyLow: number; buyAvg: number; count: number } | null;
+  omitted?: number;
+  source?: string;
   stats?: { open: number; close: number; high: number; low: number; changePercent: number };
   retrievedAt?: string;
-  source?: string;
   coverage?: "full" | "partial";
   sampled?: "daily" | "weekly";
 };
@@ -52,6 +64,9 @@ export function PriceHistoryChart({
   endpoint = "/api/gold-history",
   formatValue,
   periods = DEFAULT_PERIODS,
+  period: controlledPeriod,
+  onPeriodChange,
+  onHistoryData,
 }: {
   locale: Locale;
   currency?: "USD" | "TWD";
@@ -64,11 +79,20 @@ export function PriceHistoryChart({
   endpoint?: string;
   formatValue?: (value: number) => string;
   periods?: ChartPeriod[];
+  period?: ChartPeriod;
+  onPeriodChange?: (period: ChartPeriod) => void;
+  onHistoryData?: (period: ChartPeriod, data: HistoryPayload) => void;
 }) {
-  const [period, setPeriod] = useState<ChartPeriod>(initialPeriod);
+  const [internalPeriod, setInternalPeriod] = useState<ChartPeriod>(initialPeriod);
+  const period = controlledPeriod ?? internalPeriod;
   const [remote, setRemote] = useState<RemoteHistory | null>(null);
 
   const usingInitial = period === initialPeriod;
+
+  const selectPeriod = (next: ChartPeriod) => {
+    if (controlledPeriod === undefined) setInternalPeriod(next);
+    onPeriodChange?.(next);
+  };
 
   useEffect(() => {
     if (period === initialPeriod) return;
@@ -89,12 +113,16 @@ export function PriceHistoryChart({
           points: next,
           coverage: data.coverage === "partial" ? "partial" : "full",
         });
+        onHistoryData?.(period, data);
       })
       .catch(() => {
-        if (!disposed) setRemote({ period, status: "fail", points: [], coverage: "full" });
+        if (!disposed) {
+          setRemote({ period, status: "fail", points: [], coverage: "full" });
+          onHistoryData?.(period, { points: [], rows: [], omitted: 0 });
+        }
       });
     return () => { disposed = true; };
-  }, [convertClose, endpoint, initialPeriod, period]);
+  }, [convertClose, endpoint, initialPeriod, onHistoryData, period]);
 
   const points = useMemo(
     () => usingInitial ? initialPoints : (remote?.period === period && remote.status === "ok" ? remote.points : []),
@@ -117,7 +145,7 @@ export function PriceHistoryChart({
         </div>
         <div className="sectionChartPeriods" role="group" aria-label={t(locale, "走勢期間", "Chart period", "チャート期間")}>
           {periods.map((item) => (
-            <button key={item} type="button" className={period === item ? "selected" : ""} aria-pressed={period === item} onClick={() => setPeriod(item)}>
+            <button key={item} type="button" className={period === item ? "selected" : ""} aria-pressed={period === item} onClick={() => selectPeriod(item)}>
               {periodLabel(locale, item)}
             </button>
           ))}

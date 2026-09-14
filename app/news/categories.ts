@@ -7,3 +7,9 @@ export const categories = {
   taiwan: {zh:"台灣市場",en:"Taiwan market",ja:"台湾市場"},
 };
 export type NewsCategory = Exclude<keyof typeof categories,"all">;
+
+export function asNewsCategory(value?: string | null): NewsCategory {
+  return value && value !== "all" && Object.prototype.hasOwnProperty.call(categories, value)
+    ? value as NewsCategory
+    : "macro";
+}

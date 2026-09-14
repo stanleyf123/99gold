@@ -121,3 +121,28 @@
 .goldSilverRatio .sectionChart{margin-top:12px}
 .hubPanel .goldSilverRatio{margin-top:22px}
 @media(max-width:520px){.goldSilverRatio .ratioNow{padding:18px 16px}.goldSilverRatio .ratioNow h2{font-size:22px}}
+
+.homeNewsStrip{display:grid;grid-template-columns:minmax(180px,.7fr) 1.6fr auto;gap:18px 28px;align-items:end;padding:22px 0 8px;background:#f3eee4;border-top:1px solid #d9d1c3;border-bottom:1px solid #d9d1c3}
+.homeNewsStrip h2{margin:0;font:24px Georgia,"Noto Serif TC",serif;color:#172128}
+.homeNewsStrip ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.homeNewsStrip li{display:grid;grid-template-columns:7.2em 1fr;gap:10px;align-items:baseline}
+.homeNewsStrip time{color:#8a6a22;font-size:12px;font-variant-numeric:tabular-nums}
+.homeNewsStrip a{color:#172128;text-decoration:none;font-size:15px;line-height:1.45;font-weight:700}
+.homeNewsStrip a:hover{text-decoration:underline;text-underline-offset:3px}
+.homeNewsStrip>a{white-space:nowrap;color:#715111;font-size:13px;font-weight:700;padding-bottom:4px}
+.briefShare{margin:22px 0 8px;padding:14px 16px;border:1px solid #d4ccbf;background:#fffdf8}
+.briefShare p{margin:0 0 10px;font-size:13px;font-weight:700;color:#6f5b24}
+.briefShare>div{display:flex;flex-wrap:wrap;gap:8px}
+.briefShare button,.briefShare a{min-height:36px;border:1px solid #1b282d;background:#fffdf8;color:#1b282d;padding:0 12px;font-size:13px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center}
+.briefShare small{display:block;margin-top:8px;color:#287463;font-size:12px}
+.briefFaq,.newsIndexFaq{margin:28px 0 0;display:grid;gap:8px}
+.briefFaq h2,.newsIndexFaq h2{margin:0 0 4px}
+.briefFaq details,.newsIndexFaq details{background:#fffdf8;border:1px solid #d4ccbf;padding:12px 16px}
+.briefFaq summary,.newsIndexFaq summary{cursor:pointer;font-weight:700}
+.briefFaq p,.newsIndexFaq p{margin:10px 0 4px;color:#5d655d;line-height:1.7;font-size:15px}
+.briefRelated{display:flex;flex-wrap:wrap;gap:14px 18px;margin:0 0 12px}
+.briefRelated a{color:#715111;font-weight:700}
+@media(max-width:800px){
+  .homeNewsStrip{grid-template-columns:1fr;align-items:start;gap:12px;padding-top:18px;padding-bottom:16px}
+  .homeNewsStrip>a{justify-self:start}
+}

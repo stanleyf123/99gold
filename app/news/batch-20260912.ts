@@ -60,5 +60,5 @@ export const batchSeptember12:Editorial[] = stories.filter(s=>approved.has(s.slu
  const [title,description,facts,analysis,watch]=s.editions[locale];
  const art=s.category==="taiwan"?"retail":s.category==="supply"&&s.slug!=="gold-etf-august"?"mining":"market";
  const group=s.slug+"-20260912";
- return {id:group+"-"+locale,group,locale,title,description,category:s.category,eventDate:s.date,publishedAt:"2026-09-12T14:30:09Z",image:`/news-${art}-20260912.png`,imageAlt:alts[art][locale],sources:[{title:s.source,url:s.url,date:s.sourceDate??s.date}],sections:[{heading:headings[locale][0],paragraphs:[facts],source:0},{heading:headings[locale][1],paragraphs:[analysis]},{heading:headings[locale][2],paragraphs:[watch]}]};
+ return {id:group+"-"+locale,group,locale,title,description,category:s.category,eventDate:s.date,publishedAt:"2026-09-12T14:30:09Z",image:`/news-${art}-20260912.webp`,imageAlt:alts[art][locale],sources:[{title:s.source,url:s.url,date:s.sourceDate??s.date}],sections:[{heading:headings[locale][0],paragraphs:[facts],source:0},{heading:headings[locale][1],paragraphs:[analysis]},{heading:headings[locale][2],paragraphs:[watch]}]};
 }));

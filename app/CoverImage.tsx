@@ -8,9 +8,10 @@ type CoverImageProps = {
   className?: string;
   width?: number;
   height?: number;
+  priority?: boolean;
 };
 
-export default function CoverImage({ src, alt = "", className, width = 1536, height = 1024 }: CoverImageProps) {
+export default function CoverImage({ src, alt = "", className, width = 960, height = 640, priority = false }: CoverImageProps) {
   const [failed, setFailed] = useState(!src);
 
   if (failed) {
@@ -30,7 +31,8 @@ export default function CoverImage({ src, alt = "", className, width = 1536, hei
       alt={alt}
       width={width}
       height={height}
-      loading="lazy"
+      loading={priority ? "eager" : "lazy"}
+      fetchPriority={priority ? "high" : "low"}
       decoding="async"
       referrerPolicy="no-referrer"
       className={className}

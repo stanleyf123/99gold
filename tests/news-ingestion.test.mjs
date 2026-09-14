@@ -22,6 +22,9 @@ function moduleFrom(path, extras = {}) {
     TextEncoder,
     Uint8Array,
     crypto,
+    setTimeout,
+    clearTimeout,
+    Promise,
     ...extras,
   };
   context.module.exports = context.exports;
@@ -59,6 +62,7 @@ function defaultTranslate() {
     AUTO_PIPELINE_REVIEWER: "auto-pipeline",
     cleanSourceText: translateLib.cleanSourceText,
     looksLikeTargetLocale: translateLib.looksLikeTargetLocale,
+    needsTranslationBackfill: translateLib.needsTranslationBackfill,
     translateOfficialBrief: async (title, summary) => ({
       titles: { zh: `中文：${title}`, en: title, ja: `日本語：${title}` },
       summaries: {
@@ -126,7 +130,7 @@ function memoryDb(seed = []) {
             candidates.push(row);
             return { meta: { changes: 1 } };
           }
-          if (q.includes("UPDATE news_candidates") && q.includes("title_zh")) {
+          if (q.includes("UPDATE news_candidates") && q.includes("title_zh") && q.includes("reviewed_by")) {
             const id = bound[bound.length - 1];
             const row = candidates.find((item) => item.id === id && (item.status === "pending" || item.status === "approved"));
             if (!row) return { meta: { changes: 0 } };
@@ -141,6 +145,20 @@ function memoryDb(seed = []) {
             row.scheduled_for = bound[8];
             row.reviewed_by = bound[10];
             row.published_at = bound[11];
+            return { meta: { changes: 1 } };
+          }
+          if (q.includes("UPDATE news_candidates") && q.includes("title_zh") && q.includes("AND status = 'published'")) {
+            const id = bound[bound.length - 1];
+            const row = candidates.find((item) => item.id === id && item.status === "published");
+            if (!row) return { meta: { changes: 0 } };
+            row.title_zh = bound[0];
+            row.title_en = bound[1];
+            row.title_ja = bound[2];
+            row.summary_zh = bound[3];
+            row.summary_en = bound[4];
+            row.summary_ja = bound[5];
+            row.translation_provider = bound[6];
+            row.translated_at = bound[7];
             return { meta: { changes: 1 } };
           }
           if (q.includes("UPDATE news_candidates") && q.includes("status = 'rejected'")) {
@@ -186,6 +204,11 @@ function memoryDb(seed = []) {
                 if (!item.scheduled_for || !cutoff) return true;
                 return item.scheduled_for <= cutoff;
               }),
+            };
+          }
+          if (q.includes("FROM news_candidates") && q.includes("status = 'published'")) {
+            return {
+              results: candidates.filter((item) => item.status === "published"),
             };
           }
           return { results: [] };
@@ -597,4 +620,37 @@ test("admin approve publishes immediately when scheduled_for is due", async () =
   assert.equal(scheduled.status, "approved");
   assert.equal(db.candidates.find((item) => item.id === "later-1")?.status, "approved");
   assert.equal(db.candidates.find((item) => item.id === "later-1")?.published_at, undefined);
+});
+
+test("backfill retranlates published briefs that still lack zh/ja titles", async () => {
+  const { backfillPublishedTranslations } = loadPipeline();
+  const db = memoryDb([
+    {
+      id: "gap-1",
+      url: "https://www.ecb.europa.eu/gap.htm",
+      title: "Christine Lagarde: interview",
+      summary: "ECB interview",
+      source_language: "en",
+      status: "published",
+      published_at: "2026-09-14T12:00:00.000Z",
+      title_zh: "",
+      title_en: "Christine Lagarde: interview",
+      title_ja: "Christine Lagarde: interview",
+    },
+    {
+      id: "ok-1",
+      url: "https://www.federalreserve.gov/ok.htm",
+      title: "Federal Reserve issues FOMC statement",
+      summary: "Official decision",
+      source_language: "en",
+      status: "published",
+      published_at: "2026-09-14T11:00:00.000Z",
+      title_zh: "聯邦準備理事會發布FOMC聲明",
+      title_ja: "米連邦準備制度理事会がFOMC声明を発表",
+    },
+  ]);
+  const count = await backfillPublishedTranslations(db, "2026-09-14T13:00:00.000Z", 3);
+  assert.equal(count, 1);
+  assert.match(db.candidates.find((item) => item.id === "gap-1")?.title_zh, /中文：/);
+  assert.equal(db.candidates.find((item) => item.id === "ok-1")?.title_zh, "聯邦準備理事會發布FOMC聲明");
 });
