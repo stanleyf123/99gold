@@ -71,6 +71,15 @@ export async function buildJewelryHistory(period: HistoryPeriod, gold: GoldHisto
   const rows = jewelryHistoryRows(gold.points, fx.rates);
   if (rows.length < 2) throw new Error("jewelry history unpaired");
   const omitted = gold.points.filter((point) => Number.isFinite(point.close) && point.close > 0).length - rows.length;
+  const usedSources = [...new Set(rows.map((row) => row.fxSource).filter((source): source is NonNullable<JewelryDayRow["fxSource"]> => Boolean(source) && source !== "constant"))];
+  const fxBasis: HistoricalFxSeries["basis"] = usedSources.length === 0
+    ? "market-reference"
+    : usedSources.every((source) => source === "bot-sight-sell")
+      ? "bot-sight-sell"
+      : usedSources.includes("bot-sight-sell")
+        ? "mixed"
+        : "market-reference";
+  const fxSources = usedSources.filter((source): source is HistoricalFxSeries["sources"][number] => source === "bot-sight-sell" || source === "yahoo-twd" || source === "fred-dextaus");
   const stats = statsFromBuys(rows);
   const quotedAt = new Date(rows.at(-1)!.timestamp * 1000).toISOString();
   return {
@@ -82,11 +91,11 @@ export async function buildJewelryHistory(period: HistoryPeriod, gold: GoldHisto
     quotedAt,
     updatedAt: quotedAt,
     retrievedAt: new Date().toISOString(),
-    source: `${gold.source} × ${fxSourceSummary(fx.basis, fx.sources)}`,
+    source: `${gold.source} × ${fxSourceSummary(fxBasis, fxSources)}`,
     currency: "TWD",
-    fxSource: fxSourceSummary(fx.basis, fx.sources),
-    fxBasis: fx.basis,
-    fxLabel: fxHonestyLabel("zh", fx.basis),
+    fxSource: fxSourceSummary(fxBasis, fxSources),
+    fxBasis,
+    fxLabel: fxHonestyLabel("zh", fxBasis),
     coverage: omitted > 0 ? "partial" : "full",
     omitted,
     goldPoints: gold.points.length,
