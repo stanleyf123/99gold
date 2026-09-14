@@ -72,9 +72,11 @@ export default function PriceAlerts({
   const [marketId, setMarketId] = useState<AlertMarketId>(markets[0]?.id ?? "qian");
   const [target, setTarget] = useState("18000");
   const [permission, setPermission] = useState<NotificationPermission>("default");
+  const [notifyReady, setNotifyReady] = useState(false);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
+      setNotifyReady(true);
       if (typeof Notification !== "undefined") setPermission(Notification.permission);
     });
     return () => window.cancelAnimationFrame(frame);
@@ -119,6 +121,9 @@ export default function PriceAlerts({
   }, [alerts, locale, marketKey, markets]);
 
   const permissionHint = useMemo(() => {
+    if (!notifyReady) {
+      return t(locale, "可選擇開啟瀏覽器通知；LINE／Email 推播需後端，目前未提供。", "Optional browser notifications. LINE/email push needs a backend and is not available yet.", "任意でブラウザ通知。LINE／メール配信にはバックエンドが必要で、現在はありません。");
+    }
     if (typeof Notification === "undefined") {
       return t(locale, "此瀏覽器不支援系統通知，提醒仍會保存在本機。", "This browser cannot send system notifications; alerts still stay on this device.", "このブラウザは通知非対応ですが、アラートは端末に保存されます。");
     }
@@ -129,7 +134,7 @@ export default function PriceAlerts({
       return t(locale, "瀏覽器已封鎖通知。可在網站設定中重新允許，或回到本頁查看。", "Notifications are blocked. Re-enable them in site settings, or check back here.", "通知はブロックされています。サイト設定で許可するか、このページで確認してください。");
     }
     return t(locale, "可選擇開啟瀏覽器通知；LINE／Email 推播需後端，目前未提供。", "Optional browser notifications. LINE/email push needs a backend and is not available yet.", "任意でブラウザ通知。LINE／メール配信にはバックエンドが必要で、現在はありません。");
-  }, [locale, permission]);
+  }, [locale, notifyReady, permission]);
 
   return (
     <section className={`alertCenter${compact ? " compactAlerts" : ""}`} id="price-alerts">
@@ -155,7 +160,7 @@ export default function PriceAlerts({
         <button type="button" onClick={save}>{t(locale, "加入提醒", "Add alert", "追加")}</button>
       </div>
       <div className="alertNotifyRow">
-        {permission === "default" && typeof Notification !== "undefined" ? (
+        {notifyReady && permission === "default" && typeof Notification !== "undefined" ? (
           <button type="button" className="notifyEnable" onClick={() => void requestPermission()}>
             {t(locale, "開啟瀏覽器通知", "Enable browser notifications", "ブラウザ通知を許可")}
           </button>
