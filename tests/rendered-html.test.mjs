@@ -19,6 +19,46 @@ test("build emits the complete 99gold professional quote workspace", async () =>
   await access(new URL("../dist/client/og-quotes-v2.png", import.meta.url));
 });
 
+test("uses a shared SiteHeader and coherent homepage layout", async () => {
+  const [page, header, chrome, layout, section, globalPage, news, article, editorial] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/SiteHeader.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/site-chrome.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/[section]/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/global/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/news/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/news/[id]/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/news/EditorialView.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(header, /今日金價/);
+  assert.match(header, /全球報價/);
+  assert.match(header, /國際金價/);
+  assert.match(header, /銀樓價格/);
+  assert.match(header, /黃金回收/);
+  assert.match(header, /市場情報/);
+  assert.match(header, /className="siteHeader"/);
+  assert.match(layout, /site-chrome\.css/);
+  assert.match(chrome, /--page-gutter:\s*5\.5vw/);
+  assert.match(chrome, /--hero-height:\s*clamp\(220px/);
+  assert.match(chrome, /brandHeroCopy/);
+  assert.doesNotMatch(chrome, /aspect-ratio:\s*1200\/630/);
+  assert.match(page, /<SiteHeader/);
+  assert.match(page, /className="brandHeroCopy"/);
+  assert.match(page, /今日市場快速判讀/);
+  assert.match(page, /SiteHeader[\s\S]*brandHero[\s\S]*marketRadar[\s\S]*marketHub/);
+  assert.doesNotMatch(page, /marketHub[\s\S]*marketRadar/);
+  assert.doesNotMatch(page, /brandCover|aspect-ratio:1200\/630/);
+  assert.match(section, /<SiteHeader/);
+  assert.match(globalPage, /<SiteHeader/);
+  assert.doesNotMatch(globalPage, /globalNav/);
+  assert.match(news, /<SiteHeader/);
+  assert.doesNotMatch(news, /articleNav/);
+  assert.match(article, /<SiteHeader/);
+  assert.match(editorial, /<SiteHeader/);
+});
+
 test("keeps quote history, data transparency and responsive styles wired", async () => {
   const [page, chart, quoteApi, historyApi, styles, layout] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),

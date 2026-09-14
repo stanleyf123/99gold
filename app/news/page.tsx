@@ -5,6 +5,7 @@ import { getDailyGoldNews } from "../api/news-service";
 import { recentEditorials, type NewsLocale } from "./editorial";
 import { editorialLabels } from "./EditorialView";
 import { categories } from "./categories";
+import SiteHeader from "../SiteHeader";
 
 export const dynamic = "force-dynamic";
 type Query = { lang?: string; category?: string };
@@ -52,11 +53,15 @@ export default async function NewsIndex({ searchParams }: { searchParams: Promis
   const countFor = (entry: Category) => editorials.filter((article) => entry === "all" || (article.category ?? "macro") === entry).length
     + official.filter((item) => entry === "all" || safeItemCategory(item.category) === entry).length;
 
-  return <main className="articlePage editorialPage" lang={locale === "zh" ? "zh-Hant" : locale}>
-    <nav className="articleNav">
-      <Link href="/">99GOLD.NET</Link><Link href="/">{labels.home}</Link>
-      <div className="editorialLanguages">{(["zh", "en", "ja"] as NewsLocale[]).map((language) => <Link key={language} href={`/news?lang=${language}&category=${category}`} aria-current={language === locale ? "page" : undefined}>{language === "zh" ? "繁中" : language === "en" ? "English" : "日本語"}</Link>)}</div>
-    </nav>
+  const localeHrefs = {
+    zh: `/news?lang=zh&category=${category}`,
+    en: `/news?lang=en&category=${category}`,
+    ja: `/news?lang=ja&category=${category}`,
+  };
+
+  return <>
+    <SiteHeader locale={locale} localeHrefs={localeHrefs} />
+    <main className="articlePage editorialPage articleShell" lang={locale === "zh" ? "zh-Hant" : locale}>
     <h1>{labels.all}</h1>
     <p className="editorialLead">{labels.introduction}</p>
     <p className="newsOperationsNote">{locale === "zh" ? "官方來源每 30 分鐘自動檢查；快訊經管理者核准後排程發布。" : locale === "ja" ? "公式情報源を30分ごとに確認し、承認済み速報を予定公開します。" : "Official sources are checked every 30 minutes; approved briefs are published on schedule."}</p>
@@ -83,5 +88,6 @@ export default async function NewsIndex({ searchParams }: { searchParams: Promis
       </article>)}</div>
     </section>}
     {!editorialRows.length && !officialRows.length && <p>{labels.noNews}</p>}
-  </main>;
+  </main>
+  </>;
 }

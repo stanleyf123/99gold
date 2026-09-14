@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import SiteHeader from "../SiteHeader";
 import "./global.css";
 
 type MarketStatus = "checking" | "open" | "delayed" | "daily-break" | "weekend-closed" | "unavailable";
@@ -131,10 +131,7 @@ export default function GlobalMarketPage() {
   const lastSuccessLabel = checkFailed && data.retrievedAt ? formatTaipeiTime(data.retrievedAt) : "";
 
   return <main className="globalPage">
-    <header className="globalNav">
-      <Link href="/"><b>99</b><span>玖久黃金報價網<small>99GOLD.NET</small></span></Link>
-      <nav><Link href="/">首頁</Link><Link className="active" href="/global">全球報價</Link><Link href="/insights">市場情報</Link></nav>
-    </header>
+    <SiteHeader />
     <section className="globalHero">
       <p>GLOBAL PRECIOUS METALS</p>
       <h1>全球貴金屬報價中心</h1>
