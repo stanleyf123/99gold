@@ -14,7 +14,7 @@ import {
 
 export { isRatioHistoryPeriod, RATIO_HISTORY_PERIODS, type RatioHistoryPeriod } from "./gold-history";
 
-export const RATIO_CHART_MAX_POINTS = 220;
+export const RATIO_CHART_MAX_POINTS = 280;
 
 export type RatioHistoryCoverage = "full" | "partial" | "empty";
 export type RatioHistorySampling = "daily" | "weekly";

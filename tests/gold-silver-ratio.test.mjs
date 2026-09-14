@@ -169,6 +169,7 @@ test("builder windows 5Y from daily pairs, omits unmatched days, and does not in
   const threeYear = buildGoldSilverRatioHistory("3Y", { ...source, points: gold }, { points: silver, source: "COMEX SI" }, NOW);
   assert.equal(built.sampled, "weekly");
   assert.equal(oneYear.sampled, "daily");
+  assert.equal(oneYear.points.length, oneYear.pairedDays);
   assert.ok(oneYear.pairedDays < threeYear.pairedDays);
   assert.ok(threeYear.pairedDays < built.pairedDays);
   assert.ok(built.points.length <= RATIO_CHART_MAX_POINTS);
