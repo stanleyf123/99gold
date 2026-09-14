@@ -5,7 +5,8 @@
 .recycleCalcHead{display:flex;justify-content:space-between;align-items:end;gap:18px;padding:22px 25px 18px;background:#f7f4ed;border-bottom:1px solid #e4ddd0}
 .recycleCalcHead h2{font:28px Georgia,"Noto Serif TC",serif;margin:0;letter-spacing:.04em;color:#172128}
 .recycleCalcHead .eyebrow{margin-bottom:8px}
-.recycleCalcHead>p{margin:0;max-width:420px;text-align:right;color:#5d5348;font-size:13px;line-height:1.7}
+.recycleCalcHead>p{margin:0;max-width:420px;display:grid;gap:4px;text-align:right;color:#5d5348;font-size:13px;line-height:1.7}
+.recycleCalcHead>p small{font-size:12px;color:#7a7468}
 .recycleCalcBody{display:grid;grid-template-columns:1.05fr .95fr}
 .recycleCalcForm{padding:22px 25px;border-right:1px solid #e4ddd0}
 .recycleCalcForm fieldset{margin:0;padding:0;border:0;display:grid;gap:16px;min-inline-size:0}

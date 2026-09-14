@@ -72,9 +72,14 @@ export default function RecycleCalculator({
           <h2 id="recycle-calc-title">{t(locale, "回收試算", "Recycle estimate", "買取試算")}</h2>
         </div>
         <p>
-          {available
-            ? `${t(locale, "今日買進參考", "Today’s buy reference", "本日の買参考")} ${rateText}（999.9） · ${t(locale, "行情時間", "Quote time", "相場時刻")} ${quotedLabel}（GMT+8）`
-            : t(locale, "今日金價暫時無法連線，因此無法試算。", "Today’s gold quote is unavailable, so no estimate is shown.", "本日の金相場に接続できないため、試算できません。")}
+          {available ? (
+            <>
+              {t(locale, "今日買進參考", "Today’s buy reference", "本日の買参考")} {rateText}（999.9）
+              <small>{t(locale, "行情時間", "Quote time", "相場時刻")} {quotedLabel}（GMT+8）</small>
+            </>
+          ) : (
+            t(locale, "今日金價暫時無法連線，因此無法試算。", "Today’s gold quote is unavailable, so no estimate is shown.", "本日の金相場に接続できないため、試算できません。")
+          )}
         </p>
       </div>
 
