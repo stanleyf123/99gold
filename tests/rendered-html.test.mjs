@@ -135,6 +135,9 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.doesNotMatch(article, /<SiteHeader/);
   assert.doesNotMatch(article, /FEDERAL RESERVE/);
   assert.match(article, /OfficialBriefView/);
+  assert.match(article, /DEFAULT_OG_IMAGE/);
+  assert.doesNotMatch(article, /\$\{SITE_URL\}\/og/);
+  assert.match(layout, /themeColor: "#0d1519"/);
   assert.doesNotMatch(editorial, /<SiteHeader/);
   assert.match(editorial, /alt=\{a\.imageAlt\}/);
   assert.match(cover, /onError/);
@@ -423,7 +426,13 @@ test("wires 30-90 day charts, metal comparison, browser alerts, OG route and PWA
   assert.match(alertsLib, /PRICE_ALERTS_STORAGE_KEY/);
   assert.match(og, /ImageResponse/);
   assert.match(og, /taiwanQianValue/);
-  assert.match(seo, /DEFAULT_OG_IMAGE = "\/og"/);
+  assert.match(og, /Asia\/Taipei/);
+  assert.match(og, /#0b1218/);
+  assert.match(og, /og\.jpg/);
+  assert.match(og, /MISSING = "—"/);
+  assert.doesNotMatch(og, /#f7f4ed/);
+  assert.match(seo, /DEFAULT_OG_IMAGE = "\/og\.jpg"/);
+  assert.match(homeView, /src="\/og\.jpg"/);
   assert.match(seo, /articleJsonLd/);
   assert.match(seo, /itemListJsonLd/);
   assert.match(seo, /newsIndexFaq/);

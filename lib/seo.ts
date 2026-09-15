@@ -3,8 +3,11 @@ import type { Metadata } from "next";
 export const SITE_URL = "https://99gold.net";
 export const SITE_NAME = "玖久黃金報價網";
 export const SITE_NAME_EN = "99GOLD.NET";
-export const DEFAULT_OG_IMAGE = "/og";
-export const DEFAULT_OG_ALT = "玖久黃金報價網今日金價：台灣理論錢價與 COMEX 黃金參考";
+/** Static brand share image (1200×630). Live quote card remains at `/og`. */
+export const DEFAULT_OG_IMAGE = "/og.jpg";
+export const DEFAULT_OG_ALT = "玖久黃金報價網：真金價值，長久相伴。";
+export const OG_IMAGE_WIDTH = 1200;
+export const OG_IMAGE_HEIGHT = 630;
 
 export type SeoLocale = "zh" | "en" | "ja";
 export type PublicRoute = "home" | "jewelry" | "international" | "recycling" | "global" | "news";
@@ -114,7 +117,7 @@ export function pageMetadata(route: PublicRoute, locale: SeoLocale = "zh"): Meta
       siteName: SITE_NAME_EN,
       locale: locale === "zh" ? "zh_TW" : locale === "ja" ? "ja_JP" : "en_US",
       type: "website",
-      images: [{ url: DEFAULT_OG_IMAGE, width: 1200, height: 630, alt: ogAlt }],
+      images: [{ url: DEFAULT_OG_IMAGE, width: OG_IMAGE_WIDTH, height: OG_IMAGE_HEIGHT, alt: ogAlt, type: "image/jpeg" }],
     },
     twitter: {
       card: "summary_large_image",
