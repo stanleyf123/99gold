@@ -11,7 +11,7 @@ type CoverImageProps = {
   priority?: boolean;
 };
 
-export default function CoverImage({ src, alt = "", className, width = 960, height = 640, priority = false }: CoverImageProps) {
+export default function CoverImage({ src, alt = "", className, width = 720, height = 480, priority = false }: CoverImageProps) {
   const [failed, setFailed] = useState(!src);
 
   if (failed) {
@@ -31,6 +31,7 @@ export default function CoverImage({ src, alt = "", className, width = 960, heig
       alt={alt}
       width={width}
       height={height}
+      sizes={priority ? "(max-width: 900px) 100vw, 760px" : "(max-width: 650px) 100vw, 50vw"}
       loading={priority ? "eager" : "lazy"}
       fetchPriority={priority ? "high" : "low"}
       decoding="async"

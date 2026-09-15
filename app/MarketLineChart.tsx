@@ -112,7 +112,7 @@ export function MarketLineChart({ points, positive, locale, period, currency = "
       context.moveTo(padding.left, y);
       context.lineTo(padding.left + width, y);
       context.stroke();
-      context.fillStyle = "#7a817b";
+      context.fillStyle = "#4e5651";
       context.textAlign = "left";
       context.fillText((max - (index / 4) * (max - min)).toLocaleString("en-US", { maximumFractionDigits: 1 }), padding.left + width + 8, y);
     }
@@ -120,7 +120,7 @@ export function MarketLineChart({ points, positive, locale, period, currency = "
     for (let index = 0; index <= 3; index += 1) {
       const pointIndex = Math.min(points.length - 1, Math.round((index / 3) * (points.length - 1)));
       const x = xAt(pointIndex);
-      context.fillStyle = "#838a83";
+      context.fillStyle = "#4e5651";
       context.textAlign = index === 0 ? "left" : index === 3 ? "right" : "center";
       context.fillText(formatTime(points[pointIndex].timestamp, period, locale), x, size.height - 10);
     }
@@ -135,7 +135,7 @@ export function MarketLineChart({ points, positive, locale, period, currency = "
     context.lineTo(xAt(points.length - 1), padding.top + height);
     context.lineTo(xAt(0), padding.top + height);
     context.closePath();
-    context.fillStyle = positive ? "rgba(190, 88, 70, .08)" : "rgba(40, 116, 99, .08)";
+    context.fillStyle = positive ? "rgba(168, 54, 42, .10)" : "rgba(24, 106, 84, .10)";
     context.fill();
 
     context.beginPath();
@@ -145,7 +145,7 @@ export function MarketLineChart({ points, positive, locale, period, currency = "
       if (index === 0) context.moveTo(x, y);
       else context.lineTo(x, y);
     });
-    context.strokeStyle = positive ? "#b9503e" : "#287463";
+    context.strokeStyle = positive ? "#a8362a" : "#186a54";
     context.lineWidth = 2.2;
     context.lineJoin = "round";
     context.lineCap = "round";
@@ -167,7 +167,7 @@ export function MarketLineChart({ points, positive, locale, period, currency = "
     context.arc(activeX, activeY, 4.5, 0, Math.PI * 2);
     context.fillStyle = "#fffdf8";
     context.fill();
-    context.strokeStyle = positive ? "#b9503e" : "#287463";
+    context.strokeStyle = positive ? "#a8362a" : "#186a54";
     context.lineWidth = 2;
     context.stroke();
   }, [activeIndex, locale, moneyFormatter, period, points, positive, size]);

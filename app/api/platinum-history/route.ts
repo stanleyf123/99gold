@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import {
-  getSilverHistory,
+  getPlatinumHistory,
   historyPeriodConfig,
   isMetalChartPeriod,
   type HistoryPeriod,
@@ -12,13 +12,13 @@ export async function GET(request: Request) {
   const config = historyPeriodConfig[period];
 
   try {
-    const data = await getSilverHistory(period);
+    const data = await getPlatinumHistory(period);
     return NextResponse.json(data, {
       headers: { "Cache-Control": `public, max-age=${config.cacheSeconds}, s-maxage=${config.cacheSeconds}` },
     });
   } catch {
     return NextResponse.json(
-      { error: "silver history unavailable", period },
+      { error: "platinum history unavailable", period, symbol: "PL=F" },
       { status: 503, headers: { "Cache-Control": "no-store" } },
     );
   }

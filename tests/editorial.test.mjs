@@ -69,6 +69,7 @@ test("official briefs expose locale-specific translations from stored fields",as
  assert.equal(zhItem.summary,"官方政策決定");
  assert.equal(zhItem.translated,true);
  assert.equal(zhItem.translationLabel,"機器翻譯");
+ assert.equal(zhItem.translationPending,false);
  assert.equal(zhItem.sourceName,"市場快訊");
  assert.doesNotMatch(zhItem.sourceName,/Federal Reserve|ONS|Treasury|BLS|ECB/i);
  assert.equal(zhItem.url,"/news/fed-1");
@@ -81,4 +82,28 @@ test("official briefs expose locale-specific translations from stored fields",as
  assert.equal(jaItem.title,"米連邦準備制度理事会がFOMC声明を発表");
  assert.equal(jaItem.sourceName,"市場速報");
  assert.equal(jaItem.translated,true);
+});
+test("official briefs mark English titles as pending under zh/ja chrome",async()=>{
+ const api=moduleFrom("../app/api/news-service.ts",{"../news/editorial":data,"../news/categories":categories,"../../lib/news/feed-client":feedClient,"../../lib/news/translate":translate});
+ const official={
+  id:"ecb-1",title:"Christine Lagarde: Introductory statement",summary:"Policy remarks.",
+  canonical_url:"https://www.ecb.europa.eu/press/pressconf/html/index.en.html",
+  source_name:"European Central Bank",category:"policy",source_published_at:"2026-09-13T18:00:00.000Z",
+  published_at:"2026-09-14T13:00:00.000Z",source_language:"en",
+  title_zh:"Christine Lagarde: Introductory statement",title_en:"Christine Lagarde: Introductory statement",
+  title_ja:"Christine Lagarde: Introductory statement",
+  summary_zh:"Policy remarks.",summary_en:"Policy remarks.",summary_ja:"Policy remarks.",
+  translation_provider:"source",
+ };
+ const db={prepare(query){const q=query.replace(/\s+/g," ");return{bind(){return this;},async first(){return q.includes("news_runs")?{finished_at:"2026-09-14T13:00:00.000Z",status:"succeeded"}:null;},async all(){return{results:q.includes("news_candidates")?[official]:[]};}};}};
+ const zhItem=(await api.getDailyGoldNews("zh",db)).items.find((item)=>item.external);
+ assert.equal(zhItem.title,"Christine Lagarde: Introductory statement");
+ assert.equal(zhItem.translated,false);
+ assert.equal(zhItem.translationPending,true);
+ assert.equal(zhItem.translationPendingLabel,"原文／翻譯待補");
+ const jaItem=(await api.getDailyGoldNews("ja",db)).items.find((item)=>item.external);
+ assert.equal(jaItem.translationPending,true);
+ assert.equal(jaItem.translationPendingLabel,"原文／翻訳待ち");
+ const enItem=(await api.getDailyGoldNews("en",db)).items.find((item)=>item.external);
+ assert.equal(enItem.translationPending,false);
 });

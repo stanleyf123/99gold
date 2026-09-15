@@ -192,6 +192,18 @@ export function isMyMemoryCoolingDown(
   return myMemoryPauseRemainingMs(gate, now) > skipIfPauseExceedsMs;
 }
 
+export function translationPendingLabel(locale: NewsLocale) {
+  if (locale === "zh") return "原文／翻譯待補";
+  if (locale === "ja") return "原文／翻訳待ち";
+  return "Original / translation pending";
+}
+
+export function isTranslationPending(locale: NewsLocale, translated: boolean, sourceLanguage?: string | null) {
+  if (translated || locale === "en") return false;
+  const source = sourceLanguage === "zh" || sourceLanguage === "ja" ? sourceLanguage : "en";
+  return locale !== source;
+}
+
 export function localizedBriefFields(row: StoredBrief, locale: NewsLocale) {
   const sourceTitle = cleanSourceText(row.title) || cleanSourceText(row.title_en ?? "") || "Market brief";
   const sourceSummary = row.summary ? cleanSourceText(row.summary) : (row.summary_en ? cleanSourceText(row.summary_en) : null);
@@ -211,12 +223,15 @@ export function localizedBriefFields(row: StoredBrief, locale: NewsLocale) {
     && Boolean(provider && provider !== "source")
     && Boolean(title)
     && title !== sourceTitle;
+  const translationPending = isTranslationPending(locale, translated, sourceLanguage);
   return {
     title: title || sourceTitle,
     summary,
     translated,
     translationProvider: translated ? provider : null,
     translationLabel: translated ? translationAttribution(locale, provider) : null,
+    translationPending,
+    translationPendingLabel: translationPending ? translationPendingLabel(locale) : null,
   };
 }
 

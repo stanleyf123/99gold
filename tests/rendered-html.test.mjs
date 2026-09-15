@@ -141,6 +141,7 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.match(cover, /coverFallback/);
   assert.match(cover, /fetchPriority/);
   assert.match(cover, /priority \? "eager" : "lazy"/);
+  assert.match(cover, /sizes=/);
 });
 
 test("keeps one locale source for header, homepage, global and section chrome", async () => {
@@ -291,6 +292,8 @@ test("ships a scheduled auto-publish news pipeline", async () => {
   assert.match(deploy, /ons\.gov\.uk\/releasecalendar\?rss/);
   assert.match(deploy, /hm-treasury/);
   assert.match(deploy, /db:migrate/);
+  assert.match(deploy, /translation_retry/);
+  assert.match(deploy, /enable --now 99gold-alerts\.timer/);
   assert.doesNotMatch(deploy, /快訊仍須在 `\/admin` 核准/);
   assert.match(pipeline, /status = 'published'/);
   assert.match(pipeline, /status IN \('pending', 'approved'\)/);
@@ -352,6 +355,7 @@ test("wires 30-90 day charts, metal comparison, browser alerts, OG route and PWA
     newsPage,
     excerpt,
     newsService,
+    briefView,
   ] = await Promise.all([
     readFile(new URL("../app/[section]/JewelryView.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/[section]/SectionView.tsx", import.meta.url), "utf8"),
@@ -370,6 +374,7 @@ test("wires 30-90 day charts, metal comparison, browser alerts, OG route and PWA
     readFile(new URL("../app/news/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../lib/news-excerpt.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/news-service.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/news/OfficialBriefView.tsx", import.meta.url), "utf8"),
   ]);
 
   assert.match(sectionPage, /getGoldHistoryOrNull\("1M"\)/);
@@ -387,9 +392,23 @@ test("wires 30-90 day charts, metal comparison, browser alerts, OG route and PWA
   assert.match(sectionView, /PriceHistoryChart/);
   assert.match(sectionView, /白銀（SI=F）歷史走勢/);
   assert.match(sectionView, /\/api\/silver-history/);
+  assert.match(sectionView, /鉑金（PL=F）歷史走勢/);
+  assert.match(sectionView, /\/api\/platinum-history/);
+  assert.match(sectionView, /鈀金（PA=F）歷史走勢/);
+  assert.match(sectionView, /\/api\/palladium-history/);
+  assert.match(sectionView, /metalHistoryPair/);
   assert.match(sectionPage, /getSilverHistoryOrNull/);
+  assert.match(sectionPage, /getPlatinumHistoryOrNull/);
+  assert.match(sectionPage, /getPalladiumHistoryOrNull/);
   assert.match(homeView, /白銀（SI=F）歷史走勢/);
   assert.match(homeView, /initialSilverPoints/);
+  assert.match(homeView, /鉑金（PL=F）歷史走勢/);
+  assert.match(homeView, /\/api\/platinum-history/);
+  assert.match(homeView, /initialPlatinumPoints/);
+  assert.match(homeView, /鈀金（PA=F）歷史走勢/);
+  assert.match(homeView, /\/api\/palladium-history/);
+  assert.match(homeView, /translationPending/);
+  assert.match(homeView, /原文／翻譯待補/);
   assert.match(chart, /onPeriodChange/);
   assert.match(chart, /onHistoryData/);
   assert.match(chart, /\$\{endpoint\}\?period=\$\{period\}/);
@@ -421,7 +440,10 @@ test("wires 30-90 day charts, metal comparison, browser alerts, OG route and PWA
   assert.match(newsPage, /newsEmpty/);
   assert.match(excerpt, /newsExcerpt/);
   assert.match(newsService, /localizedBriefFields/);
+  assert.match(newsService, /translationPending/);
   assert.match(newsService, /url:"\/news\/"\+r\.id/);
+  assert.match(newsPage, /translationPendingLabel/);
+  assert.match(briefView, /translationPending/);
 });
 
 test("wires gold/silver ratio math, history API, and charts on global, international and home", async () => {
@@ -454,9 +476,15 @@ test("wires gold/silver ratio math, history API, and charts on global, internati
   assert.match(homeView, /GoldSilverRatioPanel/);
   assert.match(homePage, /getGoldSilverRatioHistoryOrNull/);
   assert.match(homePage, /getSilverHistoryOrNull/);
+  assert.match(homePage, /getPlatinumHistoryOrNull/);
+  assert.match(homePage, /getPalladiumHistoryOrNull/);
   assert.match(sectionPage, /getSilverHistoryOrNull/);
+  assert.match(sectionPage, /getPlatinumHistoryOrNull/);
   assert.match(sectionView, /\/api\/silver-history/);
+  assert.match(sectionView, /\/api\/platinum-history/);
+  assert.match(sectionView, /\/api\/palladium-history/);
   assert.match(homeView, /\/api\/silver-history/);
+  assert.match(homeView, /\/api\/platinum-history/);
   assert.match(chart, /endpoint/);
   assert.match(panel, /\["1M", "3M", "1Y", "3Y", "5Y"\]/);
   assert.match(panel, /1Y \/ 3Y \/ 5Y/);
@@ -465,6 +493,31 @@ test("wires gold/silver ratio math, history API, and charts on global, internati
   assert.match(ratioLib, /interval: "1d"/);
   assert.match(ratioLib, /downsampleToUtcWeekCloses/);
   assert.match(ratioApi, /isRatioHistoryPeriod/);
+});
+
+test("platinum and palladium history APIs share metal helpers and 1M/3M/1Y windows", async () => {
+  const [historyLib, metalsApi, platinumApi, palladiumApi, silverApi] = await Promise.all([
+    readFile(new URL("../lib/gold-history.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/metals-history/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/platinum-history/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/palladium-history/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/silver-history/route.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(historyLib, /PLATINUM_YAHOO_SYMBOL/);
+  assert.match(historyLib, /PALLADIUM_YAHOO_SYMBOL/);
+  assert.match(historyLib, /resolveMetalHistorySymbol/);
+  assert.match(historyLib, /"PL=F"/);
+  assert.match(historyLib, /"PA=F"/);
+  assert.match(historyLib, /getPlatinumHistory/);
+  assert.match(historyLib, /getPalladiumHistory/);
+  assert.match(historyLib, /historyPointsFromCloses/);
+  assert.match(metalsApi, /resolveMetalHistorySymbol/);
+  assert.match(metalsApi, /PT=F alias/);
+  assert.match(platinumApi, /getPlatinumHistory/);
+  assert.match(palladiumApi, /getPalladiumHistory/);
+  assert.match(silverApi, /getSilverHistory/);
+  assert.match(platinumApi, /isMetalChartPeriod/);
+  assert.match(palladiumApi, /isMetalChartPeriod/);
 });
 
 test("packages the app as 99gold and ships installable alert timer units", async () => {
@@ -485,4 +538,6 @@ test("packages the app as 99gold and ships installable alert timer units", async
   assert.match(timer, /OnUnitActiveSec=15min/);
   assert.match(timer, /99gold-alerts\.service/);
   assert.match(deploy, /deploy\/systemd\/99gold-alerts/);
+  assert.match(deploy, /translation_retry_at/);
+  assert.match(deploy, /enable --now 99gold-alerts\.timer/);
 });

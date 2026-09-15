@@ -1,7 +1,7 @@
 import HomeView from "./HomeView";
 import JsonLd from "./JsonLd";
 import { getGlobalQuotesOrNull } from "../lib/quotes";
-import { getSilverHistoryOrNull } from "../lib/gold-history";
+import { getPalladiumHistoryOrNull, getPlatinumHistoryOrNull, getSilverHistoryOrNull } from "../lib/gold-history";
 import { getGoldSilverRatioHistoryOrNull } from "../lib/gold-silver-ratio";
 import { itemListJsonLd, pageMetadata } from "../lib/seo";
 import { getDailyGoldNews } from "./api/news-service";
@@ -11,10 +11,12 @@ export const dynamic = "force-dynamic";
 export const metadata = pageMetadata("home");
 
 export default async function HomePage() {
-  const [quotes, ratioHistory, silverHistory, news] = await Promise.all([
+  const [quotes, ratioHistory, silverHistory, platinumHistory, palladiumHistory, news] = await Promise.all([
     getGlobalQuotesOrNull(),
     getGoldSilverRatioHistoryOrNull("1M"),
     getSilverHistoryOrNull("1M"),
+    getPlatinumHistoryOrNull("1M"),
+    getPalladiumHistoryOrNull("1M"),
     getDailyGoldNews("zh", getRawDb()),
   ]);
   const briefLinks = (news.items ?? []).slice(0, 4).map((item) => ({
@@ -28,6 +30,8 @@ export default async function HomePage() {
         initialQuotes={quotes}
         initialRatioPoints={ratioHistory?.points ?? []}
         initialSilverPoints={silverHistory?.points ?? []}
+        initialPlatinumPoints={platinumHistory?.points ?? []}
+        initialPalladiumPoints={palladiumHistory?.points ?? []}
         initialNews={news}
       />
     </>

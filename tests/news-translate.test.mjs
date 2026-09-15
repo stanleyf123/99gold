@@ -95,6 +95,14 @@ test("localizedBriefFields does not claim translation when zh/ja fields are stil
   const zh = translate.localizedBriefFields(row, "zh");
   assert.equal(zh.title, englishTitle);
   assert.equal(zh.translated, false);
+  assert.equal(zh.translationPending, true);
+  assert.equal(zh.translationPendingLabel, "原文／翻譯待補");
+  const ja = translate.localizedBriefFields(row, "ja");
+  assert.equal(ja.translationPending, true);
+  assert.equal(ja.translationPendingLabel, "原文／翻訳待ち");
+  const en = translate.localizedBriefFields(row, "en");
+  assert.equal(en.translationPending, false);
+  assert.equal(en.translationPendingLabel, null);
 });
 
 test("localizedBriefFields never prefers empty zh/ja fields over the source title", () => {
@@ -114,10 +122,12 @@ test("localizedBriefFields never prefers empty zh/ja fields over the source titl
   assert.equal(zh.title, englishTitle);
   assert.equal(zh.summary, englishSummary);
   assert.equal(zh.translated, false);
+  assert.equal(zh.translationPending, true);
   assert.equal(translate.needsTranslationBackfill(row), true);
   const ja = translate.localizedBriefFields(row, "ja");
   assert.equal(ja.title, englishTitle);
   assert.ok(ja.title.length > 0);
+  assert.equal(ja.translationPending, true);
 });
 
 test("OpenAI path translates title and summary when OPENAI_API_KEY is set", async () => {

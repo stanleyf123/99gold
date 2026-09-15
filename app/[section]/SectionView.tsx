@@ -1,11 +1,13 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import SiteLinks from "../SiteLinks";
 import PriceHistoryChart from "../PriceHistoryChart";
 import GoldSilverRatioPanel from "../GoldSilverRatio";
 import { type Locale, t, useSiteLocale } from "../locale";
-import RecycleCalculator from "./RecycleCalculator";
+
+const RecycleCalculator = dynamic(() => import("./RecycleCalculator"));
 
 type SectionName = "international" | "jewelry" | "recycling";
 type LiveCard = { name: string; price: string; unit: string; change: string };
@@ -204,6 +206,8 @@ export default function SectionView({
   taiwanQian,
   historyPoints = [],
   silverPoints = [],
+  platinumPoints = [],
+  palladiumPoints = [],
   ratioPoints = [],
   goldPrice = Number.NaN,
   silverPrice = Number.NaN,
@@ -217,6 +221,8 @@ export default function SectionView({
   taiwanQian?: number | null;
   historyPoints?: Array<{ timestamp: number; close: number }>;
   silverPoints?: Array<{ timestamp: number; close: number }>;
+  platinumPoints?: Array<{ timestamp: number; close: number }>;
+  palladiumPoints?: Array<{ timestamp: number; close: number }>;
   ratioPoints?: Array<{ timestamp: number; close: number }>;
   goldPrice?: number;
   silverPrice?: number;
@@ -287,6 +293,30 @@ export default function SectionView({
             periods={["1M", "3M", "1Y"]}
             note={t(locale, "SI 期貨參考，美元／金衡盎司。缺交易日不列，不補估價格。", "SI futures reference in USD / troy ounce. Missing sessions are omitted, never filled in.", "SI先物の参考値（米ドル／トロイオンス）。欠けた取引日は掲載せず、価格は補完しません。")}
           />
+        ) : null}
+        {section === "international" ? (
+          <div className="metalHistoryPair">
+            <PriceHistoryChart
+              locale={locale}
+              currency="USD"
+              title={t(locale, "鉑金（PL=F）歷史走勢", "Platinum (PL=F) history", "プラチナ（PL=F）の履歴")}
+              ariaLabel={t(locale, "NYMEX 鉑金期貨歷史走勢", "NYMEX platinum futures history", "NYMEXプラチナ先物の履歴")}
+              initialPoints={platinumPoints}
+              endpoint="/api/platinum-history"
+              periods={["1M", "3M", "1Y"]}
+              note={t(locale, "PL 期貨參考（Yahoo 代碼 PL=F），美元／金衡盎司。缺交易日不列，不補估價格。", "PL futures reference (Yahoo ticker PL=F) in USD / troy ounce. Missing sessions are omitted, never filled in.", "PL先物の参考値（Yahooコード PL=F、米ドル／トロイオンス）。欠けた取引日は掲載せず、価格は補完しません。")}
+            />
+            <PriceHistoryChart
+              locale={locale}
+              currency="USD"
+              title={t(locale, "鈀金（PA=F）歷史走勢", "Palladium (PA=F) history", "パラジウム（PA=F）の履歴")}
+              ariaLabel={t(locale, "NYMEX 鈀金期貨歷史走勢", "NYMEX palladium futures history", "NYMEXパラジウム先物の履歴")}
+              initialPoints={palladiumPoints}
+              endpoint="/api/palladium-history"
+              periods={["1M", "3M", "1Y"]}
+              note={t(locale, "PA 期貨參考，美元／金衡盎司。缺交易日不列，不補估價格。", "PA futures reference in USD / troy ounce. Missing sessions are omitted, never filled in.", "PA先物の参考値（米ドル／トロイオンス）。欠けた取引日は掲載せず、価格は補完しません。")}
+            />
+          </div>
         ) : null}
         {section === "international" ? (
           <GoldSilverRatioPanel
