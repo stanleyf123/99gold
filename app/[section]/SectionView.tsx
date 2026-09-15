@@ -203,6 +203,7 @@ export default function SectionView({
   source,
   taiwanQian,
   historyPoints = [],
+  silverPoints = [],
   ratioPoints = [],
   goldPrice = Number.NaN,
   silverPrice = Number.NaN,
@@ -215,6 +216,7 @@ export default function SectionView({
   source?: string;
   taiwanQian?: number | null;
   historyPoints?: Array<{ timestamp: number; close: number }>;
+  silverPoints?: Array<{ timestamp: number; close: number }>;
   ratioPoints?: Array<{ timestamp: number; close: number }>;
   goldPrice?: number;
   silverPrice?: number;
@@ -267,10 +269,23 @@ export default function SectionView({
           <PriceHistoryChart
             locale={locale}
             currency="USD"
-            title={t(locale, "COMEX 黃金期貨走勢（近 30／90 日）", "COMEX gold futures (30 / 90 days)", "COMEX金先物（30／90日）")}
+            title={t(locale, "COMEX 黃金期貨走勢（30日／90日／1年）", "COMEX gold futures (30D / 90D / 1Y)", "COMEX金先物（30日／90日／1年）")}
             ariaLabel={t(locale, "COMEX 黃金期貨歷史走勢", "COMEX gold futures history", "COMEX金先物の履歴")}
             initialPoints={historyPoints}
-            note={t(locale, "GC 期貨參考，不等同現貨或銀樓牌價。", "GC futures reference — not spot XAU or a jewelry quote.", "GC先物の参考値であり、現物や店頭価格ではありません。")}
+            periods={["1M", "3M", "1Y"]}
+            note={t(locale, "GC 期貨參考，不等同現貨或銀樓牌價。缺日不補估。", "GC futures reference — not spot XAU or a jewelry quote. Missing sessions are omitted, never filled in.", "GC先物の参考値であり、現物や店頭価格ではありません。欠落した取引日は補完しません。")}
+          />
+        ) : null}
+        {section === "international" ? (
+          <PriceHistoryChart
+            locale={locale}
+            currency="USD"
+            title={t(locale, "白銀（SI=F）歷史走勢", "Silver (SI=F) history", "銀（SI=F）の履歴")}
+            ariaLabel={t(locale, "COMEX 白銀期貨歷史走勢", "COMEX silver futures history", "COMEX銀先物の履歴")}
+            initialPoints={silverPoints}
+            endpoint="/api/silver-history"
+            periods={["1M", "3M", "1Y"]}
+            note={t(locale, "SI 期貨參考，美元／金衡盎司。缺交易日不列，不補估價格。", "SI futures reference in USD / troy ounce. Missing sessions are omitted, never filled in.", "SI先物の参考値（米ドル／トロイオンス）。欠けた取引日は掲載せず、価格は補完しません。")}
           />
         ) : null}
         {section === "international" ? (

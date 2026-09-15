@@ -12,6 +12,7 @@ import { jewelrySellFromBuy, parseQuotedNumber } from "../lib/section-quotes";
 import { bankOfTaiwanUsdSightSell, formatUsdTwdSightSell } from "../lib/fx-display";
 import PriceAlerts from "./PriceAlerts";
 import GoldSilverRatioPanel from "./GoldSilverRatio";
+import PriceHistoryChart from "./PriceHistoryChart";
 import { newsExcerpt } from "../lib/news-excerpt";
 
 const alertMarkets = [
@@ -173,10 +174,12 @@ function applyQuoteSnapshot(
 export default function HomeView({
   initialQuotes = null,
   initialRatioPoints = [],
+  initialSilverPoints = [],
   initialNews = null,
 }: {
   initialQuotes?: HomeQuoteSnapshot | null;
   initialRatioPoints?: MarketChartPoint[];
+  initialSilverPoints?: MarketChartPoint[];
   initialNews?: { items?: NewsItem[]; updatedAt?: string; checkedAt?: string; scheduleStatus?: "healthy" | "delayed" | "error" | "pending" } | null;
 }) {
   const [activeTab, setActiveTab] = useState<"quotes" | "news" | "history" | "tools">("quotes");
@@ -570,6 +573,16 @@ export default function HomeView({
               goldSymbol={globalGold.symbol || "GC=F"}
               silverSymbol={globalMetals.find((metal) => metal.id === "silver")?.symbol ?? "SI=F"}
               initialPoints={initialRatioPoints}
+            />
+            <PriceHistoryChart
+              locale={locale}
+              currency="USD"
+              title={t("白銀（SI=F）歷史走勢", "Silver (SI=F) history", "銀（SI=F）の履歴")}
+              ariaLabel={t("COMEX 白銀期貨歷史走勢", "COMEX silver futures history", "COMEX銀先物の履歴")}
+              initialPoints={initialSilverPoints}
+              endpoint="/api/silver-history"
+              periods={["1M", "3M", "1Y"]}
+              note={t("SI 期貨參考，美元／金衡盎司。缺交易日不列，不補估價格。", "SI futures reference in USD / troy ounce. Missing sessions are omitted, never filled in.", "SI先物の参考値（米ドル／トロイオンス）。欠けた取引日は掲載せず、価格は補完しません。")}
             />
 
             <div className="fxTape" aria-label={t("主要匯率", "Major exchange rates", "主要為替レート")}>

@@ -161,57 +161,26 @@ sudo systemctl enable --now 99gold-news.timer
 
 瀏覽器 Notification 仍在訪客裝置上檢查。Email／LINE 則由伺服器發送（同一目標 6 小時冷卻，另有 30 秒全域間隔以免洗版）。金鑰寫在 `/etc/99gold.env` 一次即可；收件人與 LINE 使用者 ID 也可在 `/admin` 儲存。
 
-```bash
-cd /var/www/99gold
-sudo -u www-data npm run alerts:dispatch
-```
-
-`/etc/systemd/system/99gold-alerts.service`：
-
-```ini
-[Unit]
-Description=99gold.net price alert dispatch
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=oneshot
-User=www-data
-Group=www-data
-WorkingDirectory=/var/www/99gold
-EnvironmentFile=/etc/99gold.env
-ExecStart=/usr/bin/npm run alerts:dispatch
-Nice=10
-```
-
-`/etc/systemd/system/99gold-alerts.timer`：
-
-```ini
-[Unit]
-Description=Dispatch 99gold price alerts every 10 minutes
-
-[Timer]
-OnBootSec=3min
-OnUnitActiveSec=10min
-AccuracySec=1min
-Persistent=true
-Unit=99gold-alerts.service
-
-[Install]
-WantedBy=timers.target
-```
+安裝用單位檔在 repo 的 `deploy/systemd/`（不含密鑰）：
 
 ```bash
+sudo cp /var/www/99gold/deploy/systemd/99gold-alerts.service /etc/systemd/system/
+sudo cp /var/www/99gold/deploy/systemd/99gold-alerts.timer /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now 99gold-alerts.timer
+# 可先手動跑一次確認腳本存在：
+cd /var/www/99gold && sudo -u www-data npm run alerts:dispatch
+sudo systemctl list-timers 99gold-alerts.timer
 ```
 
-未設定 `RESEND_API_KEY`／`SMTP_HOST` 與 LINE token 時，指令會成功但 `fired` 為 0，不影響網站。前台「我的到價提醒」仍可開瀏覽器通知。
+`99gold-alerts.timer` **每 15 分鐘**呼叫 `npm run alerts:dispatch`。服務讀 `EnvironmentFile=/etc/99gold.env`，工作目錄 `/var/www/99gold`。
+
+未設定 `RESEND_API_KEY`／`SMTP_HOST` 與 LINE token 時，指令會成功但 `fired` 為 0，不影響網站。前台「我的到價提醒」仍可開瀏覽器通知。GET `/api/price-alerts` 的 `email.configured`／`line.configured` 只反映目前環境金鑰，不是程式故障。
 
 等價 crontab：
 
 ```cron
-*/10 * * * * www-data cd /var/www/99gold && /usr/bin/npm run alerts:dispatch >> /var/log/99gold-alerts.log 2>&1
+*/15 * * * * www-data cd /var/www/99gold && /usr/bin/npm run alerts:dispatch >> /var/log/99gold-alerts.log 2>&1
 ```
 
 等價 crontab（若不用 systemd timer）：

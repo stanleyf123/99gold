@@ -293,7 +293,9 @@ export default function JewelryView({
       ? t(locale, "近 90 日", "Past 90 days", "直近90日")
       : period === "1Y"
         ? t(locale, "近 1 年", "Past year", "直近1年")
-        : t(locale, "近 3 年", "Past 3 years", "直近3年");
+        : period === "5Y"
+          ? t(locale, "近 5 年", "Past 5 years", "直近5年")
+          : t(locale, "近 3 年", "Past 3 years", "直近3年");
 
   return (
     <main className="subpage" lang={locale === "zh" ? "zh-Hant" : locale}>
@@ -374,7 +376,7 @@ export default function JewelryView({
           ariaLabel={t(locale, "台灣理論金價歷史走勢", "Taiwan theoretical gold history", "台湾理論金価格の履歴")}
           initialPoints={historyRows.map((row) => ({ timestamp: row.timestamp, close: row.buy }))}
           endpoint="/api/jewelry-history"
-          periods={["1M", "3M", "1Y", "3Y"]}
+          periods={["1M", "3M", "1Y", "3Y", "5Y"]}
           period={period}
           onPeriodChange={setPeriod}
           onHistoryData={onHistoryData}

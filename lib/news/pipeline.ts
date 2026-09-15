@@ -4,8 +4,10 @@ import { newsSources, sourceAcceptsTitle } from "./source-config";
 import {
   AUTO_PIPELINE_REVIEWER,
   cleanSourceText,
+  isMyMemoryCoolingDown,
   looksLikeTargetLocale,
-  needsTranslationBackfill,
+  nextTranslationRetryAt,
+  selectRetranslateCandidates,
   translateOfficialBrief,
   type LocalizedBrief,
   type TranslationProvider,
@@ -98,10 +100,41 @@ type PublishableCandidate = {
   summary_en?: string | null;
   summary_ja?: string | null;
   translation_provider?: string | null;
+  translation_retry_at?: string | null;
+  translation_attempts?: number | null;
 };
 
 const candidateSelect = `id, title, summary, source_language,
-  title_zh, title_en, title_ja, summary_zh, summary_en, summary_ja, translation_provider`;
+  title_zh, title_en, title_ja, summary_zh, summary_en, summary_ja, translation_provider,
+  translation_retry_at, translation_attempts`;
+
+function existingFromCandidate(candidate: PublishableCandidate) {
+  return {
+    titles: {
+      zh: candidate.title_zh,
+      en: candidate.title_en,
+      ja: candidate.title_ja,
+    },
+    summaries: {
+      zh: candidate.summary_zh,
+      en: candidate.summary_en,
+      ja: candidate.summary_ja,
+    },
+    provider: candidate.translation_provider,
+  };
+}
+
+function retrySchedule(candidate: PublishableCandidate, translated: LocalizedBrief, now: string) {
+  if (translated.complete) return { retryAt: null as string | null, attempts: 0 };
+  const attempts = (candidate.translation_attempts ?? 0) + 1;
+  return {
+    retryAt: nextTranslationRetryAt(now, {
+      rateLimited: isMyMemoryCoolingDown() || translated.provider === "source",
+      attempts,
+    }),
+    attempts,
+  };
+}
 
 async function translationsFor(candidate: PublishableCandidate): Promise<LocalizedBrief> {
   if (
@@ -121,9 +154,12 @@ async function translationsFor(candidate: PublishableCandidate): Promise<Localiz
       },
       provider: (candidate.translation_provider as TranslationProvider) || "source",
       translated: true,
+      complete: true,
     };
   }
-  return translateOfficialBrief(candidate.title, candidate.summary, candidate.source_language || "en");
+  return translateOfficialBrief(candidate.title, candidate.summary, candidate.source_language || "en", {
+    existing: existingFromCandidate(candidate),
+  });
 }
 
 async function markCandidatePublished(
@@ -134,10 +170,12 @@ async function markCandidatePublished(
   scheduledFor = now,
 ) {
   const translated = await translationsFor(candidate);
+  const retry = retrySchedule(candidate, translated, now);
   const result = await db.prepare(`UPDATE news_candidates SET
     title_zh = ?, title_en = ?, title_ja = ?,
     summary_zh = ?, summary_en = ?, summary_ja = ?,
     translation_provider = ?, translated_at = ?,
+    translation_retry_at = ?, translation_attempts = ?,
     status = 'published', scheduled_for = ?, reviewed_at = ?,
     reviewed_by = ?, published_at = ?
     WHERE id = ? AND status IN ('pending', 'approved')`)
@@ -150,6 +188,8 @@ async function markCandidatePublished(
       translated.summaries.ja,
       translated.provider,
       now,
+      retry.retryAt,
+      retry.attempts,
       scheduledFor,
       now,
       reviewedBy,
@@ -174,7 +214,8 @@ export async function publishReadyCandidates(db: NewsDatabase, now = new Date().
 }
 
 const BACKFILL_BATCH = 3;
-const BACKFILL_GAP_MS = 250;
+const BACKFILL_GAP_MS = 400;
+const BACKFILL_POOL = 40;
 
 function sleep(ms: number) {
   if (ms <= 0) return Promise.resolve();
@@ -189,22 +230,27 @@ export async function backfillPublishedTranslations(
   const published = await db.prepare(`SELECT ${candidateSelect}
     FROM news_candidates
     WHERE status = 'published'
-    ORDER BY published_at DESC LIMIT 40`).all<PublishableCandidate>();
+    ORDER BY published_at DESC LIMIT ?`).bind(BACKFILL_POOL).all<PublishableCandidate>();
+  const due = selectRetranslateCandidates(published?.results ?? [], now, limit);
   let retranslatedCount = 0;
-  for (const candidate of published?.results ?? []) {
-    if (retranslatedCount >= limit) break;
-    if (!needsTranslationBackfill(candidate)) continue;
+  for (const candidate of due) {
+    if (isMyMemoryCoolingDown()) break;
     const translated = await translateOfficialBrief(
       candidate.title,
       candidate.summary,
       candidate.source_language || "en",
-      { delayMs: 160 },
+      {
+        delayMs: 800,
+        existing: existingFromCandidate(candidate),
+      },
     );
-    if (!translated.translated) continue;
+    const retry = retrySchedule(candidate, translated, now);
+    const improved = translated.translated;
     const result = await db.prepare(`UPDATE news_candidates SET
       title_zh = ?, title_en = ?, title_ja = ?,
       summary_zh = ?, summary_en = ?, summary_ja = ?,
-      translation_provider = ?, translated_at = ?
+      translation_provider = ?, translated_at = ?,
+      translation_retry_at = ?, translation_attempts = ?
       WHERE id = ? AND status = 'published'`)
       .bind(
         translated.titles.zh,
@@ -215,12 +261,15 @@ export async function backfillPublishedTranslations(
         translated.summaries.ja,
         translated.provider,
         now,
+        retry.retryAt,
+        retry.attempts,
         candidate.id,
       ).run();
-    if (result.meta?.changes) {
+    if (result.meta?.changes && improved) {
       retranslatedCount += 1;
       await sleep(BACKFILL_GAP_MS);
     }
+    if (isMyMemoryCoolingDown()) break;
   }
   return retranslatedCount;
 }

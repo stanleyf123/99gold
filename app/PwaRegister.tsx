@@ -23,6 +23,22 @@ export default function PwaRegister() {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => undefined);
     }
+    let reloading = false;
+    const staleServerAction = (reason: unknown) => {
+      const message = String(
+        reason && typeof reason === "object" && "message" in reason
+          ? (reason as { message?: unknown }).message
+          : reason ?? "",
+      );
+      if (reloading) return;
+      if (!/Failed to find Server Action/i.test(message)) return;
+      reloading = true;
+      window.location.reload();
+    };
+    const onRejection = (event: PromiseRejectionEvent) => staleServerAction(event.reason);
+    const onError = (event: ErrorEvent) => staleServerAction(event.error ?? event.message);
+    window.addEventListener("unhandledrejection", onRejection);
+    window.addEventListener("error", onError);
     const update = () => setOffline(!navigator.onLine);
     update();
     window.addEventListener("online", update);
@@ -31,12 +47,14 @@ export default function PwaRegister() {
       window.cancelAnimationFrame(frame);
       window.removeEventListener("online", update);
       window.removeEventListener("offline", update);
+      window.removeEventListener("unhandledrejection", onRejection);
+      window.removeEventListener("error", onError);
     };
   }, []);
 
   useEffect(() => {
     if (!offline || !("caches" in window)) return;
-    caches.open("99gold-quotes-v1")
+    caches.open("99gold-quotes-v2")
       .then((cache) => cache.keys())
       .then((keys) => setCachedQuotes(keys.some((request) => new URL(request.url).pathname === "/api/global-quotes")))
       .catch(() => setCachedQuotes(false));

@@ -18,6 +18,7 @@ function moduleFrom(path, extras = {}) {
     JSON,
     Intl,
     Number,
+    Math,
     URL,
     TextEncoder,
     Uint8Array,
@@ -63,6 +64,9 @@ function defaultTranslate() {
     cleanSourceText: translateLib.cleanSourceText,
     looksLikeTargetLocale: translateLib.looksLikeTargetLocale,
     needsTranslationBackfill: translateLib.needsTranslationBackfill,
+    selectRetranslateCandidates: translateLib.selectRetranslateCandidates,
+    nextTranslationRetryAt: translateLib.nextTranslationRetryAt,
+    isMyMemoryCoolingDown: translateLib.isMyMemoryCoolingDown,
     translateOfficialBrief: async (title, summary) => ({
       titles: { zh: `中文：${title}`, en: title, ja: `日本語：${title}` },
       summaries: {
@@ -72,6 +76,7 @@ function defaultTranslate() {
       },
       provider: "mymemory",
       translated: true,
+      complete: true,
     }),
   };
 }
@@ -141,10 +146,19 @@ function memoryDb(seed = []) {
             row.summary_en = bound[4];
             row.summary_ja = bound[5];
             row.translation_provider = bound[6];
+            row.translated_at = bound[7];
+            if (q.includes("translation_retry_at")) {
+              row.translation_retry_at = bound[8];
+              row.translation_attempts = bound[9];
+              row.scheduled_for = bound[10];
+              row.reviewed_by = bound[12];
+              row.published_at = bound[13];
+            } else {
+              row.scheduled_for = bound[8];
+              row.reviewed_by = bound[10];
+              row.published_at = bound[11];
+            }
             row.status = "published";
-            row.scheduled_for = bound[8];
-            row.reviewed_by = bound[10];
-            row.published_at = bound[11];
             return { meta: { changes: 1 } };
           }
           if (q.includes("UPDATE news_candidates") && q.includes("title_zh") && q.includes("AND status = 'published'")) {
@@ -159,6 +173,10 @@ function memoryDb(seed = []) {
             row.summary_ja = bound[5];
             row.translation_provider = bound[6];
             row.translated_at = bound[7];
+            if (q.includes("translation_retry_at")) {
+              row.translation_retry_at = bound[8];
+              row.translation_attempts = bound[9];
+            }
             return { meta: { changes: 1 } };
           }
           if (q.includes("UPDATE news_candidates") && q.includes("status = 'rejected'")) {
@@ -648,9 +666,22 @@ test("backfill retranlates published briefs that still lack zh/ja titles", async
       title_zh: "聯邦準備理事會發布FOMC聲明",
       title_ja: "米連邦準備制度理事会がFOMC声明を発表",
     },
+    {
+      id: "cooled-1",
+      url: "https://www.ecb.europa.eu/cooled.htm",
+      title: "Monetary policy statement",
+      summary: "Rates",
+      source_language: "en",
+      status: "published",
+      published_at: "2026-09-14T12:30:00.000Z",
+      title_zh: "Monetary policy statement",
+      title_ja: "Monetary policy statement",
+      translation_retry_at: "2026-09-14T20:00:00.000Z",
+    },
   ]);
   const count = await backfillPublishedTranslations(db, "2026-09-14T13:00:00.000Z", 3);
   assert.equal(count, 1);
   assert.match(db.candidates.find((item) => item.id === "gap-1")?.title_zh, /中文：/);
   assert.equal(db.candidates.find((item) => item.id === "ok-1")?.title_zh, "聯邦準備理事會發布FOMC聲明");
+  assert.equal(db.candidates.find((item) => item.id === "cooled-1")?.title_zh, "Monetary policy statement");
 });

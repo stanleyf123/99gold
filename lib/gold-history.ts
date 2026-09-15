@@ -108,6 +108,81 @@ export function boundHistoryPoints(points: HistoryPoint[], maxPoints: number): H
 
 export type MetalHistorySymbol = "GC=F" | "SI=F";
 
+export const SILVER_HISTORY_PERIODS = ["1M", "3M", "1Y"] as const;
+export type SilverHistoryPeriod = (typeof SILVER_HISTORY_PERIODS)[number];
+
+export function isSilverHistoryPeriod(value: string | null | undefined): value is SilverHistoryPeriod {
+  return SILVER_HISTORY_PERIODS.includes(value as SilverHistoryPeriod);
+}
+
+/** Drop missing/invalid sessions. Never interpolate or invent a close. */
+export function historyPointsFromCloses(
+  timestamps: Array<number | null | undefined>,
+  closes: Array<number | null | undefined>,
+): HistoryPoint[] {
+  const length = Math.min(timestamps.length, closes.length);
+  const points: HistoryPoint[] = [];
+  for (let index = 0; index < length; index += 1) {
+    const timestamp = timestamps[index];
+    const close = closes[index];
+    if (!Number.isFinite(timestamp) || !Number.isFinite(close)) continue;
+    points.push({ timestamp: timestamp as number, close: close as number });
+  }
+  return points;
+}
+
+export function clipMetalHistoryPoints(points: HistoryPoint[], period: HistoryPeriod): HistoryPoint[] {
+  const latestTimestamp = points.at(-1)?.timestamp;
+  if (period === "1D" && latestTimestamp) {
+    return points.filter((point) => point.timestamp >= latestTimestamp - 86_400);
+  }
+  if (period === "3Y" || period === "5Y") return windowHistoryPoints(points, period);
+  return points;
+}
+
+function statsFromPoints(points: HistoryPoint[]): HistoryStats {
+  const values = points.map((point) => point.close);
+  const open = values[0];
+  const close = values[values.length - 1];
+  const high = Math.max(...values);
+  const low = Math.min(...values);
+  const change = close - open;
+  const changePercent = open ? (change / open) * 100 : 0;
+  return { open, close, high, low, change, changePercent };
+}
+
+export function buildMetalHistory(
+  symbol: MetalHistorySymbol,
+  period: HistoryPeriod,
+  timestamps: Array<number | null | undefined>,
+  closes: Array<number | null | undefined>,
+  meta?: { currency?: string; exchangeName?: string },
+  retrievedAt = new Date().toISOString(),
+): GoldHistory {
+  const allPoints = historyPointsFromCloses(timestamps, closes);
+  const points = clipMetalHistoryPoints(allPoints, period);
+  if (points.length < 2) throw new Error("history data missing");
+  const finalPoint = points.at(-1);
+  if (!finalPoint) throw new Error("history timestamp missing");
+  const quotedAt = new Date(finalPoint.timestamp * 1000).toISOString();
+  const exchange = meta?.exchangeName ?? "COMEX";
+  const source = symbol === "GC=F"
+    ? `${exchange} GC futures via Yahoo Finance`
+    : symbol === "SI=F"
+      ? `${exchange} SI futures via Yahoo Finance`
+      : `${exchange} ${symbol} via Yahoo Finance`;
+  return {
+    period,
+    points,
+    stats: statsFromPoints(points),
+    quotedAt,
+    updatedAt: quotedAt,
+    retrievedAt,
+    source,
+    currency: meta?.currency ?? "USD",
+  };
+}
+
 export async function getMetalHistory(
   symbol: MetalHistorySymbol,
   period: HistoryPeriod = "1M",
@@ -126,46 +201,13 @@ export async function getMetalHistory(
   if (!response.ok) throw new Error("history unavailable");
   const data = await response.json() as YahooHistoryResponse;
   const result = data.chart?.result?.[0];
-  const timestamps = result?.timestamp ?? [];
-  const closes = result?.indicators?.quote?.[0]?.close ?? [];
-  const allPoints = timestamps
-    .map((timestamp, index) => ({ timestamp, close: closes[index] }))
-    .filter((point): point is HistoryPoint => Number.isFinite(point.close));
-  const latestTimestamp = allPoints.at(-1)?.timestamp;
-  const points = period === "1D" && latestTimestamp
-    ? allPoints.filter((point) => point.timestamp >= latestTimestamp - 86_400)
-    : period === "3Y"
-      ? windowHistoryPoints(allPoints, "3Y")
-      : allPoints;
-
-  if (points.length < 2) throw new Error("history data missing");
-
-  const values = points.map((point) => point.close);
-  const open = values[0];
-  const close = values[values.length - 1];
-  const high = Math.max(...values);
-  const low = Math.min(...values);
-  const change = close - open;
-  const changePercent = open ? (change / open) * 100 : 0;
-  const finalPoint = points.at(-1);
-  if (!finalPoint) throw new Error("history timestamp missing");
-  const quotedAt = new Date(finalPoint.timestamp * 1000).toISOString();
-  const retrievedAt = new Date().toISOString();
-  const exchange = result?.meta?.exchangeName ?? "COMEX";
-  const source = symbol === "GC=F"
-    ? `${exchange} GC futures via Yahoo Finance`
-    : `${exchange} ${symbol} via Yahoo Finance`;
-
-  return {
+  return buildMetalHistory(
+    symbol,
     period,
-    points,
-    stats: { open, close, high, low, change, changePercent },
-    quotedAt,
-    updatedAt: quotedAt,
-    retrievedAt,
-    source,
-    currency: result?.meta?.currency ?? "USD",
-  };
+    result?.timestamp ?? [],
+    result?.indicators?.quote?.[0]?.close ?? [],
+    { currency: result?.meta?.currency, exchangeName: result?.meta?.exchangeName },
+  );
 }
 
 export async function getGoldHistory(period: HistoryPeriod = "1M"): Promise<GoldHistory> {
@@ -175,6 +217,19 @@ export async function getGoldHistory(period: HistoryPeriod = "1M"): Promise<Gold
 export async function getGoldHistoryOrNull(period: HistoryPeriod = "1M"): Promise<GoldHistory | null> {
   try {
     return await getGoldHistory(period);
+  } catch {
+    return null;
+  }
+}
+
+export async function getSilverHistory(period: HistoryPeriod = "1M"): Promise<GoldHistory> {
+  const resolved: HistoryPeriod = isSilverHistoryPeriod(period) ? period : "1M";
+  return getMetalHistory("SI=F", resolved);
+}
+
+export async function getSilverHistoryOrNull(period: HistoryPeriod = "1M"): Promise<GoldHistory | null> {
+  try {
+    return await getSilverHistory(period);
   } catch {
     return null;
   }
