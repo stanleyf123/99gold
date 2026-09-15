@@ -54,7 +54,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
       siteName: "99GOLD.NET",
       locale: language === "zh" ? "zh_TW" : language === "ja" ? "ja_JP" : "en_US",
       type: "website",
-      images: [{ url: DEFAULT_OG_IMAGE, width: 1200, height: 630, alt: title }],
+      images: [{ url: DEFAULT_OG_IMAGE, width: 1200, height: 630, alt: title, type: "image/jpeg" }],
     },
     twitter: {
       card: "summary_large_image",

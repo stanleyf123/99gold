@@ -7,7 +7,7 @@ import type { Article } from "../../api/news-service";
 import { getRawDb } from "../../../db";
 import { asNewsCategory, type NewsCategory } from "../categories";
 import { localizedBriefFields } from "../../../lib/news/translate";
-import { SITE_URL } from "../../../lib/seo";
+import { DEFAULT_OG_IMAGE, OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH, SITE_URL } from "../../../lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -90,8 +90,8 @@ export async function generateMetadata(
           "x-default": `${SITE_URL}/news/${id}?lang=zh`,
         },
       },
-      openGraph: { type: "article", title: localized.title, description: localized.summary ?? localized.title, url: canonical, images: [{ url: `${SITE_URL}/og`, width: 1200, height: 630, alt: localized.title }] },
-      twitter: { card: "summary_large_image", title: localized.title, description: localized.summary ?? localized.title, images: [`${SITE_URL}/og`] },
+      openGraph: { type: "article", title: localized.title, description: localized.summary ?? localized.title, url: canonical, images: [{ url: DEFAULT_OG_IMAGE, width: OG_IMAGE_WIDTH, height: OG_IMAGE_HEIGHT, alt: localized.title, type: "image/jpeg" }] },
+      twitter: { card: "summary_large_image", title: localized.title, description: localized.summary ?? localized.title, images: [DEFAULT_OG_IMAGE] },
     };
   }
   const row = await getLegacyArticle(id);

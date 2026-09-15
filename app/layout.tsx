@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import JsonLd from "./JsonLd";
 import SiteChrome from "./SiteChrome";
@@ -10,6 +10,10 @@ import "./site-chrome.css";
 
 const home = pageMetadata("home");
 
+export const viewport: Viewport = {
+  themeColor: "#0d1519",
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: home.title,
@@ -18,7 +22,7 @@ export const metadata: Metadata = {
   openGraph: {
     ...home.openGraph,
     siteName: SITE_NAME_EN,
-    images: [{ url: DEFAULT_OG_IMAGE, width: 1200, height: 630, alt: DEFAULT_OG_ALT }],
+    images: [{ url: DEFAULT_OG_IMAGE, width: 1200, height: 630, alt: DEFAULT_OG_ALT, type: "image/jpeg" }],
   },
   twitter: home.twitter,
   icons: {
@@ -30,10 +34,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "99GOLD",
-    statusBarStyle: "default",
-  },
-  other: {
-    "theme-color": "#0d1519",
+    statusBarStyle: "black-translucent",
   },
 };
 
