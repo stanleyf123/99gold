@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   openGraph: {
     ...home.openGraph,
     siteName: SITE_NAME_EN,
-    images: [{ url: DEFAULT_OG_IMAGE, width: 1200, height: 630, alt: DEFAULT_OG_ALT, type: "image/jpeg" }],
+    images: [{ url: DEFAULT_OG_IMAGE, width: 1200, height: 630, alt: DEFAULT_OG_ALT, type: "image/png" }],
   },
   twitter: home.twitter,
   icons: {
