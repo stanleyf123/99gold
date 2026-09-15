@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
   },
   other: {
-    "theme-color": "#15282d",
+    "theme-color": "#0d1519",
   },
 };
 
