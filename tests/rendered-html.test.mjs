@@ -432,7 +432,8 @@ test("wires 30-90 day charts, metal comparison, browser alerts, OG route and PWA
   assert.match(og, /og\.jpg/);
   assert.match(og, /MISSING = "—"/);
   assert.doesNotMatch(og, /#f7f4ed/);
-  assert.match(seo, /DEFAULT_OG_IMAGE = "\/og\.jpg"/);
+  assert.match(seo, /DEFAULT_OG_IMAGE = "\/og";/);
+  assert.doesNotMatch(seo, /DEFAULT_OG_IMAGE = "\/og\.jpg"/);
   assert.match(homeView, /src="\/og\.jpg"/);
   assert.match(seo, /articleJsonLd/);
   assert.match(seo, /itemListJsonLd/);

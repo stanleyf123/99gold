@@ -30,8 +30,8 @@ test("each public route has a unique zh title, description and https canonical",
   const titles = new Set();
   const descriptions = new Set();
   const ogAlts = new Set();
-  assert.equal(DEFAULT_OG_IMAGE, "/og.jpg");
-  assert.equal(absoluteUrl(DEFAULT_OG_IMAGE), "https://99gold.net/og.jpg");
+  assert.equal(DEFAULT_OG_IMAGE, "/og");
+  assert.equal(absoluteUrl(DEFAULT_OG_IMAGE), "https://99gold.net/og");
   for (const route of Object.keys(routeCopy)) {
     const meta = pageMetadata(route);
     const title = meta.title;
@@ -53,8 +53,10 @@ test("each public route has a unique zh title, description and https canonical",
     assert.equal(meta.openGraph.images[0].url, DEFAULT_OG_IMAGE);
     assert.equal(meta.openGraph.images[0].width, 1200);
     assert.equal(meta.openGraph.images[0].height, 630);
+    assert.equal(meta.openGraph.images[0].type, "image/png");
     assert.ok(ogAlt.includes(title));
     assert.equal(meta.twitter.card, "summary_large_image");
+    assert.equal(meta.twitter.images[0], DEFAULT_OG_IMAGE);
   }
 });
 
@@ -78,7 +80,7 @@ test("JSON-LD builders emit WebSite, Organization, FAQ and breadcrumbs", () => {
   assert.equal(article["@type"], "NewsArticle");
   assert.equal(article.isAccessibleForFree, true);
   assert.equal(article.publisher.name, "玖久黃金報價網");
-  assert.equal(article.image[0], "https://99gold.net/og.jpg");
+  assert.equal(article.image[0], "https://99gold.net/og");
   assert.equal(article.image.length, 1);
   const list = itemListJsonLd([{ name: "Brief", path: "/news/fed-1" }]);
   assert.equal(list.itemListElement[0].url, "https://99gold.net/news/fed-1");

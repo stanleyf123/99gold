@@ -90,7 +90,7 @@ export async function generateMetadata(
           "x-default": `${SITE_URL}/news/${id}?lang=zh`,
         },
       },
-      openGraph: { type: "article", title: localized.title, description: localized.summary ?? localized.title, url: canonical, images: [{ url: DEFAULT_OG_IMAGE, width: OG_IMAGE_WIDTH, height: OG_IMAGE_HEIGHT, alt: localized.title, type: "image/jpeg" }] },
+      openGraph: { type: "article", title: localized.title, description: localized.summary ?? localized.title, url: canonical, images: [{ url: DEFAULT_OG_IMAGE, width: OG_IMAGE_WIDTH, height: OG_IMAGE_HEIGHT, alt: localized.title, type: "image/png" }] },
       twitter: { card: "summary_large_image", title: localized.title, description: localized.summary ?? localized.title, images: [DEFAULT_OG_IMAGE] },
     };
   }
