@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import JsonLd from "./JsonLd";
 import SiteChrome from "./SiteChrome";
@@ -9,6 +9,10 @@ import "./quotes.css";
 import "./site-chrome.css";
 
 const home = pageMetadata("home");
+
+export const viewport: Viewport = {
+  themeColor: "#0d1519",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -31,10 +35,6 @@ export const metadata: Metadata = {
     capable: true,
     title: "99GOLD",
     statusBarStyle: "black-translucent",
-  },
-  themeColor: "#0d1519",
-  other: {
-    "theme-color": "#0d1519",
   },
 };
 

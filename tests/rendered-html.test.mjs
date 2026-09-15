@@ -138,6 +138,7 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.match(article, /DEFAULT_OG_IMAGE/);
   assert.doesNotMatch(article, /\$\{SITE_URL\}\/og/);
   assert.match(layout, /themeColor: "#0d1519"/);
+  assert.match(layout, /export const viewport/);
   assert.doesNotMatch(editorial, /<SiteHeader/);
   assert.match(editorial, /alt=\{a\.imageAlt\}/);
   assert.match(cover, /onError/);

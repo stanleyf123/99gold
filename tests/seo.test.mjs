@@ -78,7 +78,8 @@ test("JSON-LD builders emit WebSite, Organization, FAQ and breadcrumbs", () => {
   assert.equal(article["@type"], "NewsArticle");
   assert.equal(article.isAccessibleForFree, true);
   assert.equal(article.publisher.name, "玖久黃金報價網");
-  assert.deepEqual(article.image, ["https://99gold.net/og.jpg"]);
+  assert.equal(article.image[0], "https://99gold.net/og.jpg");
+  assert.equal(article.image.length, 1);
   const list = itemListJsonLd([{ name: "Brief", path: "/news/fed-1" }]);
   assert.equal(list.itemListElement[0].url, "https://99gold.net/news/fed-1");
   assert.equal(newsIndexFaq.zh.length, 3);

@@ -53,7 +53,14 @@ export async function GET() {
             alt=""
             style={{ position: "absolute", top: 0, left: 0, width: 1200, height: 630, objectFit: "cover" }}
           />
-        ) : null}
+        ) : (
+          <div style={{ position: "absolute", top: 52, left: 56, display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", fontSize: 18, letterSpacing: 6, color: "#e6bb49", fontWeight: 700 }}>99GOLD.NET</div>
+            <div style={{ display: "flex", fontSize: 46, marginTop: 12, color: "#f8f1dc" }}>玖久黃金報價網</div>
+            <div style={{ display: "flex", width: 168, height: 2, marginTop: 16, backgroundColor: "#c9951c" }} />
+            <div style={{ display: "flex", fontSize: 22, marginTop: 14, color: "#e8d5a3", letterSpacing: 3 }}>真金價值，長久相伴。</div>
+          </div>
+        )}
         <div
           style={{
             position: "absolute",
@@ -64,29 +71,14 @@ export async function GET() {
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
-            padding: "50px 56px 46px",
-            backgroundImage:
-              "linear-gradient(100deg, rgba(8,14,18,0.90) 0%, rgba(8,14,18,0.68) 36%, rgba(8,14,18,0.28) 68%, rgba(8,14,18,0.55) 100%), linear-gradient(180deg, rgba(8,14,18,0.28) 0%, rgba(8,14,18,0.08) 42%, rgba(8,14,18,0.78) 100%)",
+            padding: "36px 40px 36px",
+            backgroundImage: "linear-gradient(180deg, rgba(8,14,18,0.18) 0%, rgba(8,14,18,0.08) 42%, rgba(8,14,18,0.78) 100%)",
           }}
         >
-          <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              <div style={{ display: "flex", fontSize: 18, letterSpacing: 6, color: "#e6bb49", fontWeight: 700 }}>99GOLD.NET</div>
-              <div style={{ display: "flex", fontSize: 46, marginTop: 12, letterSpacing: 2, color: "#f8f1dc" }}>玖久黃金報價網</div>
-              <div
-                style={{
-                  display: "flex",
-                  width: 168,
-                  height: 2,
-                  marginTop: 16,
-                  backgroundColor: "#c9951c",
-                }}
-              />
-              <div style={{ display: "flex", fontSize: 22, marginTop: 14, color: "#e8d5a3", letterSpacing: 3 }}>真金價值，長久相伴。</div>
-            </div>
+          <div style={{ display: "flex", width: "100%", justifyContent: "flex-end" }}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-              <div style={{ display: "flex", fontSize: 20, color: "#d7c7a0" }}>{`GMT+8 ${when}`}</div>
-              <div style={{ display: "flex", fontSize: 16, marginTop: 8, color: "#c9951c", letterSpacing: 3 }}>LIVE REFERENCE</div>
+              <div style={{ display: "flex", fontSize: 20, color: "#f3e6c4" }}>{`GMT+8 ${when}`}</div>
+              <div style={{ display: "flex", fontSize: 15, marginTop: 6, color: "#e6bb49", letterSpacing: 3 }}>LIVE REFERENCE</div>
             </div>
           </div>
           <div style={{ display: "flex", width: "100%" }}>
@@ -94,33 +86,33 @@ export async function GET() {
               style={{
                 display: "flex",
                 flexDirection: "column",
-                width: 530,
-                backgroundColor: "rgba(13,21,25,0.82)",
+                width: 540,
+                backgroundColor: "rgba(13,21,25,0.86)",
                 borderWidth: 1,
                 borderStyle: "solid",
                 borderColor: "rgba(201,149,28,0.55)",
-                padding: "26px 28px",
+                padding: "24px 28px",
                 marginRight: 24,
               }}
             >
               <div style={{ display: "flex", fontSize: 18, color: "#e6bb49", letterSpacing: 1 }}>台灣理論買進／錢</div>
-              <div style={{ display: "flex", fontSize: 54, marginTop: 10, color: "#fff8e8" }}>{`NT$ ${qianText}`}</div>
+              <div style={{ display: "flex", fontSize: 52, marginTop: 8, color: "#fff8e8" }}>{`NT$ ${qianText}`}</div>
               <div style={{ display: "flex", fontSize: 18, color: "#c9c1b3", marginTop: 8 }}>GC × 臺銀美元即期賣出</div>
             </div>
             <div
               style={{
                 display: "flex",
                 flexDirection: "column",
-                width: 530,
-                backgroundColor: "rgba(21,40,45,0.86)",
+                width: 540,
+                backgroundColor: "rgba(21,40,45,0.88)",
                 borderWidth: 1,
                 borderStyle: "solid",
                 borderColor: "rgba(230,187,73,0.42)",
-                padding: "26px 28px",
+                padding: "24px 28px",
               }}
             >
               <div style={{ display: "flex", fontSize: 18, color: "#e6bb49", letterSpacing: 1 }}>COMEX 黃金參考／盎司</div>
-              <div style={{ display: "flex", fontSize: 54, marginTop: 10, color: "#fff8e8" }}>{`US$ ${goldText}`}</div>
+              <div style={{ display: "flex", fontSize: 52, marginTop: 8, color: "#fff8e8" }}>{`US$ ${goldText}`}</div>
               <div style={{ display: "flex", fontSize: 18, color: "#c9c1b3", marginTop: 8 }}>理論參考，非店家牌價</div>
             </div>
           </div>
