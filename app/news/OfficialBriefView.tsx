@@ -56,6 +56,8 @@ export default function OfficialBriefView({
   publishedAt,
   originalUrl,
   translationLabel,
+  translationPending = false,
+  translationPendingLabel = null,
 }: {
   locale: NewsLocale;
   id: string;
@@ -66,6 +68,8 @@ export default function OfficialBriefView({
   publishedAt: string;
   originalUrl: string;
   translationLabel: string | null;
+  translationPending?: boolean;
+  translationPendingLabel?: string | null;
 }) {
   const t = copy[locale];
   const categoryLabel = categories[category][locale];
@@ -77,16 +81,23 @@ export default function OfficialBriefView({
     url: pageUrl,
     datePublished: publishedAt,
     dateModified: publishedAt,
-    inLanguage: locale === "zh" ? "zh-Hant" : locale,
+    inLanguage: translationPending ? "en" : locale === "zh" ? "zh-Hant" : locale,
   });
+  const pendingLabel = translationPendingLabel
+    || (locale === "zh" ? "原文／翻譯待補" : locale === "ja" ? "原文／翻訳待ち" : "Original / translation pending");
+  const statusLabel = translationLabel
+    ? ` · ${translationLabel}`
+    : translationPending
+      ? ` · ${pendingLabel}`
+      : "";
   return (
     <main className="articlePage editorialPage articleShell" lang={locale === "zh" ? "zh-Hant" : locale}>
       <JsonLd data={breadcrumbJsonLd([{ name: "首頁", path: "/" }, sectionCrumbs.news, { name: title, path: `/news/${id}` }])} />
       <JsonLd data={article} />
       <JsonLd data={faqJsonLd(faq)} />
       <article>
-        <p className="articleKicker">{t.brief} · <Link href={`/news?lang=${locale}&category=${category}`}>{categoryLabel}</Link>{translationLabel ? ` · ${translationLabel}` : ""}</p>
-        <h1>{title}</h1>
+        <p className="articleKicker">{t.brief} · <Link href={`/news?lang=${locale}&category=${category}`}>{categoryLabel}</Link>{statusLabel}</p>
+        <h1 lang={translationPending ? "en" : undefined}>{title}</h1>
         <div className="editorialDates">
           <span>{t.published}: <time dateTime={publishedAt}>{eventDate}</time></span>
         </div>

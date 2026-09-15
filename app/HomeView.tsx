@@ -21,7 +21,7 @@ const alertMarkets = [
   { id: "gram", label: "黃金每公克", value: Number.NaN, unit: "TWD／公克" },
 ] as const;
 
-type NewsItem = { id?: number | string; title: string; category?: NewsCategory; originalTitle?: string; summary?: string | null; date: string; url: string; image?: string; sourceName?: string; translated?: boolean; translationLabel?: string | null; translationProvider?: string | null; external?: boolean };
+type NewsItem = { id?: number | string; title: string; category?: NewsCategory; originalTitle?: string; summary?: string | null; date: string; url: string; image?: string; sourceName?: string; translated?: boolean; translationLabel?: string | null; translationProvider?: string | null; translationPending?: boolean; translationPendingLabel?: string | null; external?: boolean };
 type QuoteItem = { id?: string; label: string; code: string; price: string; unit: string; change: string; up: boolean | null };
 type HistoryPeriod = "1D" | "1W" | "1M" | "3M" | "1Y";
 type MarketStatus = "checking" | "open" | "delayed" | "daily-break" | "weekend-closed" | "unavailable";
@@ -175,11 +175,15 @@ export default function HomeView({
   initialQuotes = null,
   initialRatioPoints = [],
   initialSilverPoints = [],
+  initialPlatinumPoints = [],
+  initialPalladiumPoints = [],
   initialNews = null,
 }: {
   initialQuotes?: HomeQuoteSnapshot | null;
   initialRatioPoints?: MarketChartPoint[];
   initialSilverPoints?: MarketChartPoint[];
+  initialPlatinumPoints?: MarketChartPoint[];
+  initialPalladiumPoints?: MarketChartPoint[];
   initialNews?: { items?: NewsItem[]; updatedAt?: string; checkedAt?: string; scheduleStatus?: "healthy" | "delayed" | "error" | "pending" } | null;
 }) {
   const [activeTab, setActiveTab] = useState<"quotes" | "news" | "history" | "tools">("quotes");
@@ -414,7 +418,7 @@ export default function HomeView({
 
       <section className="brandHero" aria-label={`${siteSettings.fullName}｜${siteSettings.tagline}`}>
         <div className="heroPhoto" aria-hidden="true">
-          <Image className="brandHeroPhoto" src="/og.jpg" alt="玖久黃金報價網：即時黃金報價與台灣理論金價" fill priority unoptimized sizes="(max-width: 900px) 100vw, 62vw" />
+          <Image className="brandHeroPhoto" src="/og.jpg" alt="玖久黃金報價網：即時黃金報價與台灣理論金價" fill priority unoptimized sizes="(max-width: 900px) 100vw, 860px" />
         </div>
         <div className="brandHeroShade" aria-hidden="true" />
         <div className="brandHeroCopy">
@@ -461,7 +465,8 @@ export default function HomeView({
               return (
                 <li key={String(item.id ?? item.url)}>
                   <time dateTime={item.date}>{item.date}</time>
-                  <Link href={href}>{item.title}</Link>
+                  <Link href={href} lang={item.translationPending ? "en" : undefined}>{item.title}</Link>
+                  {item.translationPending ? <em className="translationPending">{item.translationPendingLabel || t("原文／翻譯待補", "Original / translation pending", "原文／翻訳待ち")}</em> : null}
                 </li>
               );
             })}
@@ -584,6 +589,28 @@ export default function HomeView({
               periods={["1M", "3M", "1Y"]}
               note={t("SI 期貨參考，美元／金衡盎司。缺交易日不列，不補估價格。", "SI futures reference in USD / troy ounce. Missing sessions are omitted, never filled in.", "SI先物の参考値（米ドル／トロイオンス）。欠けた取引日は掲載せず、価格は補完しません。")}
             />
+            <div className="metalHistoryPair">
+              <PriceHistoryChart
+                locale={locale}
+                currency="USD"
+                title={t("鉑金（PL=F）歷史走勢", "Platinum (PL=F) history", "プラチナ（PL=F）の履歴")}
+                ariaLabel={t("NYMEX 鉑金期貨歷史走勢", "NYMEX platinum futures history", "NYMEXプラチナ先物の履歴")}
+                initialPoints={initialPlatinumPoints}
+                endpoint="/api/platinum-history"
+                periods={["1M", "3M", "1Y"]}
+                note={t("PL 期貨參考（Yahoo 代碼 PL=F），美元／金衡盎司。缺交易日不列，不補估價格。", "PL futures reference (Yahoo ticker PL=F) in USD / troy ounce. Missing sessions are omitted, never filled in.", "PL先物の参考値（Yahooコード PL=F、米ドル／トロイオンス）。欠けた取引日は掲載せず、価格は補完しません。")}
+              />
+              <PriceHistoryChart
+                locale={locale}
+                currency="USD"
+                title={t("鈀金（PA=F）歷史走勢", "Palladium (PA=F) history", "パラジウム（PA=F）の履歴")}
+                ariaLabel={t("NYMEX 鈀金期貨歷史走勢", "NYMEX palladium futures history", "NYMEXパラジウム先物の履歴")}
+                initialPoints={initialPalladiumPoints}
+                endpoint="/api/palladium-history"
+                periods={["1M", "3M", "1Y"]}
+                note={t("PA 期貨參考，美元／金衡盎司。缺交易日不列，不補估價格。", "PA futures reference in USD / troy ounce. Missing sessions are omitted, never filled in.", "PA先物の参考値（米ドル／トロイオンス）。欠けた取引日は掲載せず、価格は補完しません。")}
+              />
+            </div>
 
             <div className="fxTape" aria-label={t("主要匯率", "Major exchange rates", "主要為替レート")}>
               <span>FX REFERENCE</span>
@@ -617,8 +644,8 @@ export default function HomeView({
               return <article key={key}>
                 <div className={cover ? "newsVisual hasImage" : "newsVisual officialSourceVisual"}>{cover ? <CoverImage src={cover} alt={item.title} /> : <div className="newsSourceMark"><b>99</b><small>{t("市場快訊", "MARKET BRIEF", "市場速報")}</small></div>}</div>
                 <p><b>{categories[category][locale]}</b><time>{item.date}</time></p>
-                <div className="newsSource"><span>{item.sourceName || t("市場快訊", "Market brief", "市場速報")}</span>{item.translated && <em>{item.translationLabel || t("自動翻譯", "Auto-translated", "自動翻訳")}</em>}</div>
-                <h3><Link href={href}>{item.title}</Link></h3>
+                <div className="newsSource"><span>{item.sourceName || t("市場快訊", "Market brief", "市場速報")}</span>{item.translated ? <em>{item.translationLabel || t("自動翻譯", "Auto-translated", "自動翻訳")}</em> : item.translationPending ? <em className="translationPending">{item.translationPendingLabel || t("原文／翻譯待補", "Original / translation pending", "原文／翻訳待ち")}</em> : null}</div>
+                <h3><Link href={href} lang={item.translationPending ? "en" : undefined}>{item.title}</Link></h3>
                 {excerpt ? <p className="newsSynopsis">{excerpt}</p> : <p className="newsExcerptMuted">{item.external ? t("這則快訊沒有可顯示的摘要。", "No excerpt is available for this brief.", "この速報には表示できる要約がありません。") : t("這篇文章沒有可顯示的摘要。", "No excerpt is available for this article.", "この記事には表示できる要約がありません。")}</p>}
                 {cover && <small className="newsIllustrationLabel">{locale === "zh" ? "AI生成示意圖" : locale === "ja" ? "AI生成イメージ" : "AI-generated illustration"}</small>}
                 <a href={href}>{item.external ? t("閱讀快訊", "Read brief", "速報を読む") : copy.read}　→</a>

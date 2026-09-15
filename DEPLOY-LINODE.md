@@ -4,6 +4,28 @@
 
 目標主機範例：`172.237.11.195`（1GB RAM + swap），Nginx 反代到 `127.0.0.1:3000`。
 
+## 每次部署／更新後
+
+程式碼同步並 `systemctl restart 99gold.service` 之後，還要做這兩步：
+
+1. **跑 migration**（含 `translation_retry_at` / `translation_attempts` 欄位，見 `drizzle/0007_translation_retry.sql`）：
+
+   ```bash
+   cd /var/www/99gold
+   sudo -u www-data npm run db:migrate
+   ```
+
+   漏跑時新聞 cron 無法把翻譯未完成的已發布快訊排進重試佇列。
+
+2. **啟用到價提醒 timer**（單位檔在 `deploy/systemd/`）：
+
+   ```bash
+   sudo systemctl enable --now 99gold-alerts.timer
+   sudo systemctl list-timers 99gold-alerts.timer
+   ```
+
+   瀏覽器 Notification 不依賴此 timer；Email／LINE 發送才需要。未設定金鑰時指令仍會成功，只是 `fired` 為 0。
+
 ## 1. 系統套件
 
 ```bash

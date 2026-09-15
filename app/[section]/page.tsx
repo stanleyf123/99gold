@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { getGlobalQuotesOrNull } from "../../lib/quotes";
-import { getGoldHistoryOrNull, getSilverHistoryOrNull } from "../../lib/gold-history";
+import { getGoldHistoryOrNull, getPalladiumHistoryOrNull, getPlatinumHistoryOrNull, getSilverHistoryOrNull } from "../../lib/gold-history";
 import { getJewelryHistoryOrNull } from "../../lib/jewelry-history";
 import { getGoldSilverRatioHistoryOrNull } from "../../lib/gold-silver-ratio";
 import {
@@ -35,10 +35,12 @@ export default async function SectionPage({ params }: { params: Promise<{ sectio
   if (section === "insights") redirect("/news");
   if (!isSection(section)) notFound();
 
-  const [quotes, history, silverHistory, ratioHistory, jewelryHistory] = await Promise.all([
+  const [quotes, history, silverHistory, platinumHistory, palladiumHistory, ratioHistory, jewelryHistory] = await Promise.all([
     getGlobalQuotesOrNull(),
     section === "recycling" || section === "jewelry" ? Promise.resolve(null) : getGoldHistoryOrNull("1M"),
     section === "international" ? getSilverHistoryOrNull("1M") : Promise.resolve(null),
+    section === "international" ? getPlatinumHistoryOrNull("1M") : Promise.resolve(null),
+    section === "international" ? getPalladiumHistoryOrNull("1M") : Promise.resolve(null),
     section === "international" ? getGoldSilverRatioHistoryOrNull("1M") : Promise.resolve(null),
     section === "jewelry" ? getJewelryHistoryOrNull("1M") : Promise.resolve(null),
   ]);
@@ -80,6 +82,8 @@ export default async function SectionPage({ params }: { params: Promise<{ sectio
           taiwanQian={taiwanQianValue(quotes?.items)}
           historyPoints={section === "international" ? (history?.points ?? []) : []}
           silverPoints={section === "international" ? (silverHistory?.points ?? []) : []}
+          platinumPoints={section === "international" ? (platinumHistory?.points ?? []) : []}
+          palladiumPoints={section === "international" ? (palladiumHistory?.points ?? []) : []}
           ratioPoints={section === "international" ? (ratioHistory?.points ?? []) : []}
           goldPrice={quotes?.metals.find((metal) => metal.id === "gold")?.price ?? Number.NaN}
           silverPrice={quotes?.metals.find((metal) => metal.id === "silver")?.price ?? Number.NaN}

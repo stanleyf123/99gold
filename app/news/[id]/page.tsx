@@ -126,6 +126,8 @@ export default async function NewsArticle(
       publishedAt={brief.published_at}
       originalUrl={brief.canonical_url}
       translationLabel={localized.translationLabel}
+      translationPending={localized.translationPending}
+      translationPendingLabel={localized.translationPendingLabel}
     />;
   }
   const row = await getLegacyArticle(id);

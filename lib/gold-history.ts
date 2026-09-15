@@ -106,13 +106,38 @@ export function boundHistoryPoints(points: HistoryPoint[], maxPoints: number): H
   return result;
 }
 
-export type MetalHistorySymbol = "GC=F" | "SI=F";
+export type MetalHistorySymbol = "GC=F" | "SI=F" | "PL=F" | "PA=F";
 
-export const SILVER_HISTORY_PERIODS = ["1M", "3M", "1Y"] as const;
-export type SilverHistoryPeriod = (typeof SILVER_HISTORY_PERIODS)[number];
+/** Chart windows shared by silver / platinum / palladium (Yahoo daily or weekly closes). */
+export const METAL_CHART_PERIODS = ["1M", "3M", "1Y"] as const;
+export type MetalChartPeriod = (typeof METAL_CHART_PERIODS)[number];
+export const SILVER_HISTORY_PERIODS = METAL_CHART_PERIODS;
+export type SilverHistoryPeriod = MetalChartPeriod;
+
+/** Yahoo platinum futures ticker. `PT=F` is not listed; callers may still pass it as an alias. */
+export const PLATINUM_YAHOO_SYMBOL: MetalHistorySymbol = "PL=F";
+export const PALLADIUM_YAHOO_SYMBOL: MetalHistorySymbol = "PA=F";
 
 export function isSilverHistoryPeriod(value: string | null | undefined): value is SilverHistoryPeriod {
-  return SILVER_HISTORY_PERIODS.includes(value as SilverHistoryPeriod);
+  return isMetalChartPeriod(value);
+}
+
+export function isMetalChartPeriod(value: string | null | undefined): value is MetalChartPeriod {
+  return METAL_CHART_PERIODS.includes(value as MetalChartPeriod);
+}
+
+export function resolveMetalHistorySymbol(value: string | null | undefined): MetalHistorySymbol | null {
+  const symbol = value?.trim().toUpperCase();
+  if (symbol === "GC=F" || symbol === "SI=F" || symbol === "PL=F" || symbol === "PA=F") return symbol;
+  if (symbol === "PT=F") return PLATINUM_YAHOO_SYMBOL;
+  return null;
+}
+
+function metalHistorySource(symbol: MetalHistorySymbol, exchange: string) {
+  if (symbol === "GC=F") return `${exchange} GC futures via Yahoo Finance`;
+  if (symbol === "SI=F") return `${exchange} SI futures via Yahoo Finance`;
+  if (symbol === "PL=F") return `${exchange} PL futures via Yahoo Finance`;
+  return `${exchange} PA futures via Yahoo Finance`;
 }
 
 /** Drop missing/invalid sessions. Never interpolate or invent a close. */
@@ -165,12 +190,8 @@ export function buildMetalHistory(
   const finalPoint = points.at(-1);
   if (!finalPoint) throw new Error("history timestamp missing");
   const quotedAt = new Date(finalPoint.timestamp * 1000).toISOString();
-  const exchange = meta?.exchangeName ?? "COMEX";
-  const source = symbol === "GC=F"
-    ? `${exchange} GC futures via Yahoo Finance`
-    : symbol === "SI=F"
-      ? `${exchange} SI futures via Yahoo Finance`
-      : `${exchange} ${symbol} via Yahoo Finance`;
+  const exchange = meta?.exchangeName ?? (symbol === "PL=F" || symbol === "PA=F" ? "NYMEX" : "COMEX");
+  const source = metalHistorySource(symbol, exchange);
   return {
     period,
     points,
@@ -223,13 +244,39 @@ export async function getGoldHistoryOrNull(period: HistoryPeriod = "1M"): Promis
 }
 
 export async function getSilverHistory(period: HistoryPeriod = "1M"): Promise<GoldHistory> {
-  const resolved: HistoryPeriod = isSilverHistoryPeriod(period) ? period : "1M";
+  const resolved: HistoryPeriod = isMetalChartPeriod(period) ? period : "1M";
   return getMetalHistory("SI=F", resolved);
 }
 
 export async function getSilverHistoryOrNull(period: HistoryPeriod = "1M"): Promise<GoldHistory | null> {
   try {
     return await getSilverHistory(period);
+  } catch {
+    return null;
+  }
+}
+
+export async function getPlatinumHistory(period: HistoryPeriod = "1M"): Promise<GoldHistory> {
+  const resolved: HistoryPeriod = isMetalChartPeriod(period) ? period : "1M";
+  return getMetalHistory(PLATINUM_YAHOO_SYMBOL, resolved);
+}
+
+export async function getPlatinumHistoryOrNull(period: HistoryPeriod = "1M"): Promise<GoldHistory | null> {
+  try {
+    return await getPlatinumHistory(period);
+  } catch {
+    return null;
+  }
+}
+
+export async function getPalladiumHistory(period: HistoryPeriod = "1M"): Promise<GoldHistory> {
+  const resolved: HistoryPeriod = isMetalChartPeriod(period) ? period : "1M";
+  return getMetalHistory(PALLADIUM_YAHOO_SYMBOL, resolved);
+}
+
+export async function getPalladiumHistoryOrNull(period: HistoryPeriod = "1M"): Promise<GoldHistory | null> {
+  try {
+    return await getPalladiumHistory(period);
   } catch {
     return null;
   }
