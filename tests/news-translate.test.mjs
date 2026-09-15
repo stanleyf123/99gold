@@ -17,9 +17,11 @@ function moduleFrom(path, extras = {}) {
     Date,
     JSON,
     Number,
+    Math,
     URL,
     setTimeout,
     clearTimeout,
+    Promise,
     fetch: extras.fetch,
     process: extras.process ?? { env: {} },
     ...extras,
@@ -157,6 +159,7 @@ test("OpenAI path translates title and summary when OPENAI_API_KEY is set", asyn
 });
 
 test("MyMemory is the no-key fallback and keeps English as a cleaned original", async () => {
+  translate.resetMyMemoryGate();
   const seen = [];
   const fetcher = async (url) => {
     const href = new URL(url);
@@ -181,6 +184,7 @@ test("MyMemory is the no-key fallback and keeps English as a cleaned original", 
 });
 
 test("failed OpenAI calls fall through to MyMemory", async () => {
+  translate.resetMyMemoryGate();
   const fetcher = async (url) => {
     if (String(url).includes("openai.com")) {
       return jsonResponse({ error: "quota" }, 429);
@@ -200,4 +204,142 @@ test("failed OpenAI calls fall through to MyMemory", async () => {
   assert.equal(result.provider, "mymemory");
   assert.match(result.titles.zh, /^繁中/);
   assert.match(result.titles.ja, /^和訳/);
+});
+
+test("MyMemory 429 honors Retry-After, retries with jitter, then succeeds", async () => {
+  translate.resetMyMemoryGate();
+  const sleeps = [];
+  let now = 5_000_000;
+  let calls = 0;
+  const fetcher = async (url) => {
+    if (!String(url).includes("mymemory")) return jsonResponse({});
+    calls += 1;
+    if (calls === 1) {
+      return new Response(JSON.stringify({ responseStatus: 429, responseData: {} }), {
+        status: 429,
+        headers: { "content-type": "application/json", "retry-after": "1" },
+      });
+    }
+    const target = new URL(url).searchParams.get("langpair")?.split("|")[1];
+    const q = new URL(url).searchParams.get("q");
+    return jsonResponse({
+      responseStatus: 200,
+      responseData: { translatedText: target === "zh-TW" ? `中文${q}` : `日本語${q}` },
+    });
+  };
+  const result = await translate.translateOfficialBrief(englishTitle, englishSummary, "en", {
+    fetch: fetcher,
+    env: {},
+    delayMs: 0,
+    now: () => now,
+    random: () => 0,
+    sleep: async (ms) => { sleeps.push(ms); now += ms; },
+  });
+  assert.equal(result.provider, "mymemory");
+  assert.match(result.titles.zh, /^中文/);
+  assert.ok(calls >= 5);
+  assert.ok(sleeps.some((ms) => ms >= 1000), `backoff sleeps: ${sleeps.join(",")}`);
+  assert.equal(translate.parseRetryAfterMs("1"), 1000);
+  assert.equal(translate.mymemoryBackoffMs(0, 1000, () => 0), 1000);
+  assert.ok(translate.mymemoryBackoffMs(1, null, () => 0) > translate.MYMEMORY_DEFAULT_429_MS);
+});
+
+test("MyMemory calls are serialized and long 429 pauses skip later locales without blanking English", async () => {
+  translate.resetMyMemoryGate();
+  const inflight = [];
+  let maxInflight = 0;
+  let calls = 0;
+  const fetcher = async (url) => {
+    calls += 1;
+    inflight.push(calls);
+    maxInflight = Math.max(maxInflight, inflight.length);
+    await Promise.resolve();
+    inflight.pop();
+    if (calls === 1) {
+      const q = new URL(url).searchParams.get("q");
+      return jsonResponse({
+        responseStatus: 200,
+        responseData: { translatedText: `中文${q}` },
+      });
+    }
+    return new Response(JSON.stringify({ responseStatus: 429, responseData: {} }), {
+      status: 429,
+      headers: { "content-type": "application/json", "retry-after": "120" },
+    });
+  };
+  const result = await translate.translateOfficialBrief(englishTitle, englishSummary, "en", {
+    fetch: fetcher,
+    env: {},
+    delayMs: 0,
+    random: () => 0,
+    sleep: async () => {},
+  });
+  assert.equal(maxInflight, 1);
+  assert.match(result.titles.zh, /^中文/);
+  assert.equal(result.titles.ja, englishTitle);
+  assert.equal(result.titles.en, englishTitle);
+  assert.equal(result.complete, false);
+  assert.equal(result.translated, true);
+  assert.ok(translate.isMyMemoryCoolingDown());
+  assert.ok(result.titles.zh.length > 0);
+  assert.ok(result.titles.ja.length > 0);
+});
+
+test("retranslate selection skips cooled-down rows and keeps due English gaps", () => {
+  const now = "2026-09-14T13:00:00.000Z";
+  const due = translate.selectRetranslateCandidates([
+    {
+      title: englishTitle,
+      summary: englishSummary,
+      title_zh: englishTitle,
+      title_ja: englishTitle,
+      translation_retry_at: null,
+    },
+    {
+      title: englishTitle,
+      summary: englishSummary,
+      title_zh: "聯邦準備理事會發布FOMC聲明",
+      title_ja: "米連邦準備制度理事会がFOMC声明を発表",
+    },
+    {
+      title: englishTitle,
+      summary: englishSummary,
+      title_zh: "",
+      title_ja: englishTitle,
+      translation_retry_at: "2026-09-14T20:00:00.000Z",
+    },
+  ], now, 5);
+  assert.equal(due.length, 1);
+  assert.equal(due[0].translation_retry_at, null);
+  const retryAt = Date.parse(translate.nextTranslationRetryAt(now, { rateLimited: true, attempts: 1 }));
+  assert.ok(retryAt > Date.parse(now) + 6 * 60 * 60 * 1000);
+});
+
+test("existing zh is kept so a later ja-only retranslate does not hammer zh", async () => {
+  translate.resetMyMemoryGate();
+  const seen = [];
+  const fetcher = async (url) => {
+    const href = new URL(url);
+    seen.push(href.searchParams.get("langpair"));
+    const q = href.searchParams.get("q");
+    return jsonResponse({
+      responseStatus: 200,
+      responseData: { translatedText: `日本語${q}` },
+    });
+  };
+  const result = await translate.translateOfficialBrief(englishTitle, englishSummary, "en", {
+    fetch: fetcher,
+    env: {},
+    delayMs: 0,
+    existing: {
+      titles: { zh: "聯邦準備理事會發布FOMC聲明", en: englishTitle, ja: englishTitle },
+      summaries: { zh: "與金價相關的官方利率決定。", en: englishSummary, ja: englishSummary },
+      provider: "mymemory",
+    },
+  });
+  assert.equal(result.titles.zh, "聯邦準備理事會發布FOMC聲明");
+  assert.match(result.titles.ja, /^日本語/);
+  assert.equal(result.complete, true);
+  assert.ok(!seen.includes("en|zh-TW"));
+  assert.ok(seen.includes("en|ja"));
 });

@@ -284,6 +284,8 @@ test("ships a scheduled auto-publish news pipeline", async () => {
   assert.match(deploy, /ALERT_EMAIL_TO/);
   assert.match(deploy, /LINE_CHANNEL_ACCESS_TOKEN/);
   assert.match(deploy, /99gold-alerts\.timer/);
+  assert.match(deploy, /deploy\/systemd/);
+  assert.match(deploy, /OnUnitActiveSec=15min|\*\/15/);
   assert.match(deploy, /127\.0\.0\.1:3000/);
   assert.match(deploy, /Akamai Access Denied HTML 403/);
   assert.match(deploy, /ons\.gov\.uk\/releasecalendar\?rss/);
@@ -293,7 +295,8 @@ test("ships a scheduled auto-publish news pipeline", async () => {
   assert.match(pipeline, /status = 'published'/);
   assert.match(pipeline, /status IN \('pending', 'approved'\)/);
   assert.match(pipeline, /backfillPublishedTranslations/);
-  assert.match(pipeline, /needsTranslationBackfill/);
+  assert.match(pipeline, /selectRetranslateCandidates/);
+  assert.match(pipeline, /translation_retry_at/);
   assert.match(pipeline, /translateOfficialBrief/);
   assert.match(pipeline, /news_pipeline_completed/);
   assert.match(migration, /CREATE TABLE `news_candidates`/);
@@ -377,9 +380,16 @@ test("wires 30-90 day charts, metal comparison, browser alerts, OG route and PWA
   assert.match(jewelryView, /jewelryTableDisplay/);
   assert.match(jewelryView, /lib\/jewelry-table/);
   assert.match(jewelryView, /與上方圖表同一期間/);
+  assert.match(jewelryView, /\["1M", "3M", "1Y", "3Y", "5Y"\]/);
+  assert.match(jewelryView, /近 5 年/);
   assert.match(sectionPage, /getJewelryHistoryOrNull/);
   assert.match(sectionView, /section === "international"/);
   assert.match(sectionView, /PriceHistoryChart/);
+  assert.match(sectionView, /白銀（SI=F）歷史走勢/);
+  assert.match(sectionView, /\/api\/silver-history/);
+  assert.match(sectionPage, /getSilverHistoryOrNull/);
+  assert.match(homeView, /白銀（SI=F）歷史走勢/);
+  assert.match(homeView, /initialSilverPoints/);
   assert.match(chart, /onPeriodChange/);
   assert.match(chart, /onHistoryData/);
   assert.match(chart, /\$\{endpoint\}\?period=\$\{period\}/);
@@ -401,11 +411,12 @@ test("wires 30-90 day charts, metal comparison, browser alerts, OG route and PWA
   assert.match(layout, /manifest: "\/manifest.webmanifest"/);
   assert.match(layout, /PwaRegister/);
   assert.match(manifest, /"display": "standalone"/);
-  assert.match(sw, /99gold-quotes-v1/);
+  assert.match(sw, /99gold-quotes-v2/);
   assert.match(sw, /\/api\/global-quotes/);
   assert.match(sw, /pathname.startsWith\("\/admin"\)/);
   assert.match(pwa, /serviceWorker.register\("\/sw.js"\)/);
   assert.match(pwa, /行情時間／本站檢查/);
+  assert.match(pwa, /Failed to find Server Action/);
   assert.match(newsPage, /newsExcerpt/);
   assert.match(newsPage, /newsEmpty/);
   assert.match(excerpt, /newsExcerpt/);
@@ -442,6 +453,10 @@ test("wires gold/silver ratio math, history API, and charts on global, internati
   assert.match(sectionPage, /section === "international" \? getGoldSilverRatioHistoryOrNull/);
   assert.match(homeView, /GoldSilverRatioPanel/);
   assert.match(homePage, /getGoldSilverRatioHistoryOrNull/);
+  assert.match(homePage, /getSilverHistoryOrNull/);
+  assert.match(sectionPage, /getSilverHistoryOrNull/);
+  assert.match(sectionView, /\/api\/silver-history/);
+  assert.match(homeView, /\/api\/silver-history/);
   assert.match(chart, /endpoint/);
   assert.match(panel, /\["1M", "3M", "1Y", "3Y", "5Y"\]/);
   assert.match(panel, /1Y \/ 3Y \/ 5Y/);
@@ -450,4 +465,24 @@ test("wires gold/silver ratio math, history API, and charts on global, internati
   assert.match(ratioLib, /interval: "1d"/);
   assert.match(ratioLib, /downsampleToUtcWeekCloses/);
   assert.match(ratioApi, /isRatioHistoryPeriod/);
+});
+
+test("packages the app as 99gold and ships installable alert timer units", async () => {
+  const [pkg, unit, timer, deploy] = await Promise.all([
+    readFile(new URL("../package.json", import.meta.url), "utf8"),
+    readFile(new URL("../deploy/systemd/99gold-alerts.service", import.meta.url), "utf8"),
+    readFile(new URL("../deploy/systemd/99gold-alerts.timer", import.meta.url), "utf8"),
+    readFile(new URL("../DEPLOY-LINODE.md", import.meta.url), "utf8"),
+  ]);
+  const parsed = JSON.parse(pkg);
+  assert.equal(parsed.name, "99gold");
+  assert.equal(parsed.scripts["alerts:dispatch"], "tsx scripts/run-price-alerts.ts");
+  assert.doesNotMatch(pkg, /OPENAI_API_KEY.*(required|必須)/i);
+  assert.match(unit, /WorkingDirectory=\/var\/www\/99gold/);
+  assert.match(unit, /EnvironmentFile=\/etc\/99gold\.env/);
+  assert.match(unit, /npm run alerts:dispatch/);
+  assert.doesNotMatch(unit, /RESEND_API_KEY=|LINE_CHANNEL_ACCESS_TOKEN=/);
+  assert.match(timer, /OnUnitActiveSec=15min/);
+  assert.match(timer, /99gold-alerts\.service/);
+  assert.match(deploy, /deploy\/systemd\/99gold-alerts/);
 });

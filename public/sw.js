@@ -1,5 +1,5 @@
-const SHELL = "99gold-shell-v1";
-const QUOTES = "99gold-quotes-v1";
+const SHELL = "99gold-shell-v2";
+const QUOTES = "99gold-quotes-v2";
 const SHELL_PATHS = ["/", "/global", "/jewelry", "/international", "/recycling", "/news", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {

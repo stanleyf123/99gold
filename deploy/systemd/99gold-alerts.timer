@@ -1,0 +1,12 @@
+[Unit]
+Description=Dispatch 99gold price alerts every 15 minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=15min
+AccuracySec=1min
+Persistent=true
+Unit=99gold-alerts.service
+
+[Install]
+WantedBy=timers.target
