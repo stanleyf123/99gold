@@ -21,17 +21,19 @@ function load(path, requireMap = {}) {
     Set,
     Object,
     Map,
+    URLSearchParams,
   };
   vm.runInNewContext(code, context);
   return context.exports;
 }
 
 const seo = { SITE_URL: "https://99gold.net" };
+const localePath = load("../lib/locale-path.ts");
 const {
   sitemapLastmod,
   briefSitemapEntries,
   archivedArticleSitemapEntries,
-} = load("../lib/sitemap-entries.ts", { "./seo": seo });
+} = load("../lib/sitemap-entries.ts", { "./seo": seo, "./locale-path": localePath });
 
 test("sitemap lastmod falls back when timestamps are missing or invalid", () => {
   const fromIso = sitemapLastmod("2026-09-14T08:00:00.000Z");
@@ -49,9 +51,10 @@ test("published briefs become sitemap URLs with lastmod and language alternates"
   assert.equal(entries.length, 1);
   assert.equal(entries[0].url, "https://99gold.net/news/ecb-1");
   assert.equal(entries[0].lastModified.toISOString(), "2026-09-14T11:00:00.000Z");
-  assert.equal(entries[0].alternates.languages["zh-Hant"], "https://99gold.net/news/ecb-1?lang=zh");
-  assert.equal(entries[0].alternates.languages.ja, "https://99gold.net/news/ecb-1?lang=ja");
-  assert.equal(entries[0].alternates.languages["x-default"], "https://99gold.net/news/ecb-1?lang=zh");
+  assert.equal(entries[0].alternates.languages["zh-Hant"], "https://99gold.net/news/ecb-1");
+  assert.equal(entries[0].alternates.languages.en, "https://99gold.net/en/news/ecb-1");
+  assert.equal(entries[0].alternates.languages.ja, "https://99gold.net/ja/news/ecb-1");
+  assert.equal(entries[0].alternates.languages["x-default"], "https://99gold.net/news/ecb-1");
   const archived = archivedArticleSitemapEntries([{ id: "legacy-1", published_at: "2026-01-01T00:00:00.000Z" }]);
   assert.equal(archived[0].url, "https://99gold.net/news/legacy-1");
   assert.equal(archived[0].priority, 0.4);

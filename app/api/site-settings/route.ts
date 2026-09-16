@@ -10,19 +10,10 @@ const publicDefaults = {
   announcement: "",
 };
 
-const adminDefaults = {
-  alertEmailTo: "",
-  lineUserId: "",
-};
-
-const defaults = { ...publicDefaults, ...adminDefaults };
+const defaults = { ...publicDefaults };
 
 function publicView(settings: typeof defaults) {
-  const next = { ...publicDefaults };
-  for (const key of Object.keys(publicDefaults) as Array<keyof typeof publicDefaults>) {
-    next[key] = settings[key];
-  }
-  return next;
+  return { ...settings };
 }
 
 async function readSettings() {
@@ -58,7 +49,7 @@ export async function PUT(request: Request) {
   const allowed = Object.keys(defaults) as Array<keyof typeof defaults>;
   const entries = allowed
     .filter((key) => typeof body[key] === "string")
-    .map((key) => [key, String(body[key]).trim().slice(0, key === "announcement" ? 240 : key === "alertEmailTo" || key === "lineUserId" ? 120 : 80)] as const);
+    .map((key) => [key, String(body[key]).trim().slice(0, key === "announcement" ? 240 : 80)] as const);
   if (!entries.length) return NextResponse.json({ error: "沒有可儲存的內容" }, { status: 400 });
 
   const db = getRawDb();

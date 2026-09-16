@@ -1,4 +1,6 @@
-export type SiteLocale = "zh" | "en" | "ja";
+import { localizedHref, searchParamsOf, stripLocalePrefix, type PathLocale } from "./locale-path";
+
+export type SiteLocale = PathLocale;
 
 const TRADITIONAL_CHINESE_MARKETS = new Set(["TW", "HK", "MO"]);
 /** Cloudflare uses XX for unknown; T1 for Tor. Empty means the header was never set (nginx). */
@@ -24,32 +26,35 @@ export function localeFromGeoCountry(country: string | null | undefined): SiteLo
 export function localeHrefsFromLocation(
   pathname: string,
   search: string,
-): Partial<Record<SiteLocale, string>> | undefined {
-  if (pathname === "/news") {
-    const category = new URLSearchParams(search).get("category") || "all";
-    return {
-      zh: `/news?lang=zh&category=${category}`,
-      en: `/news?lang=en&category=${category}`,
-      ja: `/news?lang=ja&category=${category}`,
-    };
-  }
-  const editorial = pathname.match(/^(\/news\/.+)-(zh|en|ja)$/);
+): Record<SiteLocale, string> {
+  const { pathname: bare } = stripLocalePrefix(pathname);
+  const params = searchParamsOf(search);
+  params.delete("lang");
+  const category = params.get("category");
+
+  const editorial = bare.match(/^(\/news\/.+)-(zh|en|ja)$/);
   if (editorial) {
     const base = editorial[1];
     return {
-      zh: `${base}-zh`,
-      en: `${base}-en`,
-      ja: `${base}-ja`,
+      zh: localizedHref(`${base}-zh`, "zh"),
+      en: localizedHref(`${base}-en`, "en"),
+      ja: localizedHref(`${base}-ja`, "ja"),
     };
   }
-  const brief = pathname.match(/^\/news\/([^/]+)$/);
-  if (brief) {
-    const id = brief[1];
+
+  if (bare === "/news") {
+    const query = { category: category || "all" };
     return {
-      zh: `/news/${id}?lang=zh`,
-      en: `/news/${id}?lang=en`,
-      ja: `/news/${id}?lang=ja`,
+      zh: localizedHref("/news", "zh", query),
+      en: localizedHref("/news", "en", query),
+      ja: localizedHref("/news", "ja", query),
     };
   }
-  return undefined;
+
+  const query = params.toString() ? params : undefined;
+  return {
+    zh: localizedHref(bare, "zh", query),
+    en: localizedHref(bare, "en", query),
+    ja: localizedHref(bare, "ja", query),
+  };
 }

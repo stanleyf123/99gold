@@ -32,7 +32,6 @@ npm start
 | `npm start` | `next start`，監聽 `127.0.0.1:3000` |
 | `npm run db:migrate` | 套用 `drizzle/*.sql` 到本機 SQLite |
 | `npm run news:pipeline` | 檢查官方 RSS、翻譯（zh-Hant／en／ja）並自動上架快訊 |
-| `npm run alerts:dispatch` | 檢查已同步的到價提醒並發送 Email／LINE（需環境金鑰） |
 | `npm test` | 單元／原始碼測試（不需要完整 build） |
 | `npm run test:build` | 先 build 再檢查產出 |
 

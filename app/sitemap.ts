@@ -1,7 +1,8 @@
 import type { MetadataRoute } from "next";
 import { getRawDb } from "../db";
 import { editorials } from "./news/editorial";
-import { SITE_URL } from "../lib/seo";
+import { languageAlternates, SITE_URL } from "../lib/seo";
+import { localizedHref } from "../lib/locale-path";
 import {
   archivedArticleSitemapEntries,
   briefSitemapEntries,
@@ -18,6 +19,8 @@ const staticRoutes = [
   { path: "/global", changeFrequency: "hourly" as const, priority: 0.8 },
   { path: "/news", changeFrequency: "hourly" as const, priority: 0.85 },
 ] as const;
+
+const sitemapLocales = ["zh", "en", "ja"] as const;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const generatedAt = new Date();
@@ -44,20 +47,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const editorialIds = new Set(editorials.map((article) => article.id));
 
   return [
-    ...staticRoutes.map((route) => ({
-      url: route.path === "/" ? SITE_URL : `${SITE_URL}${route.path}`,
-      lastModified: generatedAt,
-      changeFrequency: route.changeFrequency,
-      priority: route.priority,
-    })),
-    ...(["zh", "en", "ja"] as const).map((lang) => ({
-      url: `${SITE_URL}/news?lang=${lang}`,
-      lastModified: generatedAt,
-      changeFrequency: "hourly" as const,
-      priority: 0.7,
+    ...staticRoutes.flatMap((route) => sitemapLocales.map((locale) => {
+      const path = localizedHref(route.path, locale);
+      return {
+        url: path === "/" ? SITE_URL : `${SITE_URL}${path}`,
+        lastModified: generatedAt,
+        changeFrequency: route.changeFrequency,
+        priority: locale === "zh" ? route.priority : Math.max(0.4, route.priority - 0.15),
+        alternates: { languages: languageAlternates(route.path) },
+      };
     })),
     ...editorials.map((article) => ({
-      url: `${SITE_URL}/news/${article.id}`,
+      url: `${SITE_URL}${localizedHref(`/news/${article.id}`, article.locale)}`,
       lastModified: sitemapLastmod(article.publishedAt),
       changeFrequency: "weekly" as const,
       priority: 0.7,
@@ -65,7 +66,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         languages: Object.fromEntries(
           editorials.filter((related) => related.group === article.group).map((related) => [
             related.locale === "zh" ? "zh-Hant" : related.locale,
-            `${SITE_URL}/news/${related.id}`,
+            `${SITE_URL}${localizedHref(`/news/${related.id}`, related.locale)}`,
           ]),
         ),
       },

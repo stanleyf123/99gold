@@ -1,11 +1,15 @@
 import JsonLd from "../JsonLd";
 import { getGlobalQuotesOrNull } from "../../lib/quotes";
 import { getGoldSilverRatioHistoryOrNull } from "../../lib/gold-silver-ratio";
+import { requestLocale } from "../../lib/request-locale";
 import { breadcrumbJsonLd, pageMetadata, sectionCrumbs } from "../../lib/seo";
 import GlobalView from "./GlobalView";
 
 export const dynamic = "force-dynamic";
-export const metadata = pageMetadata("global");
+
+export async function generateMetadata() {
+  return pageMetadata("global", await requestLocale());
+}
 
 export default async function GlobalPage() {
   const [quotes, ratioHistory] = await Promise.all([

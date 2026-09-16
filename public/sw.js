@@ -1,6 +1,6 @@
 const SHELL = "99gold-shell-v2";
 const QUOTES = "99gold-quotes-v2";
-const SHELL_PATHS = ["/", "/global", "/jewelry", "/international", "/recycling", "/news", "/manifest.webmanifest"];
+const SHELL_PATHS = ["/", "/en", "/ja", "/global", "/jewelry", "/international", "/recycling", "/news", "/en/news", "/ja/news", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil((async () => {

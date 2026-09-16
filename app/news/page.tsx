@@ -4,20 +4,19 @@ import Link from "next/link";
 import JsonLd from "../JsonLd";
 import SiteLinks from "../SiteLinks";
 import { getDailyGoldNews } from "../api/news-service";
-import { recentEditorials, type NewsLocale } from "./editorial";
+import { recentEditorials } from "./editorial";
 import { editorialLabels } from "./EditorialView";
 import { asNewsCategory, categories } from "./categories";
 import CoverImage from "../CoverImage";
-import { DEFAULT_OG_IMAGE, SITE_URL, breadcrumbJsonLd, faqJsonLd, itemListJsonLd, newsIndexFaq, sectionCrumbs } from "../../lib/seo";
+import { DEFAULT_OG_IMAGE, SITE_URL, breadcrumbJsonLd, faqJsonLd, itemListJsonLd, languageAlternates, newsIndexFaq, sectionCrumbs } from "../../lib/seo";
 import { newsExcerpt } from "../../lib/news-excerpt";
+import { localizedHref } from "../../lib/locale-path";
+import { localeFromCandidates, requestLocale } from "../../lib/request-locale";
 
 export const dynamic = "force-dynamic";
 type Query = { lang?: string; category?: string };
 type Category = keyof typeof categories;
 
-function localeOf(value?: string): NewsLocale {
-  return value === "en" || value === "ja" ? value : "zh";
-}
 function categoryOf(value?: string): Category {
   return value && Object.prototype.hasOwnProperty.call(categories, value) ? value as Category : "all";
 }
@@ -27,10 +26,11 @@ function safeItemCategory(value?: string): Exclude<Category, "all"> {
 
 export async function generateMetadata({ searchParams }: { searchParams: Promise<Query> }): Promise<Metadata> {
   const query = await searchParams;
-  const language = localeOf(query.lang);
+  const language = localeFromCandidates(query.lang, await requestLocale());
   const category = categoryOf(query.category);
-  const suffix = category === "all" ? "" : `&category=${category}`;
-  const canonical = `${SITE_URL}/news?lang=${language}${suffix}`;
+  const queryMap = category === "all" ? undefined : { category };
+  const path = localizedHref("/news", language, queryMap);
+  const canonical = `${SITE_URL}${path}`;
   const title = `${category === "all" ? editorialLabels[language].all : categories[category][language]}｜99GOLD.NET`;
   const description = category === "all"
     ? editorialLabels[language].introduction
@@ -40,12 +40,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
     description,
     alternates: {
       canonical,
-      languages: {
-        "zh-Hant": `${SITE_URL}/news?lang=zh${suffix}`,
-        en: `${SITE_URL}/news?lang=en${suffix}`,
-        ja: `${SITE_URL}/news?lang=ja${suffix}`,
-        "x-default": `${SITE_URL}/news?lang=zh${suffix}`,
-      },
+      languages: languageAlternates("/news", queryMap),
     },
     openGraph: {
       title,
@@ -67,7 +62,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
 
 export default async function NewsIndex({ searchParams }: { searchParams: Promise<Query> }) {
   const query = await searchParams;
-  const locale = localeOf(query.lang);
+  const locale = localeFromCandidates(query.lang, await requestLocale());
   const category = categoryOf(query.category);
   const labels = editorialLabels[locale];
   const editorials = recentEditorials(locale);
@@ -80,7 +75,7 @@ export default async function NewsIndex({ searchParams }: { searchParams: Promis
 
   const listItems = [
     ...editorialRows.map((article) => ({ name: article.title, path: `/news/${article.id}` })),
-    ...officialRows.map((item) => ({ name: item.title, path: `/news/${item.id}?lang=${locale}` })),
+    ...officialRows.map((item) => ({ name: item.title, path: localizedHref(`/news/${item.id}`, locale) })),
   ];
   const faq = newsIndexFaq[locale];
 
@@ -92,18 +87,18 @@ export default async function NewsIndex({ searchParams }: { searchParams: Promis
     <h1>{labels.all}</h1>
     <p className="editorialLead">{labels.introduction}</p>
     <p className="newsOperationsNote">{locale === "zh" ? "官方來源每 3 小時自動檢查、翻譯並上架快訊，無需人工核准。" : locale === "ja" ? "公式情報源を3時間ごとに確認し、速報を自動翻訳して公開します。管理者の承認は不要です。" : "Official sources are checked every 3 hours; briefs are auto-translated and published without manual approval."}</p>
-    <nav className="editorialCategoryFilters" aria-label={locale === "zh" ? "新聞分類" : locale === "ja" ? "ニュース分類" : "News categories"}>{(Object.keys(categories) as Category[]).map((entry) => <Link key={entry} href={`/news?lang=${locale}&category=${entry}`} aria-current={category === entry ? "page" : undefined}>{categories[entry][locale]} <span>{countFor(entry)}</span></Link>)}</nav>
+    <nav className="editorialCategoryFilters" aria-label={locale === "zh" ? "新聞分類" : locale === "ja" ? "ニュース分類" : "News categories"}>{(Object.keys(categories) as Category[]).map((entry) => <Link key={entry} href={localizedHref("/news", locale, { category: entry })} aria-current={category === entry ? "page" : undefined}>{categories[entry][locale]} <span>{countFor(entry)}</span></Link>)}</nav>
 
     <div className="editorialList">{editorialRows.map((article, index) => {
       const excerpt = newsExcerpt(article.description);
       return <article key={article.id} className="newsCard">
-      <Link href={`/news/${article.id}`}>
+      <Link href={localizedHref(`/news/${article.id}`, locale)}>
         <CoverImage src={article.image} alt={article.imageAlt} priority={index === 0} />
         <p className="articleKicker">{categories[article.category ?? "macro"][locale]} · {labels.event}: {article.eventDate}</p>
         <h2>{article.title}</h2>
       </Link>
       {excerpt ? <p className="newsExcerpt">{excerpt}</p> : <p className="newsExcerptMuted">{locale === "zh" ? "這篇文章沒有可顯示的摘要。" : locale === "ja" ? "この記事には表示できる要約がありません。" : "No excerpt is available for this article."}</p>}
-      <Link href={`/news/${article.id}`}>{labels.more} →</Link>
+      <Link href={localizedHref(`/news/${article.id}`, locale)}>{labels.more} →</Link>
     </article>;
     })}</div>
 
@@ -114,7 +109,7 @@ export default async function NewsIndex({ searchParams }: { searchParams: Promis
         const excerpt = newsExcerpt(item.summary);
         return <article key={String(item.id)} className="officialBriefCard">
         <p><b>{categories[safeItemCategory(item.category)][locale]}</b><time dateTime={item.sourcePublishedAt}>{item.date}</time></p>
-        <h3><Link href={`/news/${item.id}?lang=${locale}`} lang={item.translationPending ? "en" : undefined}>{item.title}</Link></h3>
+        <h3><Link href={localizedHref(`/news/${item.id}`, locale)} lang={item.translationPending ? "en" : undefined}>{item.title}</Link></h3>
         {excerpt ? <p className="newsExcerpt">{excerpt}</p> : <p className="newsExcerptMuted">{locale === "zh" ? "這則快訊沒有可顯示的摘要。" : locale === "ja" ? "この速報には表示できる要約がありません。" : "No excerpt is available for this brief."}</p>}
         <small>{item.sourceName}{item.translationLabel ? ` · ${item.translationLabel}` : item.translationPending ? ` · ${item.translationPendingLabel || (locale === "zh" ? "原文／翻譯待補" : locale === "ja" ? "原文／翻訳待ち" : "Original / translation pending")}` : ""}</small>
       </article>;

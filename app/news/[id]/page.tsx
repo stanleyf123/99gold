@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { editorials, type NewsLocale } from "../editorial";
+import { editorials } from "../editorial";
 import EditorialView from "../EditorialView";
 import OfficialBriefView from "../OfficialBriefView";
 import type { Article } from "../../api/news-service";
 import { getRawDb } from "../../../db";
 import { asNewsCategory, type NewsCategory } from "../categories";
 import { localizedBriefFields } from "../../../lib/news/translate";
-import { DEFAULT_OG_IMAGE, OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH, SITE_URL } from "../../../lib/seo";
+import { DEFAULT_OG_IMAGE, OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH, SITE_URL, languageAlternates } from "../../../lib/seo";
+import { localizedHref } from "../../../lib/locale-path";
+import { localeFromCandidates, requestLocale } from "../../../lib/request-locale";
 
 export const dynamic = "force-dynamic";
 
@@ -35,10 +37,6 @@ type StoredBrief = {
   translation_provider: string | null;
 };
 
-function localeOf(value?: string | null): NewsLocale {
-  return value === "en" || value === "ja" ? value : "zh";
-}
-
 function briefCategory(value?: string): NewsCategory {
   return asNewsCategory(value);
 }
@@ -60,7 +58,7 @@ export async function generateMetadata(
   { params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ lang?: string }> },
 ): Promise<Metadata> {
   const id = (await params).id;
-  const locale = localeOf((await searchParams).lang);
+  const locale = localeFromCandidates((await searchParams).lang, await requestLocale());
   const article = editorials.find((a) => a.id === id);
   if (article) {
     return {
@@ -68,7 +66,7 @@ export async function generateMetadata(
       description: article.description,
       alternates: {
         canonical: `${SITE_URL}/news/` + id,
-        languages: Object.fromEntries(editorials.filter((a) => a.group === article.group).map((a) => [a.locale === "zh" ? "zh-Hant" : a.locale, `${SITE_URL}/news/` + a.id])),
+        languages: Object.fromEntries(editorials.filter((a) => a.group === article.group).map((a) => [a.locale === "zh" ? "zh-Hant" : a.locale, `${SITE_URL}${localizedHref(`/news/${a.id}`, a.locale)}`])),
       },
       openGraph: { type: "article", title: article.title, description: article.description, images: [{ url: SITE_URL + article.image, width: 1536, height: 1024, alt: article.imageAlt }] },
       twitter: { title: article.title, description: article.description, images: [SITE_URL + article.image] },
@@ -77,18 +75,13 @@ export async function generateMetadata(
   const brief = await getPublishedBrief(id);
   if (brief) {
     const localized = localizedBriefFields(brief, locale);
-    const canonical = `${SITE_URL}/news/${id}?lang=${locale}`;
+    const canonical = `${SITE_URL}${localizedHref(`/news/${id}`, locale)}`;
     return {
       title: localized.title,
       description: localized.summary ?? localized.title,
       alternates: {
         canonical,
-        languages: {
-          "zh-Hant": `${SITE_URL}/news/${id}?lang=zh`,
-          en: `${SITE_URL}/news/${id}?lang=en`,
-          ja: `${SITE_URL}/news/${id}?lang=ja`,
-          "x-default": `${SITE_URL}/news/${id}?lang=zh`,
-        },
+        languages: languageAlternates(`/news/${id}`),
       },
       openGraph: { type: "article", title: localized.title, description: localized.summary ?? localized.title, url: canonical, images: [{ url: DEFAULT_OG_IMAGE, width: OG_IMAGE_WIDTH, height: OG_IMAGE_HEIGHT, alt: localized.title, type: "image/png" }] },
       twitter: { card: "summary_large_image", title: localized.title, description: localized.summary ?? localized.title, images: [DEFAULT_OG_IMAGE] },
@@ -110,7 +103,7 @@ export default async function NewsArticle(
   { params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ lang?: string }> },
 ) {
   const id = (await params).id;
-  const locale = localeOf((await searchParams).lang);
+  const locale = localeFromCandidates((await searchParams).lang, await requestLocale());
   const article = editorials.find((a) => a.id === id);
   if (article) return <EditorialView article={article} />;
   const brief = await getPublishedBrief(id);

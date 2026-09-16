@@ -12,6 +12,7 @@ import {
   type SectionName,
 } from "../../lib/section-quotes";
 import { breadcrumbJsonLd, faqJsonLd, pageMetadata, sectionCrumbs } from "../../lib/seo";
+import { requestLocale } from "../../lib/request-locale";
 import JsonLd from "../JsonLd";
 import JewelryView from "./JewelryView";
 import SectionView from "./SectionView";
@@ -27,7 +28,7 @@ function isSection(value: string): value is SectionName {
 export async function generateMetadata({ params }: { params: Promise<{ section: string }> }) {
   const { section } = await params;
   if (!isSection(section)) return {};
-  return pageMetadata(section);
+  return pageMetadata(section, await requestLocale());
 }
 
 export default async function SectionPage({ params }: { params: Promise<{ section: string }> }) {
@@ -87,6 +88,7 @@ export default async function SectionPage({ params }: { params: Promise<{ sectio
           ratioPoints={section === "international" ? (ratioHistory?.points ?? []) : []}
           goldPrice={quotes?.metals.find((metal) => metal.id === "gold")?.price ?? Number.NaN}
           silverPrice={quotes?.metals.find((metal) => metal.id === "silver")?.price ?? Number.NaN}
+          currencies={quotes?.currencies ?? {}}
         />
       )}
     </>

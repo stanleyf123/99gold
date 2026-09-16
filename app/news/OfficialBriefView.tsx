@@ -12,6 +12,7 @@ import {
   faqJsonLd,
   sectionCrumbs,
 } from "../../lib/seo";
+import { localizedHref } from "../../lib/locale-path";
 
 const copy = {
   zh: {
@@ -73,7 +74,7 @@ export default function OfficialBriefView({
 }) {
   const t = copy[locale];
   const categoryLabel = categories[category][locale];
-  const pageUrl = `${SITE_URL}/news/${id}?lang=${locale}`;
+  const pageUrl = `${SITE_URL}${localizedHref(`/news/${id}`, locale)}`;
   const faq = briefFaq[locale];
   const article = articleJsonLd({
     headline: title,
@@ -96,7 +97,7 @@ export default function OfficialBriefView({
       <JsonLd data={article} />
       <JsonLd data={faqJsonLd(faq)} />
       <article>
-        <p className="articleKicker">{t.brief} · <Link href={`/news?lang=${locale}&category=${category}`}>{categoryLabel}</Link>{statusLabel}</p>
+        <p className="articleKicker">{t.brief} · <Link href={localizedHref("/news", locale, { category })}>{categoryLabel}</Link>{statusLabel}</p>
         <h1 lang={translationPending ? "en" : undefined}>{title}</h1>
         <div className="editorialDates">
           <span>{t.published}: <time dateTime={publishedAt}>{eventDate}</time></span>
@@ -115,11 +116,11 @@ export default function OfficialBriefView({
         <section className="articleSource">
           <p><a href={originalUrl} target="_blank" rel="noreferrer">{t.original} ↗</a></p>
           <p className="briefRelated">
-            <Link href="/">{t.quotes}</Link>
-            <Link href="/jewelry">{t.jewelry}</Link>
+            <Link href={localizedHref("/", locale)}>{t.quotes}</Link>
+            <Link href={localizedHref("/jewelry", locale)}>{t.jewelry}</Link>
           </p>
           <p>{t.disclaimer}</p>
-          <Link href={`/news?lang=${locale}`}>← {t.all}</Link>
+          <Link href={localizedHref("/news", locale)}>← {t.all}</Link>
         </section>
       </article>
       <SiteLinks current="news" />

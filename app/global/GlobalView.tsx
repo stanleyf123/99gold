@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import SiteLinks from "../SiteLinks";
-import PriceAlerts from "../PriceAlerts";
+import GoldFxStrip from "../GoldFxStrip";
 import GoldSilverRatioPanel from "../GoldSilverRatio";
 import { type Locale, t, useSiteLocale } from "../locale";
 import { parseQuotedNumber } from "../../lib/section-quotes";
@@ -206,6 +206,11 @@ export default function GlobalMarketPage({ initialQuotes = null, initialRatioPoi
       <h1>{t(locale, "全球貴金屬報價中心", "Global Precious Metals Desk", "世界貴金属相場センター")}</h1>
       <span>{data.source || t(locale, "正在連接可驗證的國際行情來源", "Connecting to a verifiable international quote source", "検証可能な国際相場ソースに接続中")}{t(locale, "；屬參考資訊，並非店家可成交牌告", "; reference only, not an executable dealer quote", "。参考情報であり、店頭の約定価格ではありません")}</span>
     </section>
+    <GoldFxStrip
+      goldUsdPerOz={gold && Number.isFinite(gold.price) ? gold.price : null}
+      taiwanQian={parseQuotedNumber(data.items.find((item) => item.id === "taiwan-qian")?.price ?? "")}
+      currencies={data.currencies}
+    />
     <section className="metalBoard">
       <div className="boardHead">
         <div><p>LIVE PRICES</p><h2>{t(locale, "國際市場參考行情", "International market references", "国際市場の参考相場")}</h2></div>
@@ -305,15 +310,6 @@ export default function GlobalMarketPage({ initialQuotes = null, initialRatioPoi
         </article>;
       })}</div>
     </section>
-    <PriceAlerts
-      locale={locale}
-      compact
-      markets={[
-        { id: "spot", label: t(locale, "COMEX 黃金參考", "COMEX gold reference", "COMEX金参考"), value: gold && Number.isFinite(gold.price) ? gold.price : Number.NaN, unit: "USD／oz" },
-        { id: "qian", label: t(locale, "台灣理論金價", "Taiwan theoretical qian", "台湾理論銭"), value: parseQuotedNumber(data.items.find((item) => item.id === "taiwan-qian")?.price ?? "") ?? Number.NaN, unit: "TWD／錢" },
-        { id: "gram", label: t(locale, "黃金每公克", "Gold per gram", "グラムあたりの金"), value: parseQuotedNumber(data.items.find((item) => item.id === "taiwan-gram")?.price ?? "") ?? Number.NaN, unit: "TWD／公克" },
-      ]}
-    />
     <SiteLinks current="global" />
     <footer><span>玖久黃金報價網 · 99GOLD.NET</span><p>{t(locale, "真金價值，長久相伴。", "True gold value, lasting companionship.", "真金の価値を、長く寄り添う。")}</p></footer>
   </main>;

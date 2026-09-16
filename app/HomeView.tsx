@@ -10,16 +10,11 @@ import { asNewsCategory, categories, type NewsCategory } from "./news/categories
 import { useSiteLocale } from "./locale";
 import { jewelrySellFromBuy, parseQuotedNumber } from "../lib/section-quotes";
 import { bankOfTaiwanUsdSightSell, formatUsdTwdSightSell } from "../lib/fx-display";
-import PriceAlerts from "./PriceAlerts";
+import { localizedHref } from "../lib/locale-path";
+import GoldFxStrip from "./GoldFxStrip";
 import GoldSilverRatioPanel from "./GoldSilverRatio";
 import PriceHistoryChart from "./PriceHistoryChart";
 import { newsExcerpt } from "../lib/news-excerpt";
-
-const alertMarkets = [
-  { id: "spot", label: "國際黃金參考", value: Number.NaN, unit: "USD／盎司" },
-  { id: "qian", label: "台灣理論金價", value: Number.NaN, unit: "TWD／錢" },
-  { id: "gram", label: "黃金每公克", value: Number.NaN, unit: "TWD／公克" },
-] as const;
 
 type NewsItem = { id?: number | string; title: string; category?: NewsCategory; originalTitle?: string; summary?: string | null; date: string; url: string; image?: string; sourceName?: string; translated?: boolean; translationLabel?: string | null; translationProvider?: string | null; translationPending?: boolean; translationPendingLabel?: string | null; external?: boolean };
 type QuoteItem = { id?: string; label: string; code: string; price: string; unit: string; change: string; up: boolean | null };
@@ -342,15 +337,6 @@ export default function HomeView({
     const roi = cost > 0 ? (gain / cost) * 100 : 0;
     return { grossQian, pureQian, grams: grossQian * 3.75, recycleValue, cost, gain, roi };
   }, [goldWeight, toolUnit, purity, purchasePrice, manualPrice]);
-  const liveAlertMarkets = useMemo(() => alertMarkets.map((market) => {
-    const quote = market.id === "spot"
-      ? quotes.find((item) => item.id === "gold-reference") ?? quotes[0]
-      : market.id === "qian"
-        ? quotes.find((item) => item.id === "taiwan-qian")
-        : quotes.find((item) => item.id === "taiwan-gram");
-    const parsed = Number((quote?.price ?? "").replace(/,/g, ""));
-    return { ...market, label: quote?.label ?? market.label, value: Number.isFinite(parsed) && parsed > 0 ? parsed : market.value, unit: quote?.unit ?? market.unit };
-  }), [quotes]);
   const filteredNews = news.filter((item) => newsCategory === "all" || (item.category ?? "macro") === newsCategory);
   const globalGold = globalMetals.find((metal) => metal.id === "gold") ?? unavailableGold;
   const globalAvailable = Number.isFinite(globalGold.price);
@@ -453,6 +439,12 @@ export default function HomeView({
         <button type="button" onClick={() => { selectDashboardTab("history"); window.setTimeout(() => document.getElementById("top")?.scrollIntoView({ behavior: "smooth" }), 40); }}>{t("查看歷史走勢", "View history", "履歴を見る")} <b>→</b></button>
       </section>
 
+      <GoldFxStrip
+        goldUsdPerOz={globalAvailable ? globalGold.price : null}
+        taiwanQian={buyQian}
+        currencies={currencies}
+      />
+
       {news.length > 0 ? (
         <section className="homeNewsStrip" aria-labelledby="home-news-strip">
           <div>
@@ -461,7 +453,7 @@ export default function HomeView({
           </div>
           <ul>
             {news.slice(0, 4).map((item) => {
-              const href = item.external ? `/news/${item.id}?lang=${locale}` : `/news/${item.id}`;
+              const href = localizedHref(`/news/${item.id}`, locale);
               return (
                 <li key={String(item.id ?? item.url)}>
                   <time dateTime={item.date}>{item.date}</time>
@@ -471,7 +463,7 @@ export default function HomeView({
               );
             })}
           </ul>
-          <Link href={`/news?lang=${locale}`}>{t("全部市場新聞", "All market news", "市場ニュース一覧")} →</Link>
+          <Link href={localizedHref("/news", locale)}>{t("全部市場新聞", "All market news", "市場ニュース一覧")} →</Link>
         </section>
       ) : null}
 
@@ -633,13 +625,13 @@ export default function HomeView({
               "Official sources are checked every 3 hours. Briefs are auto-translated and published; original analysis is researched and written separately.",
               "公式情報源を3時間ごとに確認し、速報を自動翻訳して公開します。独自分析記事は別途調査・執筆します。",
             )}</p>
-            <p><Link href={`/news?lang=${locale}`}>{locale === "zh" ? "開啟新聞專區 →" : locale === "ja" ? "ニュース一覧 →" : "News library →"}</Link></p>
+            <p><Link href={localizedHref("/news", locale)}>{locale === "zh" ? "開啟新聞專區 →" : locale === "ja" ? "ニュース一覧 →" : "News library →"}</Link></p>
             <div className="newsFilters" aria-label={locale === "zh" ? "新聞分類" : locale === "ja" ? "ニュース分類" : "News categories"}>{newsCategories.map((category) => <button key={category} className={newsCategory === category ? "active" : ""} aria-pressed={newsCategory === category} onClick={() => setNewsCategory(category)}>{categories[category][locale]}</button>)}</div>
             <div className="newsGrid">{filteredNews.slice(0, 10).map((item) => {
               const category = asNewsCategory(item.category);
               const key = String(item.id ?? item.url);
               const cover = item.image;
-              const href = item.external ? `/news/${item.id}?lang=${locale}` : `/news/${item.id}`;
+              const href = localizedHref(`/news/${item.id}`, locale);
               const excerpt = newsExcerpt(item.summary);
               return <article key={key}>
                 <div className={cover ? "newsVisual hasImage" : "newsVisual officialSourceVisual"}>{cover ? <CoverImage src={cover} alt={item.title} /> : <div className="newsSourceMark"><b>99</b><small>{t("市場快訊", "MARKET BRIEF", "市場速報")}</small></div>}</div>
@@ -719,8 +711,6 @@ export default function HomeView({
 
         {activeTab === "tools" && <div className="hubPanel proToolsPanel" role="tabpanel" id="tools"><div className="panelHeading"><div><p className="eyebrow">GOLD TOOLKIT</p><h2>{copy.tools}</h2></div><p>{t("支援台灣常用重量與純度", "Taiwan weights and purity units", "台湾で使う重量・純度単位")}</p></div><div className="toolWorkspace"><section className="toolForm"><div className="fieldGroup"><label htmlFor="manualPrice">{t("店家提供的回收報價（NT$／錢）", "Dealer recycle quote (NT$ / qian)", "店頭の買取相場（NT$／銭）")}</label><input id="manualPrice" type="number" min="0" placeholder={t("請輸入實際報價", "Enter the quoted price", "実際の相場を入力")} value={manualPrice} onChange={e=>setManualPrice(e.target.value)}/></div><div className="fieldGroup"><label htmlFor="toolWeight">{t("黃金重量", "Gold weight", "金の重量")}</label><div className="inputPair"><input id="toolWeight" type="number" min="0" step="0.01" inputMode="decimal" value={goldWeight} onChange={(event) => setGoldWeight(event.target.value)}/><select aria-label={t("重量單位", "Weight unit", "重量単位")} value={toolUnit} onChange={(event) => setToolUnit(event.target.value as typeof toolUnit)}><option value="qian">{t("錢", "Qian", "銭")}</option><option value="gram">{t("公克", "Gram", "グラム")}</option><option value="tael">{t("台兩", "Tael", "台両")}</option><option value="ounce">{t("金衡盎司", "Troy ounce", "トロイオンス")}</option></select></div></div><div className="fieldGroup"><label htmlFor="purity">{t("黃金純度", "Gold purity", "金の純度")}</label><select id="purity" value={purity} onChange={(event) => setPurity(event.target.value)}><option value="0.9999">{t("9999 純金", "9999 fine gold", "9999 純金")}</option><option value="0.999">{t("999 純金", "999 fine gold", "999 純金")}</option><option value="0.916">916／22K</option><option value="0.75">750／18K</option><option value="0.585">585／14K</option></select></div><div className="fieldGroup"><label htmlFor="purchasePrice">{t("你的買入價（每錢）", "Your purchase price (per qian)", "購入価格（銭あたり）")}</label><div className="moneyInput"><span>NT$</span><input id="purchasePrice" type="number" min="0" step="100" inputMode="numeric" value={purchasePrice} onChange={(event) => setPurchasePrice(event.target.value)}/></div></div><p className="toolHint">{t("純度換算採理論含金量，實際回收仍依店家檢測、耗損與手續費為準。", "Purity conversion uses theoretical gold content. Actual recycling still depends on testing, loss, and fees.", "純度換算は理論含有量です。実際の買取は鑑定、減耗、手数料によります。")}</p></section><section className="toolResults" aria-live="polite"><div className="primaryResult"><span>{t("預估回收價值", "Estimated recycle value", "買取の試算額")}</span><strong>NT$ {manualPrice ? toolResult.recycleValue.toLocaleString("zh-TW") : "—"}</strong><small>{t("依你輸入的回收報價試算，不是本站牌告", "Estimate from your recycle quote, not a posted site price", "入力した買取相場による試算であり、本サイトの掲示価格ではありません")}</small></div><div className="resultMetrics"><div><span>{t("換算重量", "Converted weight", "換算重量")}</span><strong>{toolResult.grams.toFixed(2)} g</strong></div><div><span>{t("純金重量", "Fine gold weight", "純金重量")}</span><strong>{toolResult.pureQian.toFixed(3)} {t("錢", "qian", "銭")}</strong></div><div><span>{t("購入成本", "Purchase cost", "購入コスト")}</span><strong>NT$ {toolResult.cost.toLocaleString("zh-TW")}</strong></div><div><span>{t("目前損益", "Current P/L", "現在の損益")}</span><strong className={toolResult.gain >= 0 ? "up" : "down"}>{toolResult.gain >= 0 ? "+" : "−"}NT$ {Math.abs(toolResult.gain).toLocaleString("zh-TW")}</strong><small className={toolResult.gain >= 0 ? "up" : "down"}>{toolResult.roi >= 0 ? "+" : ""}{toolResult.roi.toFixed(2)}%</small></div></div></section></div></div>}
       </section>
-      <PriceAlerts locale={locale} markets={liveAlertMarkets} />
-
       <SiteLinks current="home" />
       <footer><a className="brand" href="#top"><i>99</i><span>{siteSettings.brandName}<br/><em>{siteSettings.englishName}</em></span></a><p>{copy.hero}</p><span>© 2026 {siteSettings.fullName}</span></footer>
     </main>

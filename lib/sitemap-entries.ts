@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL } from "./seo";
+import { hreflangHrefs, localizedHref } from "./locale-path";
 
 export type BriefSitemapRow = {
   id: string;
@@ -20,13 +21,12 @@ export function sitemapLastmod(value?: string | Date | null): Date {
 }
 
 export function newsLanguageAlternates(path: string, siteUrl = SITE_URL): Record<string, string> {
-  const base = path.startsWith("http") ? path : `${siteUrl}${path.startsWith("/") ? path : `/${path}`}`;
-  const joiner = base.includes("?") ? "&" : "?";
+  const hrefs = hreflangHrefs(path);
   return {
-    "zh-Hant": `${base}${joiner}lang=zh`,
-    en: `${base}${joiner}lang=en`,
-    ja: `${base}${joiner}lang=ja`,
-    "x-default": `${base}${joiner}lang=zh`,
+    "zh-Hant": `${siteUrl}${hrefs["zh-Hant"]}`,
+    en: `${siteUrl}${hrefs.en}`,
+    ja: `${siteUrl}${hrefs.ja}`,
+    "x-default": `${siteUrl}${hrefs["x-default"]}`,
   };
 }
 
@@ -42,7 +42,7 @@ export function briefSitemapEntries(
     seen.add(id);
     const lastModified = sitemapLastmod(row.translated_at || row.published_at || row.source_published_at);
     entries.push({
-      url: `${siteUrl}/news/${id}`,
+      url: `${siteUrl}${localizedHref(`/news/${id}`, "zh")}`,
       lastModified,
       changeFrequency: "weekly",
       priority: 0.65,

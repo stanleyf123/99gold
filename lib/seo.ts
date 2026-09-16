@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { hreflangHrefs, localizedHref, type PathLocale } from "./locale-path";
 
 export const SITE_URL = "https://99gold.net";
 export const SITE_NAME = "玖久黃金報價網";
@@ -10,7 +11,7 @@ export const OG_IMAGE_WIDTH = 1200;
 export const OG_IMAGE_HEIGHT = 630;
 export const OG_IMAGE_TYPE = "image/png";
 
-export type SeoLocale = "zh" | "en" | "ja";
+export type SeoLocale = PathLocale;
 export type PublicRoute = "home" | "jewelry" | "international" | "recycling" | "global" | "news";
 
 type Localized = { zh: string; en: string; ja: string };
@@ -101,16 +102,34 @@ export function absoluteUrl(path = "/"): string {
   return path.startsWith("http") ? path : `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
+export function localizedPagePath(path: string, locale: SeoLocale = "zh"): string {
+  return localizedHref(path, locale);
+}
+
+export function languageAlternates(path: string, query?: string | Record<string, string | null | undefined>) {
+  const hrefs = hreflangHrefs(path, query);
+  return {
+    "zh-Hant": absoluteUrl(hrefs["zh-Hant"]),
+    en: absoluteUrl(hrefs.en),
+    ja: absoluteUrl(hrefs.ja),
+    "x-default": absoluteUrl(hrefs["x-default"]),
+  };
+}
+
 export function pageMetadata(route: PublicRoute, locale: SeoLocale = "zh"): Metadata {
   const copy = routeCopy[route];
   const title = copy.title[locale];
   const description = copy.description[locale];
-  const url = absoluteUrl(copy.path);
+  const path = localizedPagePath(copy.path, locale);
+  const url = absoluteUrl(path);
   const ogAlt = `${title} — ${DEFAULT_OG_ALT}`;
   return {
     title,
     description,
-    alternates: { canonical: url },
+    alternates: {
+      canonical: url,
+      languages: languageAlternates(copy.path),
+    },
     openGraph: {
       title,
       description,
