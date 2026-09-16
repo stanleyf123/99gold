@@ -1,6 +1,8 @@
 export type PathLocale = "zh" | "en" | "ja";
 
 export const LOCALE_HEADER = "x-site-locale";
+export const ORIGINAL_PATH_HEADER = "x-original-pathname";
+export const LOCALE_COOKIE = "site-locale";
 export const PATH_PREFIX_LOCALES = ["en", "ja"] as const;
 
 export function documentLang(locale: PathLocale) {
@@ -110,6 +112,21 @@ export function localizedHref(
   const params = searchParamsOf(query);
   params.delete("lang");
   return `${path}${serializeSearch(params)}`;
+}
+
+export function mergeLocaleCookie(existing: string | null | undefined, locale: PathLocale) {
+  const parts = (existing ?? "")
+    .split(";")
+    .map((part) => part.trim())
+    .filter((part) => part && !part.toLowerCase().startsWith(`${LOCALE_COOKIE}=`));
+  parts.push(`${LOCALE_COOKIE}=${locale}`);
+  return parts.join("; ");
+}
+
+export function applyLocaleRequestHeaders(headers: Headers, locale: PathLocale, originalPathname: string) {
+  headers.set(LOCALE_HEADER, locale);
+  headers.set(ORIGINAL_PATH_HEADER, originalPathname);
+  headers.set("cookie", mergeLocaleCookie(headers.get("cookie"), locale));
 }
 
 export function hreflangHrefs(

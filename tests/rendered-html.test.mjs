@@ -169,6 +169,8 @@ test("keeps one locale source for header, homepage, global and section chrome", 
   assert.match(localeMod, /export const LOCALE_EVENT = "golden-tide-locale"/);
   assert.match(localeMod, /new CustomEvent<Locale>\(LOCALE_EVENT, \{ detail: locale \}\)/);
   assert.match(localeMod, /function LocaleProvider/);
+  assert.match(localeMod, /initialLocale/);
+  assert.match(localeMod, /localeFromPathname\(pathname\)/);
   assert.match(localeMod, /visitor-locale/);
   assert.match(siteLocale, /localeFromGeoCountry/);
   assert.match(siteLocale, /UNKNOWN_COUNTRY/);
@@ -176,6 +178,7 @@ test("keeps one locale source for header, homepage, global and section chrome", 
   assert.match(visitorLocale, /localeFromGeoCountry/);
   assert.match(visitorLocale, /cf-ipcountry/);
   assert.match(chrome, /LocaleProvider/);
+  assert.match(chrome, /initialLocale/);
   assert.match(chrome, /<SiteHeader \/>/);
   assert.doesNotMatch(chrome, /<SiteHeader[\s\S]*<SiteHeader/);
   assert.match(header, /setContextLocale/);
@@ -558,5 +561,13 @@ test("packages the app as 99gold and documents Linode alert-timer cleanup", asyn
   assert.match(deploy, /translation_retry_at/);
   assert.doesNotMatch(deploy, /enable --now 99gold-alerts\.timer/);
   assert.match(middleware, /localePathRedirect/);
-  assert.match(middleware, /NextResponse.rewrite/);
+  assert.match(middleware, /applyLocaleRequestHeaders/);
+  assert.match(middleware, /NextResponse.next/);
+  assert.doesNotMatch(middleware, /NextResponse.rewrite/);
+  const [enPage, jaPage] = await Promise.all([
+    readFile(new URL("../app/en/[[...slug]]/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/ja/[[...slug]]/page.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(enPage, /LocalizedSlugPage locale="en"/);
+  assert.match(jaPage, /LocalizedSlugPage locale="ja"/);
 });

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import {
-  LOCALE_HEADER,
+  LOCALE_COOKIE,
+  applyLocaleRequestHeaders,
   localePathRedirect,
   skipLocaleRouting,
   stripLocalePrefix,
@@ -29,15 +30,12 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url, 308);
   }
 
-  const { locale, pathname: bare, hadPrefix } = stripLocalePrefix(pathname);
+  const { locale } = stripLocalePrefix(pathname);
   const requestHeaders = new Headers(request.headers);
-  requestHeaders.set(LOCALE_HEADER, locale);
-  if (hadPrefix && locale !== "zh") {
-    const url = request.nextUrl.clone();
-    url.pathname = bare;
-    return NextResponse.rewrite(url, { request: { headers: requestHeaders } });
-  }
-  return NextResponse.next({ request: { headers: requestHeaders } });
+  applyLocaleRequestHeaders(requestHeaders, locale, pathname);
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  response.cookies.set(LOCALE_COOKIE, locale, { path: "/", sameSite: "lax", maxAge: 60 * 60 * 24 * 365 });
+  return response;
 }
 
 export const config = {

@@ -52,7 +52,7 @@ export default async function RootLayout({
     <html lang={documentLang(locale)} suppressHydrationWarning>
       <body>
         <PwaRegister />
-        <SiteChrome>{children}</SiteChrome>
+        <SiteChrome initialLocale={locale}>{children}</SiteChrome>
         <JsonLd data={organizationJsonLd()} />
         <JsonLd data={websiteJsonLd()} />
         <Script src="https://www.googletagmanager.com/gtag/js?id=G-QF9X3TLYZT" strategy="afterInteractive" />

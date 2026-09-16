@@ -26,6 +26,7 @@ const {
   localizedHref,
   hreflangHrefs,
   skipLocaleRouting,
+  mergeLocaleCookie,
 } = load();
 
 test("strips /en and /ja prefixes and treats /zh as default", () => {
@@ -87,6 +88,11 @@ test("redirects ?lang= bookmarks and /zh prefixes onto locale paths", () => {
   assert.equal(localePathRedirect("/api/global-quotes", "?lang=en"), null);
   assert.equal(skipLocaleRouting("/api/price-alerts"), true);
   assert.equal(skipLocaleRouting("/admin"), true);
+});
+
+test("merges site-locale into the request Cookie header", () => {
+  assert.equal(mergeLocaleCookie("", "en"), "site-locale=en");
+  assert.equal(mergeLocaleCookie("theme=dark; site-locale=zh", "ja"), "theme=dark; site-locale=ja");
 });
 
 test("hreflang map covers zh-Hant, en, ja and x-default", () => {

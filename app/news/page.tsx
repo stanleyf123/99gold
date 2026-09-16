@@ -92,13 +92,13 @@ export default async function NewsIndex({ searchParams }: { searchParams: Promis
     <div className="editorialList">{editorialRows.map((article, index) => {
       const excerpt = newsExcerpt(article.description);
       return <article key={article.id} className="newsCard">
-      <Link href={`/news/${article.id}`}>
+      <Link href={localizedHref(`/news/${article.id}`, locale)}>
         <CoverImage src={article.image} alt={article.imageAlt} priority={index === 0} />
         <p className="articleKicker">{categories[article.category ?? "macro"][locale]} · {labels.event}: {article.eventDate}</p>
         <h2>{article.title}</h2>
       </Link>
       {excerpt ? <p className="newsExcerpt">{excerpt}</p> : <p className="newsExcerptMuted">{locale === "zh" ? "這篇文章沒有可顯示的摘要。" : locale === "ja" ? "この記事には表示できる要約がありません。" : "No excerpt is available for this article."}</p>}
-      <Link href={`/news/${article.id}`}>{labels.more} →</Link>
+      <Link href={localizedHref(`/news/${article.id}`, locale)}>{labels.more} →</Link>
     </article>;
     })}</div>
 

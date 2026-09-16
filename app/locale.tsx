@@ -55,9 +55,15 @@ function readStoredLocale(): Locale | null {
   }
 }
 
-export function LocaleProvider({ children }: { children: ReactNode }) {
+export function LocaleProvider({
+  children,
+  initialLocale = "zh",
+}: {
+  children: ReactNode;
+  initialLocale?: Locale;
+}) {
   const pathname = usePathname() || "/";
-  const [locale, setLocaleState] = useState<Locale>("zh");
+  const [locale, setLocaleState] = useState<Locale>(() => localeFromPathname(pathname) || initialLocale);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,14 +73,17 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
       document.documentElement.lang = documentLang(next);
     };
 
-    const fromUrl = localeFromLocation(pathname, readLocationSearch());
+    const fromUrl = localeFromLocation(pathname, readLocationSearch()) || localeFromPathname(pathname);
     if (fromUrl) {
       persistLocale(fromUrl);
       apply(fromUrl);
+    } else if (initialLocale && initialLocale !== "zh") {
+      persistLocale(initialLocale);
+      apply(initialLocale);
     } else {
       const saved = readStoredLocale();
-      if (saved) {
-        apply(saved);
+      if (saved && saved !== "zh") {
+        apply("zh");
       } else {
         fetch("/api/visitor-locale", { cache: "no-store" })
           .then((response) => (response.ok ? (response.json() as Promise<{ locale?: Locale }>) : null))
@@ -82,13 +91,14 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
             if (cancelled) return;
             const chosen = readStoredLocale();
             if (chosen) {
-              apply(chosen);
+              persistLocale(chosen);
               return;
             }
             if (isLocale(data?.locale)) persistLocale(data.locale);
           })
           .catch(() => undefined);
       }
+      apply("zh");
     }
 
     const onLocale = (event: Event) => {
@@ -112,7 +122,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("storage", onStorage);
       window.removeEventListener("popstate", syncFromUrl);
     };
-  }, [pathname]);
+  }, [pathname, initialLocale]);
 
   const setLocale = useCallback((next: Locale) => {
     persistLocale(next);
