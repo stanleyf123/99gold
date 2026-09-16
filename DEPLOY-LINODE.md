@@ -254,18 +254,20 @@ sudo -u www-data npx tsx scripts/run-news-pipeline.ts --manual
 - Google News `https://news.google.com/rss/search?...` 在 Linode 會回 **HTTP 503**（Google sorry page），其他網路常是 HTTP 200。沒有可用的 Linode egress 繞路前，**不要**把它寫進 `newsSources`。
 - Kitco 歷史路徑 `https://www.kitco.com/rss/KitcoNews.xml` 目前是 HTML 404，不是 RSS。
 
-英國／總體來源（ONS、HM Treasury）仍會抓，但 **標題必須與黃金／總經相關**（CPI、GDP、通膨、財政、公債等）。ONS 就業月曆、HM Treasury 加密／AML 諮詢會被 `titleTerms`／`excludeTerms` 丟掉，不再灌滿 `/news`。Fed 貨幣聲明、BLS CPI／就業、帶貨幣政策關鍵字的 ECB 稿仍會過。
+英國／總體來源 **ONS release calendar 與 HM Treasury 已從 production 白名單拿掉**（就業月曆、加密／AML 諮詢灌滿 `/news`）。過濾函式仍留在 `source-config.ts` 供測試。Fed 貨幣聲明、BLS CPI／就業（既有 URL 不改）、帶貨幣政策關鍵字的 ECB 稿仍會過。
 
-- ONS release calendar：`https://www.ons.gov.uk/releasecalendar?rss`
-- HM Treasury 新聞 Atom：`https://www.gov.uk/government/organisations/hm-treasury.atom`
+Linode 主機 curl 實測 **HTTP 200 且為真實 RSS/XML** 後採用：
 
-已從 datacenter IP 實測 HTTP 200、並加入白名單的黃金／能源來源：
+- MINING.COM 黃金商品 RSS（首選）：`https://www.mining.com/commodity/gold/feed/`
+- Investing.com 股市／市場 RSS（再以金銀等關鍵字過濾）：`https://www.investing.com/rss/news_25.rss`
+- Oilprice.com 主源（管線、OPEC、荷姆茲等衝擊 + 貴金屬關鍵字）：`https://oilprice.com/rss/main`
 
-- MINING.COM 黃金商品 RSS：`https://www.mining.com/commodity/gold/feed/`
-- Investing.com 大宗商品新聞：`https://www.investing.com/rss/news_11.rss`（再以金銀鉑鈀等關鍵字過濾）
-- Oilprice.com 能源：`https://oilprice.com/rss/energy`（只留管線、OPEC、荷姆茲等可能牽動金價的衝擊）
+同一批探測可用但未加入 cron 的：`mining.com/feed/`（較雜）、`investing.com/rss/news_301.rss`（加密）、BBC business、CNBC `100003114`（頻道已偏綜合要聞）、Fed `press_all.xml`（已有更窄的 monetary／speeches）。
 
-World Gold Council 的 `https://www.gold.org/rss.xml` 雖是 HTTP 200，內容是站內雜頁而非新聞，故未採用。
+歷史英國來源 URL（已停用，勿加回 cron）：
+
+- ONS：`https://www.ons.gov.uk/releasecalendar?rss`
+- HM Treasury：`https://www.gov.uk/government/organisations/hm-treasury.atom`
 
 若 SQLite 裡還留著 `news_source_state.source_id = bank-of-england-speeches` 的連續 403，那是歷史列，管理後台只顯示目前白名單，不會再把它當成排程故障。可選清理：
 

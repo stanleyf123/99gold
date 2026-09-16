@@ -314,10 +314,19 @@ test("keeps dedicated BLS feeds focused on market-moving releases", () => {
 });
 
 test("filters ONS labour calendars and low-relevance Treasury/ECB items", () => {
-  const ons = sources.newsSources.find((source) => source.id === "ons-release-calendar");
-  const treasury = sources.newsSources.find((source) => source.id === "hm-treasury-news");
+  const ons = {
+    titleTerms: sources.goldMacroTerms,
+    excludeTerms: sources.ukNoiseTerms,
+  };
+  const treasury = {
+    titleTerms: sources.goldMacroTerms,
+    excludeTerms: sources.treasuryNoiseTerms,
+  };
   const ecb = sources.newsSources.find((source) => source.id === "ecb-press");
   const fed = sources.newsSources.find((source) => source.id === "federal-reserve-monetary");
+  const mining = sources.newsSources.find((source) => source.id === "mining-com-gold");
+  const investing = sources.newsSources.find((source) => source.id === "investing-markets");
+  const oil = sources.newsSources.find((source) => source.id === "oilprice-energy");
   assert.equal(sources.sourceAcceptsTitle(ons, "GDP monthly estimate, UK: July 2026"), true);
   assert.equal(sources.sourceAcceptsTitle(ons, "CPI inflation, UK: August 2026"), true);
   assert.equal(sources.sourceAcceptsTitle(ons, "Labour market overview, UK: September 2026"), false);
@@ -329,47 +338,48 @@ test("filters ONS labour calendars and low-relevance Treasury/ECB items", () => 
   assert.equal(sources.sourceAcceptsTitle(ecb, "Christine Lagarde: Introductory statement"), true);
   assert.equal(sources.sourceAcceptsTitle(ecb, "Remarks on digital euro AML and payments"), false);
   assert.equal(sources.sourceAcceptsTitle(fed, "Federal Reserve issues FOMC statement"), true);
+  assert.equal(sources.sourceAcceptsTitle(mining, "Gold price slips as Fed hike bets rise"), true);
+  assert.equal(sources.sourceAcceptsTitle(mining, "Triton Uranium eyes Atlas project"), false);
+  assert.equal(sources.sourceAcceptsTitle(investing, "Gold dips as dollar and yields rise"), true);
+  assert.equal(sources.sourceAcceptsTitle(oil, "Saudi Oil Pipeline Repairs After Drone Attack"), true);
+  assert.equal(sources.sourceAcceptsTitle(oil, "Chinese Solar Panels Drop to 12 Cents a Watt"), false);
   assert.equal(sources.textHasTerm("gold dips as yields rise", "gold"), true);
   assert.equal(sources.textHasTerm("golden globes nominations", "gold"), false);
   assert.equal(sources.textHasTerm("corporate strategy update", "rate"), false);
 });
 
-test("allowlists gold, macro, and energy RSS that use https — not Google News or BoE", () => {
+test("allowlists gold, macro, and energy RSS that use https — not Google News, BoE, or noisy UK calendars", () => {
   const ids = sources.newsSources.map((source) => source.id);
   for (const id of [
     "federal-reserve-monetary",
     "federal-reserve-speeches",
     "ecb-press",
-    "ons-release-calendar",
-    "hm-treasury-news",
     "bea-news",
     "census-indicators",
     "mining-com-gold",
-    "investing-commodities",
+    "investing-markets",
     "oilprice-energy",
   ]) {
     assert.ok(ids.includes(id), `missing source ${id}`);
   }
   assert.equal(ids.includes("bank-of-england-speeches"), false);
+  assert.equal(ids.includes("ons-release-calendar"), false);
+  assert.equal(ids.includes("hm-treasury-news"), false);
   assert.ok(!sources.newsSources.some((source) => /bankofengland/i.test(source.feedUrl)));
   assert.ok(!sources.newsSources.some((source) => /news\.google\.com/i.test(source.feedUrl)));
   assert.ok(!sources.newsSources.some((source) => /kitco/i.test(source.feedUrl)));
-  assert.ok(sources.newsSources.length >= 11);
-  const ons = sources.newsSources.find((source) => source.id === "ons-release-calendar");
-  const treasury = sources.newsSources.find((source) => source.id === "hm-treasury-news");
+  assert.ok(!sources.newsSources.some((source) => /ons\.gov\.uk/i.test(source.feedUrl)));
+  assert.ok(!sources.newsSources.some((source) => /hm-treasury/i.test(source.feedUrl)));
+  assert.ok(sources.newsSources.length >= 10);
   const mining = sources.newsSources.find((source) => source.id === "mining-com-gold");
-  const investing = sources.newsSources.find((source) => source.id === "investing-commodities");
+  const investing = sources.newsSources.find((source) => source.id === "investing-markets");
   const oil = sources.newsSources.find((source) => source.id === "oilprice-energy");
-  assert.equal(ons.feedUrl, "https://www.ons.gov.uk/releasecalendar?rss");
-  assert.match(treasury.feedUrl, /gov\.uk\/government\/organisations\/hm-treasury\.atom/);
   assert.equal(mining.feedUrl, "https://www.mining.com/commodity/gold/feed/");
-  assert.equal(investing.feedUrl, "https://www.investing.com/rss/news_11.rss");
-  assert.equal(oil.feedUrl, "https://oilprice.com/rss/energy");
-  assert.equal(ons.allowedHosts.join(","), "ons.gov.uk");
-  assert.equal(treasury.allowedHosts.join(","), "gov.uk");
-  assert.ok(ons.titleTerms.length > 0);
-  assert.ok(ons.excludeTerms.length > 0);
-  assert.ok(treasury.excludeTerms.length > 0);
+  assert.equal(investing.feedUrl, "https://www.investing.com/rss/news_25.rss");
+  assert.equal(oil.feedUrl, "https://oilprice.com/rss/main");
+  assert.ok(mining.titleTerms.length > 0);
+  assert.ok(investing.titleTerms.length > 0);
+  assert.ok(oil.titleTerms.length > 0);
   for (const source of sources.newsSources) {
     assert.match(source.feedUrl, /^https:\/\//);
     assert.ok(source.allowedHosts.length > 0);
@@ -563,49 +573,21 @@ test("admin health lists current allowlist names and hides retired BoE 403 rows"
   ]);
   assert.equal(health.some((row) => row.source_id === "bank-of-england-speeches"), false);
   assert.equal(health.some((row) => /bankofengland/i.test(row.source_id)), false);
-  const ons = health.find((row) => row.source_id === "ons-release-calendar");
-  const treasury = health.find((row) => row.source_id === "hm-treasury-news");
+  assert.equal(health.some((row) => row.source_id === "ons-release-calendar"), false);
+  assert.equal(health.some((row) => row.source_id === "hm-treasury-news"), false);
+  const mining = health.find((row) => row.source_id === "mining-com-gold");
   const fed = health.find((row) => row.source_id === "federal-reserve-monetary");
-  assert.equal(ons.source_name, "UK Office for National Statistics");
-  assert.equal(treasury.source_name, "HM Treasury");
-  assert.equal(ons.consecutive_errors, 0);
-  assert.equal(ons.last_error, null);
+  assert.equal(mining.source_name, "MINING.COM · Gold");
+  assert.equal(mining.consecutive_errors, 0);
   assert.equal(fed.last_success_at, "2026-09-14T09:00:00.000Z");
-  assert.equal(sources.newsSourceLabel("ons-release-calendar"), "UK Office for National Statistics");
+  assert.equal(sources.newsSourceLabel("mining-com-gold"), "MINING.COM · Gold");
   assert.equal(health.length, sources.newsSources.length);
 });
 
-test("pipeline stays succeeded without BoE and enqueues recent gold-relevant ONS and Treasury items", async () => {
+test("pipeline stays succeeded without BoE/ONS/Treasury and enqueues gold and energy-shock items", async () => {
   const { runNewsPipeline } = loadPipeline();
   const db = memoryDb();
   const requested = [];
-  const recentOns = `<rss version="2.0"><channel>
-    <item>
-      <title>GDP monthly estimate, UK: July 2026</title>
-      <link>https://www.ons.gov.uk/releases/gdpmonthlyestimateukjuly2026</link>
-      <guid>https://www.ons.gov.uk/releases/gdpmonthlyestimateukjuly2026</guid>
-      <pubDate>Fri, 11 Sep 2026 06:00:00 +0000</pubDate>
-    </item>
-    <item>
-      <title>Labour market overview, UK: September 2026</title>
-      <link>https://www.ons.gov.uk/releases/labourmarketoverviewukseptember2026</link>
-      <guid>https://www.ons.gov.uk/releases/labourmarketoverviewukseptember2026</guid>
-      <pubDate>Fri, 11 Sep 2026 07:00:00 +0000</pubDate>
-    </item>
-  </channel></rss>`;
-  const recentTreasury = `<feed xmlns="http://www.w3.org/2005/Atom"><entry>
-    <id>tag:www.gov.uk,2005:/government/speeches/budget-inflation</id>
-    <updated>2026-09-10T16:02:00+01:00</updated>
-    <link rel="alternate" type="text/html" href="https://www.gov.uk/government/speeches/budget-inflation"/>
-    <title>Autumn Budget: fiscal plan to ease inflation</title>
-    <summary>Official budget summary.</summary>
-  </entry><entry>
-    <id>tag:www.gov.uk,2005:/government/consultations/crypto-aml</id>
-    <updated>2026-09-10T16:02:00+01:00</updated>
-    <link rel="alternate" type="text/html" href="https://www.gov.uk/government/consultations/crypto-aml"/>
-    <title>Consultation on cryptoassets and AML supervision</title>
-    <summary>AML consultation.</summary>
-  </entry></feed>`;
   const recentFed = `<rss><channel><item>
     <title>Federal Reserve issues FOMC statement</title>
     <link>https://www.federalreserve.gov/newsevents/pressreleases/monetary20260913a.htm</link>
@@ -627,12 +609,12 @@ test("pipeline stays succeeded without BoE and enqueues recent gold-relevant ONS
   const recentInvesting = `<rss version="2.0"><channel><item>
     <title>Gold dips as dollar, yields, and oil rise a day ahead of Fed’s expected rate hike</title>
     <pubDate>2026-09-15 21:04:02</pubDate>
-    <link>https://www.investing.com/news/commodities-news/gold-holds-near-4300-4900741</link>
+    <link>https://www.investing.com/news/stock-market-news/gold-holds-near-4300-4900741</link>
   </item>
   <item>
-    <title>Oil falls as US crude inventories rise despite Saudi supply concerns</title>
+    <title>Chip stocks fall as oil prices gain</title>
     <pubDate>2026-09-16 01:00:46</pubDate>
-    <link>https://www.investing.com/news/commodities-news/oil-falls-4902799</link>
+    <link>https://www.investing.com/news/stock-market-news/chip-stocks-fall-4902799</link>
   </item></channel></rss>`;
   const recentOil = `<rss version="2.0"><channel><item>
     <title>Saudi Oil Pipeline Repairs Could Take Weeks After Drone Attack</title>
@@ -650,8 +632,6 @@ test("pipeline stays succeeded without BoE and enqueues recent gold-relevant ONS
     if (/bankofengland|news\.google\.com/i.test(href)) {
       return jsonResponse(403, "<html><title>Access Denied</title></html>", "Forbidden");
     }
-    if (href.includes("ons.gov.uk")) return jsonResponse(200, recentOns);
-    if (href.includes("gov.uk")) return jsonResponse(200, recentTreasury);
     if (href.includes("federalreserve.gov")) return jsonResponse(200, recentFed);
     if (href.includes("mining.com")) return jsonResponse(200, recentMining);
     if (href.includes("investing.com")) return jsonResponse(200, recentInvesting);
@@ -663,38 +643,28 @@ test("pipeline stays succeeded without BoE and enqueues recent gold-relevant ONS
   assert.equal(summary.errorCount, 0);
   assert.ok(!requested.some((url) => /bankofengland/i.test(url)));
   assert.ok(!requested.some((url) => /news\.google\.com/i.test(url)));
-  assert.ok(requested.some((url) => url.includes("ons.gov.uk/releasecalendar")));
-  assert.ok(requested.some((url) => url.includes("hm-treasury.atom")));
+  assert.ok(!requested.some((url) => url.includes("ons.gov.uk")));
+  assert.ok(!requested.some((url) => url.includes("hm-treasury")));
   assert.ok(requested.some((url) => url.includes("mining.com/commodity/gold")));
-  assert.ok(requested.some((url) => url.includes("investing.com/rss/news_11.rss")));
-  assert.ok(requested.some((url) => url.includes("oilprice.com/rss/energy")));
-  const ons = summary.sources.find((source) => source.source === "ons-release-calendar");
-  const treasury = summary.sources.find((source) => source.source === "hm-treasury-news");
+  assert.ok(requested.some((url) => url.includes("investing.com/rss/news_25.rss")));
+  assert.ok(requested.some((url) => url.includes("oilprice.com/rss/main")));
+  assert.equal(summary.sources.some((source) => source.source === "ons-release-calendar"), false);
+  assert.equal(summary.sources.some((source) => source.source === "hm-treasury-news"), false);
   const mining = summary.sources.find((source) => source.source === "mining-com-gold");
-  const investing = summary.sources.find((source) => source.source === "investing-commodities");
+  const investing = summary.sources.find((source) => source.source === "investing-markets");
   const oil = summary.sources.find((source) => source.source === "oilprice-energy");
-  assert.equal(ons?.status, "ok");
-  assert.equal(ons?.seen, 1);
-  assert.equal(ons?.added, 1);
-  assert.ok((ons?.filteredSkipped ?? 0) >= 1);
-  assert.equal(treasury?.status, "ok");
-  assert.equal(treasury?.seen, 1);
-  assert.equal(treasury?.added, 1);
-  assert.ok((treasury?.filteredSkipped ?? 0) >= 1);
   assert.equal(mining?.added, 1);
   assert.ok((mining?.filteredSkipped ?? 0) >= 1);
   assert.equal(investing?.added, 1);
   assert.ok((investing?.filteredSkipped ?? 0) >= 1);
   assert.equal(oil?.added, 1);
   assert.ok((oil?.filteredSkipped ?? 0) >= 1);
-  assert.ok(db.candidates.some((item) => item.url.includes("ons.gov.uk") && item.url.includes("gdp")));
-  assert.equal(db.candidates.some((item) => /labourmarket/i.test(item.url)), false);
-  assert.ok(db.candidates.some((item) => item.url.includes("budget-inflation")));
-  assert.equal(db.candidates.some((item) => item.url.includes("crypto-aml")), false);
+  assert.equal(db.candidates.some((item) => item.url.includes("ons.gov.uk")), false);
+  assert.equal(db.candidates.some((item) => item.url.includes("gov.uk/government")), false);
   assert.ok(db.candidates.some((item) => item.url.includes("mining.com") && /gold-price/i.test(item.url)));
   assert.equal(db.candidates.some((item) => /uranium/i.test(item.url)), false);
   assert.ok(db.candidates.some((item) => item.url.includes("investing.com") && /gold/i.test(item.url)));
-  assert.equal(db.candidates.some((item) => /oil-falls/i.test(item.url)), false);
+  assert.equal(db.candidates.some((item) => /chip-stocks/i.test(item.url)), false);
   assert.ok(db.candidates.some((item) => item.url.includes("oilprice.com") && /Pipeline/i.test(item.url)));
   assert.equal(db.candidates.some((item) => /Solar-Panels/i.test(item.url)), false);
   assert.ok(db.candidates.every((item) => item.status === "published"));

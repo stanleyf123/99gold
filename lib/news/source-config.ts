@@ -137,12 +137,21 @@ export function textHasTerm(haystack: string, term: string) {
   return new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(needle)}(?![\\p{L}\\p{N}])`, "u").test(haystack);
 }
 
-// Public RSS/Atom only. New sources must be allowlisted. Do not add Google News
-// search RSS (`news.google.com/rss/search`) to production cron: Linode
-// 172.237.11.195 gets HTTP 503 (Google sorry page) even though the same URL is
-// HTTP 200 from other networks. That is the same class of datacenter block as
-// Bank of England Akamai 403. Kitco's historic `/rss/*.xml` paths now serve
-// HTML 404, so they are not listed either.
+// Public RSS/Atom only. New sources must be allowlisted.
+//
+// Do not add to production cron:
+// - Google News `news.google.com/rss/search` — Linode 172.237.11.195 HTTP 503
+// - Bank of England `/rss/*` — Akamai 403 from datacenter IPs
+// - Kitco `/news/rss` and `/news/category/gold/rss` — HTTP 200 HTML app shell
+// - gold.org RSS paths — 404
+// - feeds.reuters.com — DNS fail from Linode
+// - ons-release-calendar / hm-treasury-news — flooded /news with UK labour
+//   calendars and AML/crypto docs (filter helpers below remain for tests)
+//
+// Linode-verified HTTP 200 XML (2026-09-16): mining.com gold commodity feed,
+// mining.com/feed, investing.com news_25 / news_301, oilprice.com/rss/main,
+// BBC business, CNBC 100003114, Fed press_all (we already fetch monetary +
+// speeches). Prefer mining.com gold + oilprice/investing with title filters.
 export const newsSources: NewsSource[] = [
   {
     id: "federal-reserve-monetary",
@@ -211,31 +220,6 @@ export const newsSources: NewsSource[] = [
     titleTerms: ecbPolicyTerms,
   },
   {
-    // UK CPI/GDP/trade calendar. BoE /rss/* is Akamai-blocked from common VPS
-    // ranges (including Linode); a browser User-Agent does not unblock it.
-    // Labour-market calendar items are excluded — they flooded /news.
-    id: "ons-release-calendar",
-    name: "UK Office for National Statistics",
-    feedUrl: "https://www.ons.gov.uk/releasecalendar?rss",
-    allowedHosts: ["ons.gov.uk"],
-    language: "en",
-    category: "macro",
-    titleTerms: goldMacroTerms,
-    excludeTerms: ukNoiseTerms,
-  },
-  {
-    // Treasury speeches and news — UK policy coverage without BoE's datacenter 403.
-    // Drop AML / crypto consultations; keep inflation, budget, gilt items.
-    id: "hm-treasury-news",
-    name: "HM Treasury",
-    feedUrl: "https://www.gov.uk/government/organisations/hm-treasury.atom",
-    allowedHosts: ["gov.uk"],
-    language: "en",
-    category: "policy",
-    titleTerms: goldMacroTerms,
-    excludeTerms: treasuryNoiseTerms,
-  },
-  {
     // GDP, PCE, trade — gold-relevant US macro, more frequent than quarterly BLS CPI.
     id: "bea-news",
     name: "U.S. Bureau of Economic Analysis",
@@ -256,7 +240,7 @@ export const newsSources: NewsSource[] = [
     titleTerms: [],
   },
   {
-    // First-party gold commodity RSS; HTTP 200 from a datacenter IP (2026-09-16).
+    // Best gold-specific feed from Linode curl probe (real RSS, HTTP 200).
     id: "mining-com-gold",
     name: "MINING.COM · Gold",
     feedUrl: "https://www.mining.com/commodity/gold/feed/",
@@ -266,24 +250,27 @@ export const newsSources: NewsSource[] = [
     titleTerms: goldMetalTerms,
   },
   {
-    // Commodities desk with gold/silver headlines. Metals filter drops oil-inventory noise.
-    id: "investing-commodities",
-    name: "Investing.com · Commodities",
-    feedUrl: "https://www.investing.com/rss/news_11.rss",
+    // Linode-verified investing.com RSS. news_25 is a markets feed; metals
+    // title filter keeps gold/silver and drops generic stock tape. (news_301 is
+    // crypto — not used.)
+    id: "investing-markets",
+    name: "Investing.com · Markets",
+    feedUrl: "https://www.investing.com/rss/news_25.rss",
     allowedHosts: ["investing.com"],
     language: "en",
     category: "prices",
     titleTerms: goldMetalTerms,
   },
   {
-    // Energy-shock tape (Saudi pipeline, Hormuz, OPEC). HTTP 200 from a datacenter IP.
+    // Linode-verified oilprice.com/rss/main. Title filter keeps supply shocks
+    // and bullion, not solar-panel filler.
     id: "oilprice-energy",
     name: "Oilprice.com · Energy",
-    feedUrl: "https://oilprice.com/rss/energy",
+    feedUrl: "https://oilprice.com/rss/main",
     allowedHosts: ["oilprice.com"],
     language: "en",
     category: "macro",
-    titleTerms: energyShockTerms,
+    titleTerms: [...goldMetalTerms, ...energyShockTerms],
   },
 ];
 
