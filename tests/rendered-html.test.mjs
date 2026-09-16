@@ -295,6 +295,10 @@ test("ships a scheduled auto-publish news pipeline", async () => {
   assert.match(deploy, /Akamai Access Denied HTML 403/);
   assert.match(deploy, /ons\.gov\.uk\/releasecalendar\?rss/);
   assert.match(deploy, /hm-treasury/);
+  assert.match(deploy, /news\.google\.com/);
+  assert.match(deploy, /HTTP 503/);
+  assert.match(deploy, /systemctl start 99gold-news\.service/);
+  assert.match(deploy, /mining\.com\/commodity\/gold\/feed/);
   assert.match(deploy, /db:migrate/);
   assert.match(deploy, /translation_retry/);
   assert.match(deploy, /enable --now 99gold-alerts\.timer/);
@@ -315,7 +319,13 @@ test("ships a scheduled auto-publish news pipeline", async () => {
   assert.match(admin, /currentSourceHealth/);
   assert.match(sources, /ons-release-calendar/);
   assert.match(sources, /hm-treasury-news/);
+  assert.match(sources, /mining-com-gold/);
+  assert.match(sources, /investing-commodities/);
+  assert.match(sources, /oilprice-energy/);
+  assert.match(sources, /sourceAcceptsTitle/);
+  assert.match(sources, /excludeTerms/);
   assert.doesNotMatch(sources, /bank-of-england-speeches/);
+  assert.doesNotMatch(sources, /feedUrl:\s*["']https:\/\/news\.google\.com/);
   assert.doesNotMatch(service, /fetch\(/);
   assert.match(service, /localizedBriefFields/);
   assert.match(service, /asNewsCategory/);

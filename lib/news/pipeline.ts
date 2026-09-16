@@ -28,6 +28,7 @@ export type NewsSourceRunDetail = {
   seen?: number;
   added?: number;
   staleSkipped?: number;
+  filteredSkipped?: number;
   error?: string;
 };
 export type NewsRunSummary = {
@@ -365,12 +366,16 @@ export async function runNewsPipeline(
       let sourceSeen = 0;
       let sourceAdded = 0;
       let staleSkipped = 0;
+      let filteredSkipped = 0;
 
       for (const item of feedItems) {
         const publishedTime = Date.parse(item.publishedAt);
         if (!Number.isFinite(publishedTime)
-          || publishedTime > scheduledFor.getTime() + FUTURE_TOLERANCE_MS
-          || !sourceAcceptsTitle(source, item.title)) continue;
+          || publishedTime > scheduledFor.getTime() + FUTURE_TOLERANCE_MS) continue;
+        if (!sourceAcceptsTitle(source, item.title, item.summary)) {
+          filteredSkipped += 1;
+          continue;
+        }
         const canonicalUrl = canonicalizeUrl(item.url, source.allowedHosts);
         if (!canonicalUrl) continue;
         sourceSeen += 1;
@@ -423,7 +428,14 @@ export async function runNewsPipeline(
         response.headers.get("etag"),
         response.headers.get("last-modified"),
       );
-      sourceDetails.push({ source: source.id, status: "ok", seen: sourceSeen, added: sourceAdded, staleSkipped });
+      sourceDetails.push({
+        source: source.id,
+        status: "ok",
+        seen: sourceSeen,
+        added: sourceAdded,
+        staleSkipped,
+        filteredSkipped,
+      });
     } catch (error) {
       errorCount += 1;
       const message = errorMessage(error);

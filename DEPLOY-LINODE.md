@@ -221,16 +221,51 @@ sudo -u www-data npm run news:pipeline
 
 成功時摘要裡的 `publishedCount` 應增加，新快訊會出現在 `https://99gold.net/news`（以及 `?lang=zh`／`en`／`ja`），不必登入 `/admin` 核准。timer 之後每 3 小時重複：抓取白名單 RSS → 翻譯標題與摘要 → 直接上架。已 `rejected` 的列不會自動發布。管理後台仍可列出項目與拒絕尚未發布的列，但快樂路徑不再需要人工核准。
 
-### 新聞來源與 Linode IP 封鎖
+### 手動觸發一次新聞抓取（Linode）
 
-`lib/news/source-config.ts` 只允許第一方公開 RSS/Atom（Fed、BLS、ECB、ONS、HM Treasury、BEA、Census）。**不要把 Bank of England 加回 production cron。**
+systemd 單位已是 `Type=oneshot`，不必等 3 小時 timer：
 
-在 Linode（以及其他常見機房 IP 段）上，`https://www.bankofengland.co.uk/rss/speeches`（以及 `/rss/news`、`/rss/publications`）會回 **Akamai Access Denied HTML 403**。從住宅／辦公室網路同一 URL 可能是 200 RSS。這是 **IP／機房封鎖**，不是缺 User-Agent：在 VPS 上改 Chrome UA 或加標頭無法穩定修好。IMF 的 RSS 在部分 datacenter IP 上也有同樣的 Akamai 403，因此沒有採用。
+```bash
+sudo systemctl start 99gold-news.service
+sudo journalctl -u 99gold-news.service -n 80 --no-pager
+```
 
-英國／總體替代來源（已從 datacenter 與 production Linode 實測 HTTP 200）：
+等價（寫入 `news_runs.trigger = cron`，與 timer 相同）：
+
+```bash
+cd /var/www/99gold
+sudo -u www-data npm run news:pipeline
+```
+
+若要標成手動跑（`news_runs.trigger = manual`）：
+
+```bash
+cd /var/www/99gold
+sudo -u www-data npx tsx scripts/run-news-pipeline.ts --manual
+```
+
+### 新聞來源、相關性過濾與 Linode IP 封鎖
+
+`lib/news/source-config.ts` 白名單是公開 RSS/Atom。**不要把 Bank of England 或 Google News RSS 加回 production cron。**
+
+在 Linode `172.237.11.195`（以及其他常見機房 IP 段）上：
+
+- `https://www.bankofengland.co.uk/rss/speeches`（以及 `/rss/news`、`/rss/publications`）會回 **Akamai Access Denied HTML 403**。從住宅／辦公室網路同一 URL 可能是 200 RSS。這是 **IP／機房封鎖**，不是缺 User-Agent。IMF 的 RSS 在部分 datacenter IP 上也有同樣的 Akamai 403。
+- Google News `https://news.google.com/rss/search?...` 在 Linode 會回 **HTTP 503**（Google sorry page），其他網路常是 HTTP 200。沒有可用的 Linode egress 繞路前，**不要**把它寫進 `newsSources`。
+- Kitco 歷史路徑 `https://www.kitco.com/rss/KitcoNews.xml` 目前是 HTML 404，不是 RSS。
+
+英國／總體來源（ONS、HM Treasury）仍會抓，但 **標題必須與黃金／總經相關**（CPI、GDP、通膨、財政、公債等）。ONS 就業月曆、HM Treasury 加密／AML 諮詢會被 `titleTerms`／`excludeTerms` 丟掉，不再灌滿 `/news`。Fed 貨幣聲明、BLS CPI／就業、帶貨幣政策關鍵字的 ECB 稿仍會過。
 
 - ONS release calendar：`https://www.ons.gov.uk/releasecalendar?rss`
 - HM Treasury 新聞 Atom：`https://www.gov.uk/government/organisations/hm-treasury.atom`
+
+已從 datacenter IP 實測 HTTP 200、並加入白名單的黃金／能源來源：
+
+- MINING.COM 黃金商品 RSS：`https://www.mining.com/commodity/gold/feed/`
+- Investing.com 大宗商品新聞：`https://www.investing.com/rss/news_11.rss`（再以金銀鉑鈀等關鍵字過濾）
+- Oilprice.com 能源：`https://oilprice.com/rss/energy`（只留管線、OPEC、荷姆茲等可能牽動金價的衝擊）
+
+World Gold Council 的 `https://www.gold.org/rss.xml` 雖是 HTTP 200，內容是站內雜頁而非新聞，故未採用。
 
 若 SQLite 裡還留著 `news_source_state.source_id = bank-of-england-speeches` 的連續 403，那是歷史列，管理後台只顯示目前白名單，不會再把它當成排程故障。可選清理：
 

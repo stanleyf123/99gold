@@ -34,13 +34,24 @@ function linkValue(block: string) {
   return attributeLink ? decodeXml(attributeLink).trim() : "";
 }
 
+/** RSS dates are usually RFC 2822; some publishers append an IANA zone (e.g. America/Chicago). */
+export function parseFeedDate(rawDate: string) {
+  const trimmed = rawDate.trim();
+  if (!trimmed) return NaN;
+  const direct = Date.parse(trimmed);
+  if (Number.isFinite(direct)) return direct;
+  const withoutIana = trimmed.replace(/\s+[A-Za-z_]+(?:\/[A-Za-z_+\-]+)+$/, " GMT");
+  const fallback = Date.parse(withoutIana);
+  return Number.isFinite(fallback) ? fallback : NaN;
+}
+
 export function parseFeed(xml: string): FeedItem[] {
   const blocks = xml.match(/<item\b[\s\S]*?<\/item>/gi) ?? xml.match(/<entry\b[\s\S]*?<\/entry>/gi) ?? [];
   return blocks.flatMap((block) => {
     const title = tagValue(block, ["title"]);
     const url = linkValue(block);
     const rawDate = tagValue(block, ["pubDate", "published", "updated", "dc:date"]);
-    const timestamp = Date.parse(rawDate);
+    const timestamp = parseFeedDate(rawDate);
     if (!title || !url || !Number.isFinite(timestamp)) return [];
     return [{
       externalId: tagValue(block, ["guid", "id"]) || url,
