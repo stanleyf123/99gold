@@ -399,6 +399,7 @@ export default function JewelryView({
         {tableLoading ? (
           <p className="jewelryTableStatus" role="status">{t(locale, "表格會跟著所選期間更新。", "The table follows the selected period.", "表は選択した期間に連動します。")}</p>
         ) : display.rows.length > 0 ? (
+          <>
           <p className="tableScrollHint">{t(locale, "手機改以卡片顯示；較寬螢幕可左右滑動，日期欄固定。", "On phones this becomes stacked cards. Wider screens can scroll sideways with a sticky date column.", "スマホではカード表示。幅がある画面では横スクロールでき、日付列は固定です。")}</p>
           <div className="jewelryTableWrap">
             <table className="jewelryTable stackTable">
@@ -433,6 +434,7 @@ export default function JewelryView({
               </tbody>
             </table>
           </div>
+          </>
         ) : null}
         {display.rows.length > 0 && !tableLoading ? (
           <p className="quoteMethodology">

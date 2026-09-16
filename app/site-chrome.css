@@ -903,7 +903,7 @@ footer {
 }
 
 .subCards {
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important;
 }
 
 .subContent {
