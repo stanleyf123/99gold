@@ -239,8 +239,9 @@ export default function GlobalMarketPage({ initialQuotes = null, initialRatioPoi
           <div><p>COMPARISON</p><h2>{t(locale, "金銀鉑鈀對照", "Gold / silver / platinum / palladium", "金・銀・プラチナ・パラジウム")}</h2></div>
           <span>{t(locale, "同一來源的美元／盎司參考", "USD / oz from the same feed", "同一情報源の米ドル／オンス")}</span>
         </div>
-        <div className="proQuoteTableScroll">
-          <table className="metalCompare">
+          <p className="tableScrollHint">{t(locale, "手機改以卡片顯示；較寬螢幕可左右滑動，金屬欄固定。", "On phones this becomes stacked cards. Wider screens can scroll sideways with a sticky metal column.", "スマホではカード表示。幅がある画面では横スクロールでき、金属列は固定です。")}</p>
+          <div className="proQuoteTableScroll">
+          <table className="metalCompare stackTable">
             <thead>
               <tr>
                 <th>{t(locale, "金屬", "Metal", "金属")}</th>
@@ -257,12 +258,12 @@ export default function GlobalMarketPage({ initialQuotes = null, initialRatioPoi
                 const direction = hasChange ? Math.sign(item.changePercent!) : 0;
                 return (
                   <tr key={item.id}>
-                    <td><strong>{item.symbol}</strong><span>{metalLabel(item, locale)}</span></td>
-                    <td>US$ {item.price.toLocaleString("en-US", { maximumFractionDigits: 2 })}</td>
-                    <td><b className={direction > 0 ? "rise" : direction < 0 ? "fall" : undefined}>{hasChange ? `${direction > 0 ? "+" : ""}${item.changePercent!.toFixed(2)}%` : "—"}</b></td>
-                    <td>{t(locale, "美元／盎司", "USD / oz", "米ドル／オンス")}</td>
-                    <td>{item.high != null && Number.isFinite(item.high) ? item.high.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "—"}</td>
-                    <td>{item.low != null && Number.isFinite(item.low) ? item.low.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "—"}</td>
+                    <td data-label={t(locale, "金屬", "Metal", "金属")}><strong>{item.symbol}</strong><span>{metalLabel(item, locale)}</span></td>
+                    <td data-label={t(locale, "最新價", "Last", "最新値")}>US$ {item.price.toLocaleString("en-US", { maximumFractionDigits: 2 })}</td>
+                    <td data-label={t(locale, "漲跌", "Change", "騰落")}><b className={direction > 0 ? "rise" : direction < 0 ? "fall" : undefined}>{hasChange ? `${direction > 0 ? "+" : ""}${item.changePercent!.toFixed(2)}%` : "—"}</b></td>
+                    <td data-label={t(locale, "單位", "Unit", "単位")}>{t(locale, "美元／盎司", "USD / oz", "米ドル／オンス")}</td>
+                    <td data-label={t(locale, "最高", "High", "高値")}>{item.high != null && Number.isFinite(item.high) ? item.high.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "—"}</td>
+                    <td data-label={t(locale, "最低", "Low", "安値")}>{item.low != null && Number.isFinite(item.low) ? item.low.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "—"}</td>
                   </tr>
                 );
               })}

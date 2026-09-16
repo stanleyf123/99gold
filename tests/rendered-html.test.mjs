@@ -146,6 +146,7 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.match(cover, /fetchPriority/);
   assert.match(cover, /priority \? "eager" : "lazy"/);
   assert.match(cover, /sizes=/);
+  assert.match(cover, /compact/);
 });
 
 test("keeps one locale source for header, homepage, global and section chrome", async () => {
@@ -571,3 +572,40 @@ test("packages the app as 99gold and documents Linode alert-timer cleanup", asyn
   assert.match(enPage, /LocalizedSlugPage locale="en"/);
   assert.match(jaPage, /LocalizedSlugPage locale="ja"/);
 });
+
+test("fills jewelry/international containers, stacks mobile tables, and deepens color hierarchy", async () => {
+  const [chrome, jewelryCss, jewelryView, homeView, globalView, news, subpages, quotes, globals] = await Promise.all([
+    readFile(new URL("../app/site-chrome.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/[section]/jewelry.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/[section]/JewelryView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/HomeView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/global/GlobalView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/news/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/subpages.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/quotes.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(chrome, /--page-max:\s*1240px/);
+  assert.match(chrome, /--page-gutter:/);
+  assert.match(chrome, /--page-pad:/);
+  assert.match(chrome, /--band:\s*#152026/);
+  assert.match(chrome, /--cream:\s*#e4d6bf/);
+  assert.match(chrome, /padding-left:\s*var\(--page-pad\)/);
+  assert.match(chrome, /\.stackTable/);
+  assert.match(chrome, /content:\s*attr\(data-label\)/);
+  assert.match(chrome, /editorialList[\s\S]*repeat\(3,/);
+  assert.doesNotMatch(jewelryCss, /max-width:\s*720px/);
+  assert.match(jewelryCss, /max-width:\s*none/);
+  assert.match(jewelryView, /stackTable/);
+  assert.match(jewelryView, /data-label=/);
+  assert.match(homeView, /proQuoteTable stackTable/);
+  assert.match(homeView, /data-label=\{t\("商品"/);
+  assert.match(globalView, /metalCompare stackTable/);
+  assert.match(news, /compact/);
+  assert.match(subpages, /auto-fit/);
+  assert.match(quotes, /min-width:0/);
+  assert.match(globals, /aspect-ratio:16\/7/);
+  assert.doesNotMatch(globals, /aspect-ratio:16\/10/);
+});
+

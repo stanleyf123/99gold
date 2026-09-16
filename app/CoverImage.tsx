@@ -9,14 +9,16 @@ type CoverImageProps = {
   width?: number;
   height?: number;
   priority?: boolean;
+  compact?: boolean;
 };
 
-export default function CoverImage({ src, alt = "", className, width = 720, height = 480, priority = false }: CoverImageProps) {
+export default function CoverImage({ src, alt = "", className, width = 720, height = 480, priority = false, compact = false }: CoverImageProps) {
   const [failed, setFailed] = useState(!src);
+  const classes = [className, compact ? "coverCompact" : ""].filter(Boolean).join(" ");
 
   if (failed) {
     return (
-      <div className={`coverFallback${className ? ` ${className}` : ""}`} aria-hidden="true">
+      <div className={`coverFallback${compact ? " coverFallbackCompact" : ""}${className ? ` ${className}` : ""}`} aria-hidden="true">
         <b>99</b>
         <span>99GOLD.NET</span>
       </div>
@@ -36,7 +38,7 @@ export default function CoverImage({ src, alt = "", className, width = 720, heig
       fetchPriority={priority ? "high" : "low"}
       decoding="async"
       referrerPolicy="no-referrer"
-      className={className}
+      className={classes}
       onError={() => setFailed(true)}
     />
   );
