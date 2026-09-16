@@ -3,7 +3,8 @@
   --page-gutter: 22px;
   --page-pad: max(var(--page-gutter), calc((100% - var(--page-max)) / 2));
   --header-height: 70px;
-  --hero-height: clamp(200px, 22vw, 268px);
+  --nav-gap: clamp(12px, 1.45vw, 22px);
+  --hero-height: clamp(260px, 26vw, 320px);
 
   /* Ink + charcoal/teal bands */
   --ink: #0e161b;
@@ -41,7 +42,6 @@
 
 .topline,
 .siteHeader,
-.brandHeroCopy,
 .marketRadar,
 .homeNewsStrip,
 .marketHub,
@@ -88,7 +88,7 @@ footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  gap: var(--nav-gap);
   background: var(--header-bg);
   border-bottom: 2px solid var(--gold);
   box-shadow: 0 10px 28px rgba(13, 21, 25, 0.06);
@@ -135,7 +135,7 @@ footer {
   align-items: center;
   justify-content: flex-end;
   flex: 1;
-  gap: 26px;
+  gap: var(--nav-gap);
   min-width: 0;
 }
 
@@ -160,7 +160,7 @@ footer {
   display: flex;
   align-items: center;
   gap: 2px;
-  margin-left: 4px;
+  margin-left: 0;
   padding: 3px;
   border: 1px solid var(--line-gold);
   border-radius: 999px;
@@ -193,11 +193,12 @@ footer {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
-  color: var(--ink);
+  color: var(--muted);
   text-decoration: none;
   font-weight: 700;
-  font-size: 13px;
-  padding: 4px 2px;
+  font-size: 14px;
+  padding: 8px 0 6px;
+  border-bottom: 2px solid transparent;
 }
 
 .siteHeader .accountSlot img,
@@ -217,6 +218,13 @@ footer {
   color: var(--gold-deep);
 }
 
+.siteHeader .accountSlot.active,
+.siteHeader .accountSlot[aria-current="page"] {
+  color: var(--gold-deep);
+  font-weight: 800;
+  border-bottom-color: var(--gold);
+}
+
 .siteHeader .accountSlot.active em {
   color: var(--gold-deep);
 }
@@ -229,6 +237,8 @@ footer {
   margin: 8px 0 4px;
   padding: 12px 4px;
   border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 15px;
 }
 
 .siteHeader .menu {
@@ -280,6 +290,7 @@ footer {
   display: flex;
   align-items: center;
   padding: 0;
+  padding-left: var(--page-pad);
   aspect-ratio: auto;
 }
 
@@ -314,26 +325,44 @@ footer {
 .brandHeroCopy {
   position: relative;
   z-index: 2;
-  width: min(var(--page-max), calc(100% - 2 * var(--page-gutter)));
-  max-width: min(34rem, 46%);
-  padding-top: 22px;
-  padding-bottom: 22px;
+  display: flex;
+  align-items: center;
+  gap: clamp(16px, 2vw, 28px);
+  width: min(40rem, 52%);
+  max-width: 100%;
+  min-width: 0;
+  flex: 0 1 auto;
+  padding: 12px 16px 12px 0;
+  box-sizing: border-box;
+}
+
+.brandHeroCopy .brandHeroText {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
 }
 
 .brandHeroCopy .eyebrow {
   color: var(--gold-deep);
-  margin: 0 0 8px;
+  margin: 0;
   letter-spacing: .32em;
 }
 
 .brandHeroCopy h1 {
-  font: clamp(28px, 3.4vw, 42px) Georgia, "Noto Serif TC", serif;
-  letter-spacing: .06em;
-  margin: 0 0 8px;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  flex-shrink: 0;
+  font: 700 min(40px, calc((var(--hero-height) - 28px) / 8)) / 1 Georgia, "Noto Serif TC", serif;
+  letter-spacing: .08em;
+  margin: 0;
   color: var(--ink);
   text-shadow: none;
 }
 
+.brandHeroCopy .brandHeroText > p:not(.eyebrow),
 .brandHeroCopy > p:not(.eyebrow) {
   color: var(--muted);
   font-size: clamp(15px, 1.5vw, 18px);
@@ -656,6 +685,13 @@ footer {
   padding-bottom: 36px !important;
 }
 
+@media (max-width: 1180px) {
+  .siteHeader .navlinks a,
+  .siteHeader .accountSlot {
+    font-size: 13px;
+  }
+}
+
 @media (max-width: 960px) {
   .siteHeader .navlinks {
     display: none;
@@ -673,6 +709,13 @@ footer {
 
   .siteHeader .accountSlot {
     margin-left: auto;
+    padding: 4px 0;
+    border-bottom: 0;
+  }
+
+  .brandHeroCopy {
+    width: min(36rem, 100%);
+    max-width: none;
   }
 
   .heroPhoto {
@@ -682,10 +725,6 @@ footer {
 
   .brandHeroShade {
     background: linear-gradient(180deg, var(--header-bg) 0%, color-mix(in srgb, var(--header-bg) 94%, transparent) 42%, color-mix(in srgb, var(--header-bg) 55%, transparent) 100%);
-  }
-
-  .brandHeroCopy {
-    max-width: none;
   }
 
   .marketRadar {
@@ -725,7 +764,8 @@ footer {
 @media (max-width: 640px) {
   :root {
     --header-height: 60px;
-    --hero-height: clamp(200px, 44vw, 240px);
+    --hero-height: clamp(220px, 48vw, 260px);
+    --nav-gap: 10px;
   }
 
   .topline {
@@ -761,11 +801,21 @@ footer {
   }
 
   .brandHeroCopy {
+    width: 100%;
     max-width: none;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 16px 12px 16px 0;
   }
 
   .brandHeroCopy h1 {
+    writing-mode: horizontal-tb;
+    text-orientation: mixed;
     font-size: clamp(24px, 7vw, 32px);
+    line-height: 1.2;
+    letter-spacing: .06em;
+    white-space: nowrap;
   }
 
   .heroPhoto .brandHeroPhoto,

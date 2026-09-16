@@ -82,9 +82,15 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.match(layout, /SiteChrome/);
   assert.match(chrome, /--page-gutter:/);
   assert.match(chrome, /--page-max:\s*1240px/);
+  assert.match(chrome, /--nav-gap:/);
   assert.match(chrome, /--hero-height:\s*clamp\(/);
   assert.match(chrome, /heroPhoto/);
   assert.match(chrome, /brandHeroCopy/);
+  assert.match(chrome, /writing-mode:\s*vertical-rl/);
+  assert.match(chrome, /word-break:\s*keep-all/);
+  assert.match(chrome, /gap:\s*var\(--nav-gap\)/);
+  assert.match(chrome, /\.brandHero[\s\S]*padding-left:\s*var\(--page-pad\)/);
+  assert.doesNotMatch(chrome, /\.siteHeader,\s*\n\.brandHeroCopy,/);
   assert.match(chrome, /\.siteHeader \.languageSwitch:not\(\.menuLanguage\)/);
   assert.doesNotMatch(chrome, /aspect-ratio:\s*1200\/630/);
   assert.doesNotMatch(page, /<SiteHeader/);
@@ -98,6 +104,7 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.match(homeView, /最新市場快訊/);
   assert.match(homeView, /className="heroPhoto"/);
   assert.match(homeView, /className="brandHeroCopy"/);
+  assert.match(homeView, /className="brandHeroText"/);
   assert.match(homeView, /今日市場快速判讀/);
   assert.match(homeView, /臺銀美金即期賣出/);
   assert.match(homeView, /BOT USD spot sell/);

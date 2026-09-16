@@ -408,9 +408,11 @@ export default function HomeView({
         </div>
         <div className="brandHeroShade" aria-hidden="true" />
         <div className="brandHeroCopy">
-          <p className="eyebrow">{siteSettings.englishName}</p>
           <h1>{siteSettings.fullName}</h1>
-          <p>{copy.hero}</p>
+          <div className="brandHeroText">
+            <p className="eyebrow">{siteSettings.englishName}</p>
+            <p>{copy.hero}</p>
+          </div>
         </div>
       </section>
 
