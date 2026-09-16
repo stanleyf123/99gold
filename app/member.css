@@ -1,0 +1,183 @@
+.memberPage {
+  min-height: calc(100vh - var(--header-height));
+  background: var(--cream);
+  padding: 42px var(--page-gutter) 72px;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+}
+
+.memberCard {
+  width: min(520px, 100%);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 32px 28px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 16px;
+}
+
+.memberCard h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.memberCard > p,
+.memberHint,
+.memberError {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.memberError {
+  color: var(--red);
+  background: #f8ece8;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.memberHint {
+  background: var(--paper);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.memberHint code,
+.memberCard code {
+  font-size: 12px;
+  background: var(--soft);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.oauthButtons {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.oauthBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
+  border-radius: 10px;
+  text-decoration: none;
+  font-weight: 700;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+}
+
+.oauthBtn.google:hover,
+.oauthBtn.line:hover {
+  border-color: var(--gold);
+}
+
+.oauthBtn.line {
+  background: #06c755;
+  border-color: #06c755;
+  color: #fff;
+}
+
+.memberProfile {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.memberProfile img,
+.memberAvatarFallback {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--line-gold);
+  background: var(--paper);
+}
+
+.memberAvatarFallback {
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  color: var(--gold-deep);
+}
+
+.memberMeta {
+  display: grid;
+  gap: 4px;
+}
+
+.memberMeta small {
+  color: var(--muted);
+}
+
+.memberProviders {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.memberProviders span,
+.memberProviders a {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.memberProviders span {
+  background: var(--gold-wash);
+  border-color: var(--gold);
+}
+
+.memberForm {
+  display: grid;
+  gap: 10px;
+}
+
+.memberForm label {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.memberForm select,
+.memberForm button,
+.memberLogout {
+  font: inherit;
+  border-radius: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+}
+
+.memberForm select {
+  border: 1px solid var(--line);
+  background: var(--card);
+}
+
+.memberForm button,
+.memberLogout {
+  width: max-content;
+  background: var(--gold-deep);
+  color: #fff;
+  border: 0;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.memberLogout {
+  background: var(--ink);
+}
+
+.memberAdminLink {
+  color: var(--gold-deep);
+  font-weight: 700;
+}

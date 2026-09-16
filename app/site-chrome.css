@@ -188,6 +188,49 @@ footer {
   color: var(--card);
 }
 
+.siteHeader .accountSlot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 4px 2px;
+}
+
+.siteHeader .accountSlot img,
+.siteHeader .accountInitial {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--line-gold);
+  background: var(--paper);
+}
+
+.siteHeader .accountInitial {
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  color: var(--gold-deep);
+}
+
+.siteHeader .accountSlot.active em {
+  color: var(--gold-deep);
+}
+
+.siteHeader .accountSlot em {
+  font-style: normal;
+}
+
+.menuPageLinks + .accountSlot {
+  margin: 8px 0 4px;
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--line);
+}
+
 .siteHeader .menu {
   display: none;
   background: none;
@@ -625,6 +668,10 @@ footer {
 
   .siteHeader .languageSwitch:not(.menuLanguage) {
     display: flex;
+    margin-left: 0;
+  }
+
+  .siteHeader .accountSlot {
     margin-left: auto;
   }
 

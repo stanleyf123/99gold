@@ -1,15 +1,12 @@
 import { NextResponse } from "next/server";
 import { getRawDb } from "../../../../db";
 import { currentSourceHealth } from "../../../../lib/news/source-config";
-import { getChatGPTUser, isAdminEmail } from "../../../chatgpt-auth";
+import { getAdminUser } from "../../../chatgpt-auth";
 import { reviewNewsCandidate, runNewsPipeline } from "../../../../lib/news/pipeline";
 
 async function requireAdmin() {
-  const user = await getChatGPTUser();
+  const user = await getAdminUser();
   if (!user) return { error: NextResponse.json({ error: "請先登入管理後台" }, { status: 401 }) };
-  if (!isAdminEmail(user.email)) {
-    return { error: NextResponse.json({ error: "你沒有管理權限" }, { status: 403 }) };
-  }
   return { user };
 }
 

@@ -1,12 +1,15 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { timingSafeEqual } from "node:crypto";
+import { emailHasAdminRole, primaryAdminEmail } from "../lib/auth/admin-emails";
+import { getOptionalMember } from "../lib/auth/server";
 
 export type ChatGPTUser = {
   displayName: string;
   email: string;
   fullName: string | null;
-  source: "chatgpt" | "token";
+  source: "chatgpt" | "token" | "member";
+  memberId?: string;
 };
 
 const USER_EMAIL_HEADER = "oai-authenticated-user-email";
@@ -18,10 +21,9 @@ const SIGN_IN_PATH = "/signin-with-chatgpt";
 const SIGN_OUT_PATH = "/signout-with-chatgpt";
 const CALLBACK_PATH = "/callback";
 export const ADMIN_TOKEN_COOKIE = "admin_token";
-const DEFAULT_ADMIN_EMAIL = "stanleys1225@gmail.com";
 
 export function getAdminEmail() {
-  return (process.env.ADMIN_EMAIL?.trim() || DEFAULT_ADMIN_EMAIL).toLowerCase();
+  return primaryAdminEmail();
 }
 
 export function getAdminToken() {
@@ -29,7 +31,7 @@ export function getAdminToken() {
 }
 
 export function isAdminEmail(email: string) {
-  return email.toLowerCase() === getAdminEmail();
+  return emailHasAdminRole(email);
 }
 
 function tokensMatch(provided: string, expected: string) {
@@ -82,10 +84,29 @@ export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
   return tokenUser();
 }
 
+export async function getAdminUser(): Promise<ChatGPTUser | null> {
+  const user = await getChatGPTUser();
+  if (user) {
+    if (user.source === "token") return user;
+    return isAdminEmail(user.email) ? user : null;
+  }
+
+  const member = await getOptionalMember();
+  if (!member) return null;
+  if (member.role !== "admin" && !emailHasAdminRole(member.email)) return null;
+  return {
+    displayName: member.displayName,
+    email: member.email ?? "",
+    fullName: member.displayName,
+    source: "member",
+    memberId: member.id,
+  };
+}
+
 export async function requireChatGPTUser(
   returnTo: string,
 ): Promise<ChatGPTUser> {
-  const user = await getChatGPTUser();
+  const user = await getAdminUser();
   if (user) return user;
 
   const safeReturnTo = safeRelativeReturnPath(returnTo);
@@ -121,11 +142,14 @@ export function safeRelativeReturnPath(value: string): string {
 }
 
 function isReservedAuthPath(pathname: string): boolean {
+  const bare = pathname.replace(/^\/(en|ja)(?=\/|$)/, "") || "/";
   return (
     pathname === SIGN_IN_PATH ||
     pathname === SIGN_OUT_PATH ||
     pathname === CALLBACK_PATH ||
-    pathname === "/admin/login"
+    pathname === "/admin/login" ||
+    bare === "/login" ||
+    bare.startsWith("/api/auth")
   );
 }
 

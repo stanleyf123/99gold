@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import NewsQueue from "./news-queue";
+import AdminFrame, { type AdminAuthSource } from "./AdminFrame";
 
 type Settings = {
   brandName: string;
@@ -20,7 +20,7 @@ const fallback: Settings = {
   announcement: "",
 };
 
-export default function AdminSettings({ userName, tokenAuth = false }: { userName: string; tokenAuth?: boolean }) {
+export default function AdminSettings({ userName, authSource = "token" }: { userName: string; authSource?: AdminAuthSource }) {
   const [settings, setSettings] = useState(fallback);
   const [status, setStatus] = useState("讀取網站內容中…");
 
@@ -51,31 +51,7 @@ export default function AdminSettings({ userName, tokenAuth = false }: { userNam
   };
 
   return (
-    <main className="adminShell">
-      <aside>
-        <Link className="adminBrand" href="/">
-          <b>99</b>
-          <span>玖久黃金報價網<small>99GOLD.NET</small></span>
-        </Link>
-        <nav>
-          <Link className="active" href="/admin">網站內容</Link>
-          <Link href="/admin#news-schedule">新聞排程</Link>
-          <Link href="/" target="_blank">查看前台 ↗</Link>
-        </nav>
-        <div className="adminUser">
-          <span>管理者</span>
-          <strong>{userName}</strong>
-          {tokenAuth ? (
-            <button type="button" className="adminLogout" onClick={() => {
-              void fetch("/api/admin/session", { method: "DELETE" }).then(() => {
-                window.location.href = "/admin/login";
-              });
-            }}>登出</button>
-          ) : (
-            <Link href="/signout-with-chatgpt?return_to=/">登出</Link>
-          )}
-        </div>
-      </aside>
+    <AdminFrame active="content" userName={userName} authSource={authSource}>
       <section className="adminMain">
         <header>
           <div>
@@ -107,6 +83,6 @@ export default function AdminSettings({ userName, tokenAuth = false }: { userNam
         </div>
         <NewsQueue />
       </section>
-    </main>
+    </AdminFrame>
   );
 }
