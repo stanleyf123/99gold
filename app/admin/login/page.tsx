@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { getAdminToken, getChatGPTUser, safeRelativeReturnPath } from "../../chatgpt-auth";
+import { getAdminToken, getAdminUser, safeRelativeReturnPath } from "../../chatgpt-auth";
+import { oauthEnvStatus, oauthLoginPath } from "../../../lib/auth/oauth";
 import "../admin.css";
 
 export const dynamic = "force-dynamic";
@@ -9,11 +10,13 @@ export default async function AdminLoginPage({
 }: {
   searchParams: Promise<{ return_to?: string; error?: string }>;
 }) {
-  const user = await getChatGPTUser();
+  const user = await getAdminUser();
   if (user) redirect("/admin");
   const query = await searchParams;
   const returnTo = safeRelativeReturnPath(query.return_to ?? "/admin");
   const configured = Boolean(getAdminToken());
+  const googleReady = oauthEnvStatus().googleReady;
+  const googleHref = `${oauthLoginPath("google")}?return_to=${encodeURIComponent(returnTo)}&locale=zh`;
 
   return (
     <main className="adminShell adminLogin">
@@ -37,6 +40,12 @@ export default async function AdminLoginPage({
             <button type="submit">登入</button>
           </form>
         )}
+        {googleReady ? (
+          <p className="adminOauth">
+            <a href={googleHref}>使用 Google 登入</a>
+            <small>信箱須列於 <code>ADMIN_EMAILS</code> 或已手動升為管理者。</small>
+          </p>
+        ) : null}
       </section>
     </main>
   );

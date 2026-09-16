@@ -41,4 +41,4 @@ npm start
 
 ## 環境變數
 
-見 `.env.example`。管理後台在 VPS 上使用 `ADMIN_TOKEN` 登入；若仍有 OpenAI Sites 的 ChatGPT 身分標頭，也會繼續被接受。反代後面的 Next.js 絕對轉址必須用 `SITE_URL`（見 [DEPLOY-LINODE.md](./DEPLOY-LINODE.md)），不要用 `request.url` 當公開 origin。
+見 `.env.example`。管理後台在 VPS 上使用 `ADMIN_TOKEN` 登入，也可讓列於 `ADMIN_EMAILS` 的 Google 帳號登入。前台會員中心為 `/login` 與 `/account`（Google／LINE Login）。若仍有 OpenAI Sites 的 ChatGPT 身分標頭，也會繼續被接受。反代後面的 Next.js 絕對轉址必須用 `SITE_URL`（見 [DEPLOY-LINODE.md](./DEPLOY-LINODE.md)），不要用 `request.url` 當公開 origin。未設定 OAuth 環境變數時，公開頁面仍可瀏覽，登入頁會說明缺少的設定。

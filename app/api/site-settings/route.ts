@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getRawDb } from "../../../db";
-import { getChatGPTUser, isAdminEmail } from "../../chatgpt-auth";
+import { getAdminUser } from "../../chatgpt-auth";
 
 const publicDefaults = {
   brandName: "玖久黃金報價網",
@@ -28,22 +28,19 @@ async function readSettings() {
 export async function GET() {
   try {
     const settings = await readSettings();
-    const user = await getChatGPTUser();
-    const body = user && isAdminEmail(user.email) ? settings : publicView(settings);
+    const user = await getAdminUser();
+    const body = user ? settings : publicView(settings);
     return NextResponse.json(body, { headers: { "Cache-Control": "no-store" } });
   } catch {
-    const user = await getChatGPTUser().catch(() => null);
-    const body = user && isAdminEmail(user.email) ? defaults : publicView(defaults);
+    const user = await getAdminUser().catch(() => null);
+    const body = user ? defaults : publicView(defaults);
     return NextResponse.json(body, { headers: { "Cache-Control": "no-store" } });
   }
 }
 
 export async function PUT(request: Request) {
-  const user = await getChatGPTUser();
+  const user = await getAdminUser();
   if (!user) return NextResponse.json({ error: "請先登入管理後台" }, { status: 401 });
-  if (!isAdminEmail(user.email)) {
-    return NextResponse.json({ error: "你沒有管理權限" }, { status: 403 });
-  }
 
   const body = await request.json() as Partial<typeof defaults>;
   const allowed = Object.keys(defaults) as Array<keyof typeof defaults>;
@@ -54,8 +51,9 @@ export async function PUT(request: Request) {
 
   const db = getRawDb();
   const now = new Date().toISOString();
+  const actor = user.email || user.memberId || "admin";
   await db.batch(entries.map(([key, value]) => db.prepare(
     "INSERT INTO site_settings (key, value, updated_at, updated_by) VALUES (?, ?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at, updated_by = excluded.updated_by"
-  ).bind(key, value, now, user.email)));
+  ).bind(key, value, now, actor)));
   return NextResponse.json({ ...(await readSettings()), updatedAt: now });
 }

@@ -7,6 +7,8 @@ import GlobalPage, { generateMetadata as globalMetadata } from "./global/page";
 import SectionPage, { generateMetadata as sectionMetadata } from "./[section]/page";
 import NewsIndex, { generateMetadata as newsMetadata } from "./news/page";
 import NewsArticle, { generateMetadata as articleMetadata } from "./news/[id]/page";
+import LoginPage, { generateMetadata as loginMetadata } from "./login/page";
+import AccountPage, { generateMetadata as accountMetadata } from "./account/page";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -30,6 +32,8 @@ export async function localizedSlugMetadata(
       searchParams: asQuery(searchParams),
     });
   }
+  if (parts[0] === "login" && parts.length === 1) return loginMetadata();
+  if (parts[0] === "account" && parts.length === 1) return accountMetadata();
   if (parts.length === 1) return sectionMetadata({ params: Promise.resolve({ section: parts[0] }) });
   return {};
 }
@@ -56,6 +60,8 @@ export async function LocalizedSlugPage({
       />
     );
   }
+  if (parts[0] === "login" && parts.length === 1) return <LoginPage searchParams={searchParams} />;
+  if (parts[0] === "account" && parts.length === 1) return <AccountPage />;
   if (parts.length === 1) return <SectionPage params={Promise.resolve({ section: parts[0] })} />;
   notFound();
 }

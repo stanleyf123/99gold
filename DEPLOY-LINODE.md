@@ -8,7 +8,7 @@
 
 程式碼同步並 `systemctl restart 99gold.service` 之後，還要做這兩步：
 
-1. **跑 migration**（含 `translation_retry_at` / `translation_attempts`，以及 `0008_drop_price_alerts.sql` 移除到價提醒表）：
+1. **跑 migration**（含會員表 `users` / `oauth_accounts` / `sessions`，以及 `translation_retry_at` / `translation_attempts`）：
 
    ```bash
    cd /var/www/99gold
@@ -68,6 +68,14 @@ SITE_URL=https://99gold.net
 ADMIN_EMAIL=stanleys1225@gmail.com
 ADMIN_NAME=
 ADMIN_TOKEN=請改成足夠長的隨機字串
+# 逗號分隔的 Google 信箱；這些帳號 OAuth 登入後自動成為管理者（可進 /admin）。
+ADMIN_EMAILS=stanleys1225@gmail.com
+# 會員工作階段 HMAC（與 ADMIN_TOKEN 分開）。
+AUTH_SECRET=請改成足夠長的隨機字串
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+LINE_CHANNEL_ID=
+LINE_CHANNEL_SECRET=
 NODE_ENV=production
 # 可選：較佳的 zh-Hant／ja 翻譯。未設定時使用公開 MyMemory（不必金鑰）。
 # OPENAI_API_KEY=
@@ -75,11 +83,47 @@ NODE_ENV=production
 # MYMEMORY_EMAIL=
 ```
 
-產生權杖範例：`openssl rand -hex 32`。不要把真實權杖寫進 git。
+產生權杖範例：`openssl rand -hex 32`。不要把真實權杖寫進 git。`AUTH_SECRET` 與 `ADMIN_TOKEN` 請各用一組。
 
-`SITE_URL` 除了給管理 cookie 加 `Secure`，也是反代後面絕對轉址的公開 origin（見第 6 節）。不要省略。
+`SITE_URL` 除了給管理／會員 cookie 加 `Secure`，也是反代後面絕對轉址與 OAuth callback 的公開 origin（見第 6 節）。不要省略。本機測 OAuth 時把 `SITE_URL` 設成 `http://127.0.0.1:3000`，並在 Google／LINE 後台加上對應 callback。
 
-管理後台：`https://99gold.net/admin/login`。也可用標頭 `Authorization: Bearer <ADMIN_TOKEN>` 或 `x-admin-token` 呼叫管理 API。
+管理後台：`https://99gold.net/admin/login`（`ADMIN_TOKEN` 或列於 `ADMIN_EMAILS` 的 Google 帳號）。也可用標頭 `Authorization: Bearer <ADMIN_TOKEN>` 或 `x-admin-token` 呼叫管理 API。會員中心：`/login`、`/account`。
+
+## 3b. Google 與 LINE Login（會員系統）
+
+未設定這些變數時，網站仍可 build、公開頁面仍可開；`/login` 會說明缺少的設定。不要把舊的 LINE Messaging `LINE_CHANNEL_ACCESS_TOKEN` 加回來（到價提醒已移除）。
+
+### Google Cloud OAuth 用戶端
+
+1. 開啟 [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials。
+2. 建立 **OAuth client ID**，類型選 **Web application**。
+3. **Authorized JavaScript origins**：`https://99gold.net`（本機另加 `http://127.0.0.1:3000`）。
+4. **Authorized redirect URIs**（必須完全一致）：
+   - `https://99gold.net/api/auth/callback/google`
+   - 本機：`http://127.0.0.1:3000/api/auth/callback/google`
+5. 把 Client ID / Client secret 寫進 `/etc/99gold.env` 的 `GOOGLE_CLIENT_ID`、`GOOGLE_CLIENT_SECRET`。
+6. 把要當站長的 Gmail 寫進 `ADMIN_EMAILS`（逗號分隔）。這些信箱登入後 `role=admin`，可進 `/admin`。
+
+### LINE Developers Login channel
+
+1. 開啟 [LINE Developers Console](https://developers.line.biz/) → 建立 Provider → 建立 **LINE Login** channel。
+2. 在 LINE Login 設定裡填 **Callback URL**：
+   - `https://99gold.net/api/auth/callback/line`
+   - 本機：`http://127.0.0.1:3000/api/auth/callback/line`
+3. Scope 使用 `profile` + `openid`；若要 Email，在 OpenID Connect 開啟 email 權限（未開則會員 email 可為空）。
+4. 把 Channel ID / Channel secret 寫進 `LINE_CHANNEL_ID`、`LINE_CHANNEL_SECRET`。這不是 Messaging API 的 access token。
+
+### 套用與重啟
+
+```bash
+sudo install -m 0600 /etc/99gold.env /etc/99gold.env
+sudo chown www-data:www-data /etc/99gold.env
+cd /var/www/99gold
+sudo -u www-data npm run db:migrate
+sudo systemctl restart 99gold.service
+```
+
+確認 callback 走 HTTPS 公開網域（nginx 反代），`SITE_URL=https://99gold.net`。
 
 ## 4. systemd：網站行程
 

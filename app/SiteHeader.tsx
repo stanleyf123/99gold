@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import { localizedHref, stripLocalePrefix } from "../lib/locale-path";
 import { localeHrefsFromLocation as hrefsFromPath } from "../lib/site-locale";
+import type { PublicMember } from "../lib/auth/types";
 import { type Locale, persistLocale, localeFromLocation, useSiteLocale } from "./locale";
 
 export type { Locale };
@@ -20,6 +21,8 @@ const navCopy = {
     news: "市場情報",
     menu: "開啟選單",
     close: "關閉選單",
+    login: "登入",
+    account: "會員中心",
   },
   en: {
     today: "Gold Prices",
@@ -30,6 +33,8 @@ const navCopy = {
     news: "Market Insights",
     menu: "Open menu",
     close: "Close menu",
+    login: "Sign in",
+    account: "Account",
   },
   ja: {
     today: "本日の金価格",
@@ -40,6 +45,8 @@ const navCopy = {
     news: "市場情報",
     menu: "メニューを開く",
     close: "メニューを閉じる",
+    login: "ログイン",
+    account: "会員センター",
   },
 } as const;
 
@@ -59,6 +66,7 @@ type SiteHeaderProps = {
   brandName?: string;
   englishName?: string;
   extras?: ReactNode;
+  member?: PublicMember | null;
 };
 
 function SiteHeaderInner({
@@ -68,6 +76,7 @@ function SiteHeaderInner({
   brandName = "玖久黃金報價網",
   englishName = "99GOLD.NET",
   extras,
+  member = null,
   search,
 }: SiteHeaderProps & { search: string }) {
   const pathname = usePathname() || "/";
@@ -105,6 +114,27 @@ function SiteHeaderInner({
     href: item.key === "news" ? newsHref : localizedHref(item.href, locale),
     active: item.match(barePath),
   }));
+  const loginHref = localizedHref("/login", locale);
+  const accountHref = localizedHref("/account", locale);
+  const onAccount = barePath === "/account" || barePath === "/login";
+  const initial = member?.displayName.trim().charAt(0) || "9";
+
+  const accountControl = (onNavigate?: () => void) => (
+    <Link
+      href={member ? accountHref : loginHref}
+      className={`accountSlot${onAccount ? " active" : ""}`}
+      aria-current={onAccount ? "page" : undefined}
+      onClick={onNavigate}
+    >
+      {member?.avatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={member.avatarUrl} alt="" referrerPolicy="no-referrer" />
+      ) : member ? (
+        <span className="accountInitial" aria-hidden>{initial}</span>
+      ) : null}
+      <em>{member ? copy.account : copy.login}</em>
+    </Link>
+  );
 
   const languageControl = (code: Locale) => {
     const label = code === "zh" ? "中" : code === "en" ? "EN" : "日";
@@ -155,6 +185,7 @@ function SiteHeaderInner({
         </span>
       </Link>
       {navLinks("navlinks")}
+      {accountControl()}
       <div className="languageSwitch" aria-label="Language">
         {(["zh", "en", "ja"] as Locale[]).map(languageControl)}
       </div>
@@ -187,6 +218,7 @@ function SiteHeaderInner({
               </button>
             </div>
             {navLinks("menuPageLinks", () => setMenuOpen(false))}
+            {accountControl(() => setMenuOpen(false))}
             {extras && (
               <div className="menuExtras" onClick={() => setMenuOpen(false)}>
                 {extras}

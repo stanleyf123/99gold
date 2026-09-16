@@ -5,6 +5,7 @@ import SiteChrome from "./SiteChrome";
 import PwaRegister from "./PwaRegister";
 import { documentLang } from "../lib/locale-path";
 import { requestLocale } from "../lib/request-locale";
+import { getOptionalMember, toPublicMember } from "../lib/auth/server";
 import { DEFAULT_OG_ALT, DEFAULT_OG_IMAGE, SITE_NAME_EN, SITE_URL, organizationJsonLd, pageMetadata, websiteJsonLd } from "../lib/seo";
 import "./globals.css";
 import "./quotes.css";
@@ -48,11 +49,12 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const locale = await requestLocale();
+  const member = await getOptionalMember();
   return (
     <html lang={documentLang(locale)} suppressHydrationWarning>
       <body>
         <PwaRegister />
-        <SiteChrome initialLocale={locale}>{children}</SiteChrome>
+        <SiteChrome initialLocale={locale} member={member ? toPublicMember(member) : null}>{children}</SiteChrome>
         <JsonLd data={organizationJsonLd()} />
         <JsonLd data={websiteJsonLd()} />
         <Script src="https://www.googletagmanager.com/gtag/js?id=G-QF9X3TLYZT" strategy="afterInteractive" />

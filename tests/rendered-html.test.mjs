@@ -69,6 +69,9 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.match(header, /銀樓價格/);
   assert.match(header, /黃金回收/);
   assert.match(header, /市場情報/);
+  assert.match(header, /登入/);
+  assert.match(header, /localizedHref\("\/login", locale\)/);
+  assert.match(header, /localizedHref\("\/account", locale\)/);
   assert.match(header, /className="siteHeader"/);
   assert.match(header, /localizedHref\("\/news", locale\)/);
   assert.match(header, /hrefsFromPath/);
@@ -180,7 +183,7 @@ test("keeps one locale source for header, homepage, global and section chrome", 
   assert.match(visitorLocale, /cf-ipcountry/);
   assert.match(chrome, /LocaleProvider/);
   assert.match(chrome, /initialLocale/);
-  assert.match(chrome, /<SiteHeader \/>/);
+  assert.match(chrome, /<SiteHeader member=\{member\} \/>/);
   assert.doesNotMatch(chrome, /<SiteHeader[\s\S]*<SiteHeader/);
   assert.match(header, /setContextLocale/);
   assert.match(homeView, /languageCopy\[locale\]/);
@@ -260,6 +263,7 @@ test("keeps quote history, data transparency and responsive styles wired", async
   assert.match(layout, /DEFAULT_OG_IMAGE/);
   assert.match(page, /getGlobalQuotesOrNull/);
   assert.match(robots, /\/admin/);
+  assert.match(robots, /\/account/);
   assert.match(sitemap, /\/jewelry/);
   assert.match(sitemap, /\/international/);
   assert.match(sitemap, /\/recycling/);
