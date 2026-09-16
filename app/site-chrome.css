@@ -3,8 +3,8 @@
   --page-gutter: 22px;
   --page-pad: max(var(--page-gutter), calc((100% - var(--page-max)) / 2));
   --header-height: 70px;
-  --nav-gap: clamp(12px, 1.45vw, 22px);
-  --hero-height: clamp(260px, 26vw, 320px);
+  --nav-gap: clamp(10px, 1.15vw, 18px);
+  --hero-height: clamp(220px, 24vw, 288px);
 
   /* Ink + charcoal/teal bands */
   --ink: #0e161b;
@@ -193,12 +193,16 @@ footer {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
-  color: var(--muted);
+  margin-left: 10px;
+  margin-right: 10px;
+  color: var(--ink);
   text-decoration: none;
   font-weight: 700;
-  font-size: 14px;
-  padding: 8px 0 6px;
-  border-bottom: 2px solid transparent;
+  font-size: 13px;
+  padding: 6px 14px;
+  border: 1px solid var(--line-gold);
+  border-radius: 999px;
+  background: var(--card);
 }
 
 .siteHeader .accountSlot img,
@@ -222,7 +226,8 @@ footer {
 .siteHeader .accountSlot[aria-current="page"] {
   color: var(--gold-deep);
   font-weight: 800;
-  border-bottom-color: var(--gold);
+  border-color: var(--gold);
+  background: var(--gold-wash);
 }
 
 .siteHeader .accountSlot.active em {
@@ -234,11 +239,14 @@ footer {
 }
 
 .menuPageLinks + .accountSlot {
-  margin: 8px 0 4px;
-  padding: 12px 4px;
-  border-bottom: 1px solid var(--line);
+  width: max-content;
+  margin: 12px 0 8px;
+  padding: 8px 14px;
+  border: 1px solid var(--line-gold);
+  border-radius: 999px;
   color: var(--ink);
-  font-size: 15px;
+  font-size: 14px;
+  background: var(--card);
 }
 
 .siteHeader .menu {
@@ -290,7 +298,6 @@ footer {
   display: flex;
   align-items: center;
   padding: 0;
-  padding-left: var(--page-pad);
   aspect-ratio: auto;
 }
 
@@ -325,44 +332,33 @@ footer {
 .brandHeroCopy {
   position: relative;
   z-index: 2;
-  display: flex;
-  align-items: center;
-  gap: clamp(16px, 2vw, 28px);
-  width: min(40rem, 52%);
-  max-width: 100%;
-  min-width: 0;
-  flex: 0 1 auto;
-  padding: 12px 16px 12px 0;
   box-sizing: border-box;
-}
-
-.brandHeroCopy .brandHeroText {
-  display: grid;
-  gap: 8px;
-  min-width: 0;
+  flex: 0 0 auto;
+  margin-left: var(--page-pad);
+  margin-right: 16px;
+  width: min(34rem, 46%);
+  max-width: calc(100% - var(--page-pad) - 16px);
+  min-width: min(20rem, calc(100% - var(--page-pad) - 16px));
+  padding: 22px 0;
 }
 
 .brandHeroCopy .eyebrow {
   color: var(--gold-deep);
-  margin: 0;
+  margin: 0 0 8px;
   letter-spacing: .32em;
 }
 
 .brandHeroCopy h1 {
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
+  font: clamp(28px, 3.4vw, 42px)/1.2 Georgia, "Noto Serif TC", serif;
+  letter-spacing: .06em;
+  margin: 0 0 8px;
+  color: var(--ink);
+  text-shadow: none;
   white-space: nowrap;
   word-break: keep-all;
   overflow-wrap: normal;
-  flex-shrink: 0;
-  font: 700 min(40px, calc((var(--hero-height) - 28px) / 8)) / 1 Georgia, "Noto Serif TC", serif;
-  letter-spacing: .08em;
-  margin: 0;
-  color: var(--ink);
-  text-shadow: none;
 }
 
-.brandHeroCopy .brandHeroText > p:not(.eyebrow),
 .brandHeroCopy > p:not(.eyebrow) {
   color: var(--muted);
   font-size: clamp(15px, 1.5vw, 18px);
@@ -686,8 +682,7 @@ footer {
 }
 
 @media (max-width: 1180px) {
-  .siteHeader .navlinks a,
-  .siteHeader .accountSlot {
+  .siteHeader .navlinks a {
     font-size: 13px;
   }
 }
@@ -709,13 +704,14 @@ footer {
 
   .siteHeader .accountSlot {
     margin-left: auto;
-    padding: 4px 0;
-    border-bottom: 0;
+    margin-right: 8px;
+    padding: 5px 12px;
   }
 
   .brandHeroCopy {
-    width: min(36rem, 100%);
-    max-width: none;
+    width: auto;
+    max-width: calc(100% - var(--page-pad) - 16px);
+    min-width: 0;
   }
 
   .heroPhoto {
@@ -764,8 +760,8 @@ footer {
 @media (max-width: 640px) {
   :root {
     --header-height: 60px;
-    --hero-height: clamp(220px, 48vw, 260px);
-    --nav-gap: 10px;
+    --hero-height: clamp(210px, 46vw, 250px);
+    --nav-gap: 8px;
   }
 
   .topline {
@@ -801,20 +797,16 @@ footer {
   }
 
   .brandHeroCopy {
-    width: 100%;
-    max-width: none;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 16px 12px 16px 0;
+    width: auto;
+    max-width: calc(100% - var(--page-pad) - 12px);
+    min-width: 0;
+    margin-right: 12px;
+    padding: 16px 0;
   }
 
   .brandHeroCopy h1 {
-    writing-mode: horizontal-tb;
-    text-orientation: mixed;
     font-size: clamp(24px, 7vw, 32px);
     line-height: 1.2;
-    letter-spacing: .06em;
     white-space: nowrap;
   }
 

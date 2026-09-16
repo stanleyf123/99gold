@@ -39,7 +39,7 @@
    sudo systemctl restart 99gold.service
    ```
 
-   此改動只動 `app/site-chrome.css` 與首頁 hero 標記，**不必**再跑 `db:migrate`。CSS 在 `.next/static/chunks/`，重啟後請硬重新整理（或清 Nginx 快取）再看 `https://99gold.net/`、`/en`、`/ja`。確認直書「玖久黃金報價網」七字完整、桌面導覽含「登入」間距均勻、手機選單仍可開。
+   此改動只動 `app/site-chrome.css`（與測試），**不必**再跑 `db:migrate`。CSS 在 `.next/static/chunks/`，重啟後請硬重新整理（或清 Nginx 快取）再看 `https://99gold.net/`、`/en`、`/ja`。確認橫排「玖久黃金報價網」七字完整、桌面「登入」為獨立 pill 且與導覽／語系有間距、手機選單仍可開。
 
 ## 1. 系統套件
 
