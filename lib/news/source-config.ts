@@ -4,8 +4,9 @@ export type NewsSource = {
   feedUrl: string;
   allowedHosts: string[];
   language: "en";
-  category: "macro" | "policy";
+  category: "macro" | "policy" | "prices";
   titleTerms: string[];
+  excludeTerms?: string[];
 };
 
 export type NewsSourceHealthRow = {
@@ -17,8 +18,140 @@ export type NewsSourceHealthRow = {
   consecutive_errors: number;
 };
 
-// First-party public feeds only. New sources must be explicitly allowlisted and
-// reviewed before they can enter the editorial queue.
+/** Precious-metals headlines for publisher gold/commodities feeds. */
+export const goldMetalTerms = [
+  "gold",
+  "silver",
+  "platinum",
+  "palladium",
+  "bullion",
+  "xau",
+  "xag",
+  "precious metal",
+  "precious metals",
+  "ounce",
+];
+
+/** UK / official calendar items that still move gold (not labour or AML). */
+export const goldMacroTerms = [
+  "cpi",
+  "inflation",
+  "gdp",
+  "ppi",
+  "producer price",
+  "producer prices",
+  "consumer price",
+  "consumer prices",
+  "retail sales",
+  "trade balance",
+  "balance of payments",
+  "public sector",
+  "gilt",
+  "sterling",
+  "interest rate",
+  "interest rates",
+  "monetary",
+  "fiscal",
+  "budget",
+];
+
+export const ukNoiseTerms = [
+  "labour market",
+  "labor market",
+  "employment",
+  "claimant",
+  "vacancies",
+  "vacancy",
+  "unemployment",
+  "workforce",
+  "earnings",
+  "crime",
+  "census",
+  "migration",
+  "wellbeing",
+  "well-being",
+];
+
+export const treasuryNoiseTerms = [
+  "anti-money laundering",
+  "anti money laundering",
+  "aml",
+  "cryptoasset",
+  "cryptoassets",
+  "cryptocurrency",
+  "crypto",
+  "sanctions",
+  "ministerial appointment",
+  "honours",
+];
+
+export const ecbPolicyTerms = [
+  "monetary",
+  "inflation",
+  "interest rate",
+  "interest rates",
+  "price stability",
+  "lagarde",
+  "guindos",
+  "schnabel",
+  "quantitative",
+  "asset purchase",
+  "introductory statement",
+  "monetary policy",
+  "press conference",
+  "gold",
+  "energy",
+  "oil",
+];
+
+export const energyShockTerms = [
+  "opec",
+  "pipeline",
+  "hormuz",
+  "embargo",
+  "outage",
+  "disruption",
+  "force majeure",
+  "crude shock",
+  "oil shock",
+  "saudi",
+  "libya",
+  "iran",
+  "gold",
+  "inflation",
+  "rate hike",
+  "fed",
+];
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Word-aware match so ECB "rate" does not hit "corporate", and "gold" does not hit "golden". */
+export function textHasTerm(haystack: string, term: string) {
+  const needle = term.normalize("NFKC").toLocaleLowerCase("en-US").trim();
+  if (!needle) return false;
+  if (/[\u3040-\u9fff]/.test(needle) || /[^\p{L}\p{N}]/u.test(needle)) {
+    return haystack.includes(needle);
+  }
+  return new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(needle)}(?![\\p{L}\\p{N}])`, "u").test(haystack);
+}
+
+// Public RSS/Atom only. New sources must be allowlisted.
+//
+// Do not add to production cron:
+// - Google News `news.google.com/rss/search` — Linode 172.237.11.195 HTTP 503
+// - Bank of England `/rss/*` — Akamai 403 from datacenter IPs
+// - Kitco `/news/rss` and `/news/category/gold/rss` — HTTP 200 HTML app shell
+// - gold.org RSS paths — 404
+// - feeds.reuters.com — DNS fail from Linode
+// - ons-release-calendar / hm-treasury-news — flooded /news with UK labour
+//   calendars and AML/crypto docs (filter helpers below remain for tests)
+//
+// Linode-verified HTTP 200 XML (2026-09-16): mining.com gold commodity feed,
+// mining.com/feed, investing.com news_25 / news_301, oilprice.com/rss/main,
+// BBC business, CNBC 100003114, Fed press_all (we already fetch monetary +
+// speeches). Prefer mining.com gold + oilprice/investing with title filters.
 export const newsSources: NewsSource[] = [
   {
     id: "federal-reserve-monetary",
@@ -76,35 +209,15 @@ export const newsSources: NewsSource[] = [
     titleTerms: [],
   },
   {
-    // ECB press/speeches/interviews; typically several items per week, often same-day.
+    // ECB press/speeches/interviews. Filter generic climate/AML remarks; keep
+    // monetary-policy and energy items that move gold.
     id: "ecb-press",
     name: "European Central Bank",
     feedUrl: "https://www.ecb.europa.eu/rss/press.html",
     allowedHosts: ["ecb.europa.eu"],
     language: "en",
     category: "policy",
-    titleTerms: [],
-  },
-  {
-    // UK CPI/GDP/trade calendar. BoE /rss/* is Akamai-blocked from common VPS
-    // ranges (including Linode); a browser User-Agent does not unblock it.
-    id: "ons-release-calendar",
-    name: "UK Office for National Statistics",
-    feedUrl: "https://www.ons.gov.uk/releasecalendar?rss",
-    allowedHosts: ["ons.gov.uk"],
-    language: "en",
-    category: "macro",
-    titleTerms: [],
-  },
-  {
-    // Treasury speeches and news — UK policy coverage without BoE's datacenter 403.
-    id: "hm-treasury-news",
-    name: "HM Treasury",
-    feedUrl: "https://www.gov.uk/government/organisations/hm-treasury.atom",
-    allowedHosts: ["gov.uk"],
-    language: "en",
-    category: "policy",
-    titleTerms: [],
+    titleTerms: ecbPolicyTerms,
   },
   {
     // GDP, PCE, trade — gold-relevant US macro, more frequent than quarterly BLS CPI.
@@ -126,12 +239,46 @@ export const newsSources: NewsSource[] = [
     category: "macro",
     titleTerms: [],
   },
+  {
+    // Best gold-specific feed from Linode curl probe (real RSS, HTTP 200).
+    id: "mining-com-gold",
+    name: "MINING.COM · Gold",
+    feedUrl: "https://www.mining.com/commodity/gold/feed/",
+    allowedHosts: ["mining.com"],
+    language: "en",
+    category: "prices",
+    titleTerms: goldMetalTerms,
+  },
+  {
+    // Linode-verified investing.com RSS. news_25 is a markets feed; metals
+    // title filter keeps gold/silver and drops generic stock tape. (news_301 is
+    // crypto — not used.)
+    id: "investing-markets",
+    name: "Investing.com · Markets",
+    feedUrl: "https://www.investing.com/rss/news_25.rss",
+    allowedHosts: ["investing.com"],
+    language: "en",
+    category: "prices",
+    titleTerms: goldMetalTerms,
+  },
+  {
+    // Linode-verified oilprice.com/rss/main. Title filter keeps supply shocks
+    // and bullion, not solar-panel filler.
+    id: "oilprice-energy",
+    name: "Oilprice.com · Energy",
+    feedUrl: "https://oilprice.com/rss/main",
+    allowedHosts: ["oilprice.com"],
+    language: "en",
+    category: "macro",
+    titleTerms: [...goldMetalTerms, ...energyShockTerms],
+  },
 ];
 
-export function sourceAcceptsTitle(source: NewsSource, title: string) {
+export function sourceAcceptsTitle(source: NewsSource, title: string, summary = "") {
+  const haystack = `${title}\n${summary}`.normalize("NFKC").toLocaleLowerCase("en-US");
+  if ((source.excludeTerms ?? []).some((term) => textHasTerm(haystack, term))) return false;
   if (!source.titleTerms.length) return true;
-  const normalized = title.normalize("NFKC").toLocaleLowerCase("en-US");
-  return source.titleTerms.some((term) => normalized.includes(term));
+  return source.titleTerms.some((term) => textHasTerm(haystack, term));
 }
 
 export function newsSourceLabel(sourceId: string) {
