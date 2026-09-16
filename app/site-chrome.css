@@ -1,40 +1,42 @@
 :root {
   --page-max: 1240px;
-  --page-gutter: max(20px, min(5.5vw, calc((100vw - var(--page-max)) / 2)));
+  --page-gutter: 22px;
+  --page-pad: max(var(--page-gutter), calc((100% - var(--page-max)) / 2));
   --header-height: 70px;
   --hero-height: clamp(200px, 22vw, 268px);
 
-  /* Ink — cooler / darker than the old #172128 for contrast */
-  --ink: #11191e;
-  --ink-soft: #3a4348;
-  --muted: #5a625c;
+  /* Ink + charcoal/teal bands */
+  --ink: #0e161b;
+  --ink-soft: #3d474c;
+  --muted: #5a645e;
   --ink-deep: #0d1519;
   --cta: #152026;
+  --band: #152026;
+  --band-mid: #1a2c31;
 
   /* Gold scale */
   --gold: #c9951c;
   --gold-soft: #e0b54a;
-  --gold-deep: #84580e;
-  --gold-wash: #f4e6b8;
+  --gold-deep: #8a5610;
+  --gold-wash: #f3e4b0;
 
-  /* Surfaces: header (lifted) → page (warm paper) → card (clean) → soft (bands) */
-  --header-bg: #faf6ee;
-  --cream: #efe6d3;
-  --card: #fffcf6;
-  --paper: #f4ecde;
-  --soft: #e4d7c0;
+  /* Surfaces: deeper page so cards lift; header slightly warmer */
+  --header-bg: #f4efe3;
+  --cream: #e4d6bf;
+  --card: #fffdf8;
+  --paper: #efe4d0;
+  --soft: #d4c4a8;
 
-  /* Semantic — Taiwan market 漲紅跌綠, WCAG-minded on cream */
+  /* Semantic — Taiwan market 漲紅跌綠 */
   --red: #b53c2f;
   --green: #186a54;
 
-  /* Lines & elevation */
-  --header-line: rgba(17, 25, 30, 0.10);
-  --line: #d2c7b0;
-  --line-soft: #e4dccc;
-  --line-gold: rgba(201, 149, 28, 0.36);
-  --shadow: 0 10px 28px rgba(17, 25, 30, 0.06);
-  --shadow-gold: 0 14px 32px rgba(132, 88, 14, 0.16);
+  --header-line: rgba(13, 21, 25, 0.12);
+  --line: #cbbd9f;
+  --line-soft: #ddd2bc;
+  --line-gold: rgba(201, 149, 28, 0.45);
+  --shadow: 0 12px 32px rgba(13, 21, 25, 0.08);
+  --shadow-gold: 0 14px 32px rgba(132, 88, 14, 0.18);
 }
 
 .topline,
@@ -51,14 +53,16 @@
 .metalBoard,
 .worldMarkets,
 .globalPage footer,
+.articlePage,
 footer {
-  padding-left: var(--page-gutter) !important;
-  padding-right: var(--page-gutter) !important;
+  padding-left: var(--page-pad) !important;
+  padding-right: var(--page-pad) !important;
 }
 
 .globalPage .converter {
-  margin-left: var(--page-gutter) !important;
-  margin-right: var(--page-gutter) !important;
+  margin-left: var(--page-pad) !important;
+  margin-right: var(--page-pad) !important;
+  width: auto !important;
 }
 
 .topline {
@@ -86,8 +90,8 @@ footer {
   justify-content: space-between;
   gap: 20px;
   background: var(--header-bg);
-  border-bottom: 1px solid var(--header-line);
-  box-shadow: 0 1px 0 var(--line-gold);
+  border-bottom: 2px solid var(--gold);
+  box-shadow: 0 10px 28px rgba(13, 21, 25, 0.06);
   color: var(--ink);
 }
 
@@ -146,8 +150,10 @@ footer {
 
 .siteHeader .navlinks a.active,
 .siteHeader .navlinks a[aria-current="page"] {
-  color: var(--ink);
+  color: var(--gold-deep);
+  font-weight: 800;
   border-bottom-color: var(--gold);
+  text-shadow: 0 0 0 var(--gold-wash);
 }
 
 .siteHeader .languageSwitch {
@@ -258,7 +264,7 @@ footer {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, var(--header-bg) 0%, var(--header-bg) 38%, rgba(250, 246, 238, .92) 48%, rgba(250, 246, 238, .42) 62%, rgba(250, 246, 238, 0) 78%);
+    linear-gradient(90deg, var(--header-bg) 0%, var(--header-bg) 38%, color-mix(in srgb, var(--header-bg) 92%, transparent) 48%, color-mix(in srgb, var(--header-bg) 42%, transparent) 62%, transparent 78%);
   pointer-events: none;
 }
 
@@ -300,9 +306,10 @@ footer {
   gap: 8px 20px;
   padding-top: 12px !important;
   padding-bottom: 12px !important;
-  background: var(--header-bg);
-  border-top: 1px solid var(--header-line);
-  border-bottom: 1px solid var(--header-line);
+  background: var(--band);
+  color: #f4efe3;
+  border-top: 1px solid rgba(201, 149, 28, 0.28);
+  border-bottom: 1px solid rgba(201, 149, 28, 0.28);
 }
 
 .marketRadar.radarEmpty {
@@ -318,6 +325,7 @@ footer {
   margin: 0;
   font-size: 11px;
   letter-spacing: .1em;
+  color: var(--gold-soft);
 }
 
 .marketRadar h2 {
@@ -325,10 +333,11 @@ footer {
   letter-spacing: .03em;
   margin: 0;
   white-space: nowrap;
+  color: #f7f1e4;
 }
 
 .marketRadar .tool {
-  border-left: 1px solid var(--line);
+  border-left: 1px solid rgba(201, 149, 28, 0.28);
   padding: 2px 0 2px 16px;
   display: grid;
   gap: 2px;
@@ -337,24 +346,25 @@ footer {
 
 .marketRadar .tool span {
   font-size: 12px;
-  color: var(--muted);
+  color: #9aa59e;
 }
 
 .marketRadar .tool strong {
   font: 20px/1.1 Georgia, serif;
   font-variant-numeric: tabular-nums;
+  color: #f7f1e4;
 }
 
 .marketRadar .tool small {
   font-size: 12px;
-  color: var(--muted);
+  color: #9aa59e;
   line-height: 1.3;
   overflow-wrap: anywhere;
 }
 
 .marketRadar > button {
-  background: var(--cta);
-  color: var(--header-bg);
+  background: var(--gold);
+  color: var(--ink-deep);
   border: 0;
   padding: 10px 14px;
   white-space: nowrap;
@@ -389,7 +399,7 @@ footer {
 .hubEmptyHint,
 .radarEmptyNote {
   margin: 0;
-  color: var(--muted);
+  color: #c5cdc8;
   font-size: 14px;
   line-height: 1.55;
   max-width: 28rem;
@@ -495,8 +505,8 @@ footer {
 }
 
 .articlePage {
-  padding-left: var(--page-gutter) !important;
-  padding-right: var(--page-gutter) !important;
+  padding-left: var(--page-pad) !important;
+  padding-right: var(--page-pad) !important;
 }
 
 .coverFallback {
@@ -506,9 +516,11 @@ footer {
   width: 100%;
   min-height: 160px;
   aspect-ratio: 3 / 2;
-  background: var(--soft);
-  color: var(--gold-deep);
-  border-radius: 10px;
+  background:
+    radial-gradient(circle at 78% 18%, rgba(201, 149, 28, 0.35), transparent 36%),
+    linear-gradient(145deg, #152026, #24383d);
+  color: var(--gold-soft);
+  border-radius: 0;
 }
 
 .coverFallback b {
@@ -550,21 +562,23 @@ footer {
 
 .globalHero,
 .subHero {
-  background: var(--header-bg) !important;
-  color: var(--ink) !important;
+  background:
+    radial-gradient(circle at 88% 18%, rgba(201, 149, 28, 0.18), transparent 28%),
+    linear-gradient(165deg, #10191e 0%, var(--band) 52%, #1a2428 100%) !important;
+  color: #f4efe3 !important;
   padding-top: 36px !important;
-  padding-bottom: 28px !important;
+  padding-bottom: 32px !important;
 }
 
 .globalHero h1,
 .subHero h1 {
   font-size: clamp(28px, 3.4vw, 40px) !important;
-  color: var(--ink) !important;
+  color: #f7f1e4 !important;
 }
 
 .globalHero span,
-.subHero > p:not(.eyebrow) {
-  color: var(--muted) !important;
+.subHero > p:not(.eyebrow):not(.jewelryFxBadge) {
+  color: #c5cdc8 !important;
 }
 
 .subHero:after {
@@ -575,17 +589,21 @@ footer {
   position: static !important;
   right: auto !important;
   bottom: auto !important;
-  margin-top: 18px;
+  margin-top: 0;
+  background: rgba(255, 253, 248, 0.06);
+  border: 1px solid rgba(201, 149, 28, 0.38);
+  padding: 18px 20px;
+  min-width: 220px;
 }
 
 .subStat strong {
-  font-size: 22px !important;
-  color: var(--ink) !important;
+  font-size: clamp(28px, 3vw, 36px) !important;
+  color: var(--gold-soft) !important;
 }
 
 .subStat b,
 .subStat span {
-  color: var(--muted) !important;
+  color: #c5cdc8 !important;
 }
 
 .metalBoard,
@@ -616,7 +634,7 @@ footer {
   }
 
   .brandHeroShade {
-    background: linear-gradient(180deg, var(--header-bg) 0%, rgba(250, 246, 238, .94) 42%, rgba(250, 246, 238, .55) 100%);
+    background: linear-gradient(180deg, var(--header-bg) 0%, color-mix(in srgb, var(--header-bg) 94%, transparent) 42%, color-mix(in srgb, var(--header-bg) 55%, transparent) 100%);
   }
 
   .brandHeroCopy {
@@ -692,7 +710,7 @@ footer {
   }
 
   .brandHeroShade {
-    background: linear-gradient(180deg, var(--header-bg) 0%, rgba(250, 246, 238, .94) 42%, rgba(250, 246, 238, .55) 100%);
+    background: linear-gradient(180deg, var(--header-bg) 0%, color-mix(in srgb, var(--header-bg) 94%, transparent) 42%, color-mix(in srgb, var(--header-bg) 55%, transparent) 100%);
   }
 
   .brandHeroCopy {
@@ -828,5 +846,409 @@ footer {
 .down,
 .fall {
   color: var(--green) !important;
+}
+
+/* —— Shared content rhythm, contrast bands, mobile tables, news grid —— */
+.subHero .eyebrow,
+.globalHero > p:first-child {
+  color: var(--gold-soft) !important;
+}
+
+.subHero:has(.subStat) {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.4fr) minmax(240px, 0.72fr);
+  column-gap: 36px;
+  row-gap: 10px;
+  align-items: center;
+}
+
+.subHero:has(.subStat) .eyebrow,
+.subHero:has(.subStat) h1,
+.subHero:has(.subStat) > p:not(.eyebrow) {
+  grid-column: 1;
+}
+
+.subHero:has(.subStat) .subStat {
+  grid-column: 2;
+  grid-row: 1 / span 4;
+  align-self: center;
+  justify-self: stretch;
+}
+
+.subHero:has(.jewelryHeroPrices) {
+  display: grid !important;
+  grid-template-columns: 1fr;
+}
+
+.jewelryHeroPrices,
+.jewelryRange,
+.jewelryFxBadge,
+.subCards,
+.sectionChart,
+.jewelryTableWrap,
+.jewelryEducate,
+.jewelryFaq,
+.recycleCalc,
+.metalHistoryPair,
+.goldSilverRatio,
+.metalBoard .metalGrid,
+.metalCompareWrap,
+.worldMarkets .marketGrid,
+.quoteTerminal,
+.conversionCards,
+.proQuoteTableScroll,
+.fxTape {
+  width: 100%;
+  max-width: none;
+}
+
+.subCards {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important;
+}
+
+.subContent {
+  background: var(--cream);
+}
+
+.goldFxStrip {
+  background: var(--band-mid) !important;
+  color: #e8efe9 !important;
+  border-top: 1px solid rgba(201, 149, 28, 0.28) !important;
+  border-bottom: 1px solid rgba(201, 149, 28, 0.28) !important;
+}
+
+.goldFxStrip .eyebrow {
+  color: var(--gold-soft) !important;
+}
+
+.goldFxStrip h2 {
+  color: #f7f1e4 !important;
+}
+
+.goldFxStrip .goldFxIntro p:not(.eyebrow) {
+  color: #b7c0bb !important;
+}
+
+.goldFxStrip li {
+  background: rgba(255, 253, 248, 0.05) !important;
+  border-color: rgba(201, 149, 28, 0.32) !important;
+  color: #f7f1e4;
+}
+
+.goldFxStrip li span {
+  color: var(--gold-soft) !important;
+}
+
+.goldFxStrip li small,
+.goldFxSource {
+  color: #9aa59e !important;
+}
+
+.homeNewsStrip {
+  background: var(--paper) !important;
+}
+
+.marketHub {
+  background:
+    linear-gradient(180deg, #ddd0b6 0%, var(--cream) 28%) !important;
+}
+
+.hubPanel,
+.marketHub .hubPanel {
+  background: var(--card) !important;
+  border-color: var(--line);
+  box-shadow: var(--shadow);
+}
+
+.marketTabs button.active {
+  color: var(--gold-deep) !important;
+  border-bottom-color: var(--gold) !important;
+}
+
+.coverFallbackCompact,
+.editorialList .coverFallback,
+.newsCardMedia.coverFallback {
+  min-height: 88px !important;
+  aspect-ratio: 16 / 7 !important;
+  max-height: 132px;
+}
+
+.editorialList {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 16px !important;
+  align-items: stretch;
+}
+
+.editorialList article,
+.editorialList .newsCard {
+  max-width: none !important;
+  height: 100%;
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+
+.editorialList .newsCard img,
+.editorialList .newsCard .coverFallback {
+  aspect-ratio: 16 / 7 !important;
+  max-height: 148px;
+  object-fit: cover;
+}
+
+.editorialList .newsCard h2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 3.9em;
+  font-size: 18px !important;
+  line-height: 1.3 !important;
+}
+
+.editorialList .newsCard .newsExcerpt,
+.editorialList .newsCard .newsExcerptMuted {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 4.6em;
+}
+
+.officialBriefs > div {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.articlePage {
+  background:
+    linear-gradient(180deg, #ddd0b6 0, var(--cream) 80px) !important;
+}
+
+.articlePage.editorialPage > h1 {
+  max-width: none;
+}
+
+.newsIndexFaq details,
+.jewelryFaq details,
+.briefFaq details {
+  background: var(--card);
+  border-left: 3px solid var(--gold);
+}
+
+.guide {
+  background: var(--band) !important;
+  color: #e8efe9 !important;
+}
+
+.guide span {
+  color: var(--gold-soft) !important;
+}
+
+.guide p {
+  color: #c5cdc8 !important;
+}
+
+.guide a {
+  color: var(--gold-soft) !important;
+  border-bottom-color: var(--gold) !important;
+}
+
+.jewelryFxBadge {
+  background: rgba(13, 21, 25, 0.35) !important;
+  color: var(--gold-soft) !important;
+  border-left-color: var(--gold) !important;
+  max-width: none;
+}
+
+.jewelryPriceCard {
+  background: var(--card);
+  border-color: rgba(201, 149, 28, 0.38);
+}
+
+.jewelryRange div {
+  background: rgba(255, 253, 248, 0.08) !important;
+  border: 1px solid rgba(201, 149, 28, 0.28);
+}
+
+.jewelryRange span {
+  color: #c5cdc8 !important;
+}
+
+.jewelryRange strong {
+  color: #f7f1e4 !important;
+}
+
+.siteLinks {
+  background: var(--paper) !important;
+  border-top: 1px solid var(--line) !important;
+}
+
+.tableScrollHint {
+  display: none;
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+@media (min-width: 701px) and (max-width: 1100px) {
+  .tableScrollHint {
+    display: block;
+  }
+}
+
+.proQuoteTableScroll,
+.jewelryTableWrap,
+.metalCompareWrap .proQuoteTableScroll {
+  position: relative;
+  overflow-x: auto;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+  background: var(--card);
+  scrollbar-width: thin;
+}
+
+.proQuoteTable th:first-child,
+.proQuoteTable td:first-child,
+.jewelryTable th:first-child,
+.jewelryTable td:first-child,
+.metalCompare th:first-child,
+.metalCompare td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--soft);
+  box-shadow: 4px 0 10px rgba(13, 21, 25, 0.06);
+}
+
+.proQuoteTable td:first-child,
+.jewelryTable td:first-child,
+.metalCompare td:first-child {
+  background: var(--card);
+}
+
+@media (max-width: 960px) {
+  .editorialList {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .officialBriefs > div {
+    grid-template-columns: 1fr;
+  }
+
+  .subHero:has(.subStat) {
+    grid-template-columns: 1fr;
+  }
+
+  .subHero:has(.subStat) .subStat {
+    grid-column: 1;
+    grid-row: auto;
+    margin-top: 8px;
+  }
+}
+
+@media (max-width: 700px) {
+  .tableScrollHint {
+    display: none;
+  }
+
+  .stackTable thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+  }
+
+  .stackTable {
+    min-width: 0 !important;
+    width: 100%;
+    border: 0;
+  }
+
+  .stackTable tbody {
+    display: grid;
+    gap: 10px;
+    padding: 8px;
+    background: var(--cream);
+  }
+
+  .stackTable tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 14px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    box-shadow: var(--shadow);
+  }
+
+  .stackTable td,
+  .stackTable th {
+    display: block;
+    width: auto;
+    min-width: 0;
+    text-align: left !important;
+    white-space: normal !important;
+    padding: 0 !important;
+    border: 0 !important;
+    position: static !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font-size: 15px;
+  }
+
+  .stackTable td:first-child {
+    grid-column: 1 / -1;
+    padding-bottom: 8px !important;
+    margin-bottom: 2px;
+    border-bottom: 1px solid var(--line-soft) !important;
+    font-weight: 800;
+  }
+
+  .stackTable td::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--muted);
+    font: 700 10px/1.3 Arial, sans-serif;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+  }
+
+  .jewelryTableWrap,
+  .proQuoteTableScroll {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+    max-height: none;
+  }
+
+  .marketHub .newsVisual,
+  .newsVisual {
+    height: 96px !important;
+  }
+}
+
+@media (max-width: 650px) {
+  .editorialList {
+    grid-template-columns: 1fr !important;
+  }
+
+  .editorialList .newsCard h2,
+  .editorialList .newsCard .newsExcerpt,
+  .editorialList .newsCard .newsExcerptMuted {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 460px) {
+  .jewelryHeroPrices,
+  .jewelryRange,
+  .jewelryEducate {
+    grid-template-columns: 1fr !important;
+  }
 }
 

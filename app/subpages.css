@@ -65,6 +65,20 @@
   .sectionChart{padding:14px 12px}
   .sectionChartHead{display:grid;align-items:start}
   .sectionChartHead h3{font-size:18px}
-  .sectionChartPeriods{justify-content:flex-start}
+  .sectionChartPeriods{justify-self:start}
   .sectionChartPeriods button{min-height:34px;padding:0 8px;font-size:12px}
+}
+
+.subHero > p:not(.eyebrow):not(.jewelryFxBadge) {
+  max-width: 42rem;
+}
+
+.subCards {
+  width: 100%;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.sectionChart,
+.recycleCalc {
+  width: 100%;
 }

@@ -399,8 +399,10 @@ export default function JewelryView({
         {tableLoading ? (
           <p className="jewelryTableStatus" role="status">{t(locale, "表格會跟著所選期間更新。", "The table follows the selected period.", "表は選択した期間に連動します。")}</p>
         ) : display.rows.length > 0 ? (
+          <>
+          <p className="tableScrollHint">{t(locale, "手機改以卡片顯示；較寬螢幕可左右滑動，日期欄固定。", "On phones this becomes stacked cards. Wider screens can scroll sideways with a sticky date column.", "スマホではカード表示。幅がある画面では横スクロールでき、日付列は固定です。")}</p>
           <div className="jewelryTableWrap">
-            <table className="jewelryTable">
+            <table className="jewelryTable stackTable">
               <caption className="srOnly">{t(locale, `台灣理論金價表（${periodName}）：賣出、買進、漲跌、999.9 理論回收與當日匯率`, `Taiwan theoretical gold table (${periodName}): sell, buy, change, 999.9 recycle and that day’s FX`, `台湾理論金価格表（${periodName}）`)}</caption>
               <thead>
                 <tr>
@@ -415,23 +417,24 @@ export default function JewelryView({
               <tbody>
                 {[...display.rows].reverse().map((row) => (
                   <tr key={row.timestamp}>
-                    <td><time dateTime={new Date(row.timestamp * 1000).toISOString()}>{formatDate(row.timestamp, locale, period !== "1M")}</time></td>
-                    <td>{money(row.sell)}</td>
-                    <td>{money(row.buy)}</td>
-                    <td>
+                    <td data-label={t(locale, "日期", "Date", "日付")}><time dateTime={new Date(row.timestamp * 1000).toISOString()}>{formatDate(row.timestamp, locale, period !== "1M")}</time></td>
+                    <td data-label={t(locale, "賣出（估計）", "Sell (est.)", "売（推定）")}>{money(row.sell)}</td>
+                    <td data-label={t(locale, "買進（理論）", "Buy (theoretical)", "買（理論）")}>{money(row.buy)}</td>
+                    <td data-label={t(locale, "漲跌", "Change", "騰落")}>
                       {row.change === null ? "—" : (
                         <b className={row.change >= 0 ? "up" : "down"}>
                           {row.change > 0 ? "▲" : row.change < 0 ? "▼" : "•"} {row.change > 0 ? "+" : row.change < 0 ? "−" : ""}{money(Math.abs(row.change))}
                         </b>
                       )}
                     </td>
-                    <td>{money(row.recycleFine)}</td>
-                    <td>{typeof row.usdTwd === "number" && Number.isFinite(row.usdTwd) ? row.usdTwd.toFixed(3) : "—"}</td>
+                    <td data-label={t(locale, "理論回收 999.9", "Recycle 999.9", "理論買取 999.9")}>{money(row.recycleFine)}</td>
+                    <td data-label={t(locale, "當日匯率", "FX that day", "当日為替")}>{typeof row.usdTwd === "number" && Number.isFinite(row.usdTwd) ? row.usdTwd.toFixed(3) : "—"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          </>
         ) : null}
         {display.rows.length > 0 && !tableLoading ? (
           <p className="quoteMethodology">

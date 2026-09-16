@@ -93,7 +93,7 @@ export default async function NewsIndex({ searchParams }: { searchParams: Promis
       const excerpt = newsExcerpt(article.description);
       return <article key={article.id} className="newsCard">
       <Link href={localizedHref(`/news/${article.id}`, locale)}>
-        <CoverImage src={article.image} alt={article.imageAlt} priority={index === 0} />
+        <CoverImage src={article.image} alt={article.imageAlt} className="newsCardMedia" compact priority={index === 0} />
         <p className="articleKicker">{categories[article.category ?? "macro"][locale]} · {labels.event}: {article.eventDate}</p>
         <h2>{article.title}</h2>
       </Link>
