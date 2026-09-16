@@ -2,6 +2,7 @@ import Link from "next/link";
 import { type Editorial } from "./editorial";
 import { categories } from "./categories";
 import CoverImage from "../CoverImage";
+import { localizedHref } from "../../lib/locale-path";
 
 const ARCHIVE_CUTOFF_TIMESTAMP = Date.now() - 7 * 86_400_000;
 
@@ -16,7 +17,7 @@ export default function EditorialView({article:a}:{article:Editorial}) {
   const json={"@context":"https://schema.org","@type":"NewsArticle",headline:a.title,description:a.description,datePublished:a.publishedAt,dateModified:a.publishedAt,inLanguage:a.locale==="zh"?"zh-Hant":a.locale,image:["https://99gold.net"+a.image],author:{"@type":"Organization",name:"99GOLD.NET"},publisher:{"@type":"Organization",name:"99GOLD.NET"},mainEntityOfPage:"https://99gold.net/news/"+a.id,citation:a.sources.map(s=>s.url)};
   return (
     <main className="articlePage editorialPage articleShell" lang={a.locale==="zh"?"zh-Hant":a.locale}>
-    <article><p className="articleKicker">{t.by} · <Link href={`/news?lang=${a.locale}&category=${a.category??"macro"}`}>{categories[a.category??"macro"][a.locale]}</Link></p><h1>{a.title}</h1><p className="editorialLead">{a.description}</p>
+    <article><p className="articleKicker">{t.by} · <Link href={localizedHref("/news", a.locale, { category: a.category??"macro" })}>{categories[a.category??"macro"][a.locale]}</Link></p><h1>{a.title}</h1><p className="editorialLead">{a.description}</p>
       <div className="editorialDates"><span>{t.event}: <time dateTime={a.eventDate}>{a.eventDate}</time></span><span>{t.published}: <time dateTime={a.publishedAt}>{new Date(a.publishedAt).toLocaleString(a.locale==="zh"?"zh-TW":a.locale,{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false})} UTC+8</time></span></div>
       {Date.parse(a.eventDate)<ARCHIVE_CUTOFF_TIMESTAMP&&<p className="editorialArchive">{t.archived}</p>}
       <figure className="editorialFigure">
@@ -24,7 +25,7 @@ export default function EditorialView({article:a}:{article:Editorial}) {
         <figcaption>{t.image}</figcaption>
       </figure>
       {a.sections.map((s,i)=><section key={i}><h2>{s.heading}</h2>{s.paragraphs.map((p,j)=><p key={j}>{p}</p>)}{s.source!==undefined&&<p className="editorialCitation"><a href={a.sources[s.source].url} target="_blank" rel="noreferrer">{t.facts}: {a.sources[s.source].title} ↗</a></p>}</section>)}
-      <section className="articleSource"><h2>{t.references}</h2>{a.sources.map(s=><p key={s.url}><a href={s.url} target="_blank" rel="noreferrer">{s.title} ↗</a><br/><time>{s.date}</time></p>)}<p>{t.disclaimer}</p><Link href={`/news?lang=${a.locale}`}>← {t.all}</Link></section>
+      <section className="articleSource"><h2>{t.references}</h2>{a.sources.map(s=><p key={s.url}><a href={s.url} target="_blank" rel="noreferrer">{s.title} ↗</a><br/><time>{s.date}</time></p>)}<p>{t.disclaimer}</p><Link href={localizedHref("/news", a.locale)}>← {t.all}</Link></section>
     </article><script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify(json).replace(/</g,"\\u003c")}}/>
     </main>
   );

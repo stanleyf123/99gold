@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { localizedHref } from "../lib/locale-path";
 import { type Locale, t, useSiteLocale } from "./locale";
 
 const items = [
@@ -34,11 +35,10 @@ function label(locale: Locale, key: (typeof items)[number]["key"]) {
 
 export default function SiteLinks({ current }: { current?: string }) {
   const { locale } = useSiteLocale();
-  const newsHref = locale === "zh" ? "/news" : `/news?lang=${locale}`;
   return (
     <nav className="siteLinks" aria-label={t(locale, "站內相關頁面", "Related pages", "関連ページ")}>
       {items.map((item) => {
-        const href = item.key === "news" ? newsHref : item.href;
+        const href = localizedHref(item.href, locale);
         const active = current === item.key;
         return (
           <Link key={item.key} href={href} aria-current={active ? "page" : undefined}>

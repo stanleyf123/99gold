@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
+import { documentLang as libDocumentLang, localeFromPathname } from "../lib/locale-path";
 
 export type Locale = "zh" | "en" | "ja";
 
@@ -20,7 +21,7 @@ export function isLocale(value: string | null | undefined): value is Locale {
 }
 
 export function documentLang(locale: Locale) {
-  return locale === "zh" ? "zh-Hant" : locale;
+  return libDocumentLang(locale);
 }
 
 export function persistLocale(locale: Locale) {
@@ -35,10 +36,10 @@ export function persistLocale(locale: Locale) {
 }
 
 export function localeFromLocation(pathname: string, search: string): Locale | null {
+  const fromPath = localeFromPathname(pathname);
+  if (fromPath) return fromPath;
   const lang = new URLSearchParams(search).get("lang");
-  if (isLocale(lang)) return lang;
-  const article = pathname.match(/\/news\/[^/]+-(zh|en|ja)$/);
-  return article && isLocale(article[1]) ? article[1] : null;
+  return isLocale(lang) ? lang : null;
 }
 
 function readLocationSearch() {

@@ -70,7 +70,7 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.match(header, /黃金回收/);
   assert.match(header, /市場情報/);
   assert.match(header, /className="siteHeader"/);
-  assert.match(header, /\/news\?lang=\$\{locale\}/);
+  assert.match(header, /localizedHref\("\/news", locale\)/);
   assert.match(header, /hrefsFromPath/);
   assert.match(header, /useSearchParams/);
   assert.match(header, /useSiteLocale/);
@@ -172,7 +172,7 @@ test("keeps one locale source for header, homepage, global and section chrome", 
   assert.match(localeMod, /visitor-locale/);
   assert.match(siteLocale, /localeFromGeoCountry/);
   assert.match(siteLocale, /UNKNOWN_COUNTRY/);
-  assert.match(siteLocale, /\/news\/\$\{id\}\?lang=en/);
+  assert.match(siteLocale, /localizedHref\("\/news"/);
   assert.match(visitorLocale, /localeFromGeoCountry/);
   assert.match(visitorLocale, /cf-ipcountry/);
   assert.match(chrome, /LocaleProvider/);
@@ -285,12 +285,10 @@ test("ships a scheduled auto-publish news pipeline", async () => {
   assert.match(deploy, /OnCalendar=0\/3:00:00/);
   assert.match(deploy, /99gold-news\.timer/);
   assert.match(deploy, /npm run news:pipeline/);
-  assert.match(deploy, /npm run alerts:dispatch/);
-  assert.match(deploy, /ALERT_EMAIL_TO/);
-  assert.match(deploy, /LINE_CHANNEL_ACCESS_TOKEN/);
+  assert.match(deploy, /disable --now 99gold-alerts\.timer/);
+  assert.doesNotMatch(deploy, /ALERT_EMAIL_TO/);
+  assert.doesNotMatch(deploy, /LINE_CHANNEL_ACCESS_TOKEN=/);
   assert.match(deploy, /99gold-alerts\.timer/);
-  assert.match(deploy, /deploy\/systemd/);
-  assert.match(deploy, /OnUnitActiveSec=15min|\*\/15/);
   assert.match(deploy, /127\.0\.0\.1:3000/);
   assert.match(deploy, /Akamai Access Denied HTML 403/);
   assert.match(deploy, /ons\.gov\.uk\/releasecalendar\?rss/);
@@ -303,7 +301,7 @@ test("ships a scheduled auto-publish news pipeline", async () => {
   assert.match(deploy, /oilprice\.com\/rss\/main/);
   assert.match(deploy, /db:migrate/);
   assert.match(deploy, /translation_retry/);
-  assert.match(deploy, /enable --now 99gold-alerts\.timer/);
+  assert.match(deploy, /disable --now 99gold-alerts\.timer/);
   assert.doesNotMatch(deploy, /快訊仍須在 `\/admin` 核准/);
   assert.match(pipeline, /status = 'published'/);
   assert.match(pipeline, /status IN \('pending', 'approved'\)/);
@@ -340,12 +338,12 @@ test("ships a scheduled auto-publish news pipeline", async () => {
   assert.match(newsPage, /無需人工核准/);
   assert.match(newsPage, /市場快訊/);
   assert.match(newsPage, /editorialLabels\[language\]\.all/);
-  assert.match(newsPage, /\/news\/\$\{item\.id\}\?lang=\$\{locale\}/);
+  assert.match(newsPage, /localizedHref\("\/news", locale/);
   assert.doesNotMatch(newsPage, /經管理者核准/);
   assert.doesNotMatch(newsPage, /官方來源快訊/);
   assert.match(homeView, /自動檢查、翻譯並上架/);
   assert.match(homeView, /MARKET BRIEF/);
-  assert.match(homeView, /\/news\/\$\{item\.id\}\?lang=\$\{locale\}/);
+  assert.match(homeView, /localizedHref\(`\/news\/\$\{item\.id\}`, locale\)/);
   assert.doesNotMatch(homeView, /<small>OFFICIAL SOURCE<\/small>/);
   assert.match(briefView, /ShareBrief/);
   assert.match(briefView, /articleJsonLd/);
@@ -354,7 +352,7 @@ test("ships a scheduled auto-publish news pipeline", async () => {
   assert.match(share, /social-plugins\.line\.me/);
 });
 
-test("wires 30-90 day charts, metal comparison, browser alerts, OG route and PWA shell", async () => {
+test("wires 30-90 day charts, metal comparison, OG route and PWA shell", async () => {
   const [
     jewelryView,
     sectionView,
@@ -362,8 +360,8 @@ test("wires 30-90 day charts, metal comparison, browser alerts, OG route and PWA
     globalView,
     homeView,
     chart,
-    alerts,
-    alertsLib,
+    goldFx,
+    goldFxLib,
     og,
     seo,
     layout,
@@ -381,8 +379,8 @@ test("wires 30-90 day charts, metal comparison, browser alerts, OG route and PWA
     readFile(new URL("../app/global/GlobalView.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/HomeView.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/PriceHistoryChart.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/PriceAlerts.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../lib/price-alerts.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/GoldFxStrip.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../lib/gold-fx-strip.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/og/route.tsx", import.meta.url), "utf8"),
     readFile(new URL("../lib/seo.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
@@ -433,12 +431,13 @@ test("wires 30-90 day charts, metal comparison, browser alerts, OG route and PWA
   assert.match(globalView, /metalCompare/);
   assert.match(globalView, /金銀鉑鈀對照/);
   assert.match(globalView, /Gold \/ silver \/ platinum \/ palladium/);
-  assert.match(homeView, /<PriceAlerts/);
-  assert.match(globalView, /<PriceAlerts/);
-  assert.match(alerts, /Notification.requestPermission/);
-  assert.match(alerts, /Email／LINE/);
-  assert.match(alerts, /\/api\/price-alerts/);
-  assert.match(alertsLib, /PRICE_ALERTS_STORAGE_KEY/);
+  assert.match(homeView, /<GoldFxStrip/);
+  assert.match(globalView, /<GoldFxStrip/);
+  assert.doesNotMatch(homeView, /<PriceAlerts/);
+  assert.doesNotMatch(globalView, /<PriceAlerts/);
+  assert.match(goldFx, /理論參考，不是店家成交價/);
+  assert.match(goldFxLib, /GOLD_FX_CODES/);
+  assert.match(goldFxLib, /open\.er-api|EUR/);
   assert.match(og, /ImageResponse/);
   assert.match(og, /taiwanQianValue/);
   assert.match(og, /Asia\/Taipei/);
@@ -545,24 +544,19 @@ test("platinum and palladium history APIs share metal helpers and 1M/3M/1Y windo
   assert.match(palladiumApi, /isMetalChartPeriod/);
 });
 
-test("packages the app as 99gold and ships installable alert timer units", async () => {
-  const [pkg, unit, timer, deploy] = await Promise.all([
+test("packages the app as 99gold and documents Linode alert-timer cleanup", async () => {
+  const [pkg, deploy, middleware] = await Promise.all([
     readFile(new URL("../package.json", import.meta.url), "utf8"),
-    readFile(new URL("../deploy/systemd/99gold-alerts.service", import.meta.url), "utf8"),
-    readFile(new URL("../deploy/systemd/99gold-alerts.timer", import.meta.url), "utf8"),
     readFile(new URL("../DEPLOY-LINODE.md", import.meta.url), "utf8"),
+    readFile(new URL("../middleware.ts", import.meta.url), "utf8"),
   ]);
   const parsed = JSON.parse(pkg);
   assert.equal(parsed.name, "99gold");
-  assert.equal(parsed.scripts["alerts:dispatch"], "tsx scripts/run-price-alerts.ts");
+  assert.equal(parsed.scripts["alerts:dispatch"], undefined);
   assert.doesNotMatch(pkg, /OPENAI_API_KEY.*(required|必須)/i);
-  assert.match(unit, /WorkingDirectory=\/var\/www\/99gold/);
-  assert.match(unit, /EnvironmentFile=\/etc\/99gold\.env/);
-  assert.match(unit, /npm run alerts:dispatch/);
-  assert.doesNotMatch(unit, /RESEND_API_KEY=|LINE_CHANNEL_ACCESS_TOKEN=/);
-  assert.match(timer, /OnUnitActiveSec=15min/);
-  assert.match(timer, /99gold-alerts\.service/);
-  assert.match(deploy, /deploy\/systemd\/99gold-alerts/);
+  assert.match(deploy, /disable --now 99gold-alerts\.timer/);
   assert.match(deploy, /translation_retry_at/);
-  assert.match(deploy, /enable --now 99gold-alerts\.timer/);
+  assert.doesNotMatch(deploy, /enable --now 99gold-alerts\.timer/);
+  assert.match(middleware, /localePathRedirect/);
+  assert.match(middleware, /NextResponse.rewrite/);
 });

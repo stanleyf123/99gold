@@ -8,7 +8,7 @@
 
 程式碼同步並 `systemctl restart 99gold.service` 之後，還要做這兩步：
 
-1. **跑 migration**（含 `translation_retry_at` / `translation_attempts` 欄位，見 `drizzle/0007_translation_retry.sql`）：
+1. **跑 migration**（含 `translation_retry_at` / `translation_attempts`，以及 `0008_drop_price_alerts.sql` 移除到價提醒表）：
 
    ```bash
    cd /var/www/99gold
@@ -17,14 +17,17 @@
 
    漏跑時新聞 cron 無法把翻譯未完成的已發布快訊排進重試佇列。
 
-2. **啟用到價提醒 timer**（單位檔在 `deploy/systemd/`）：
+2. **停用已退休的到價提醒 timer**（repo 已刪除 `deploy/systemd/99gold-alerts.*`）：
 
    ```bash
-   sudo systemctl enable --now 99gold-alerts.timer
-   sudo systemctl list-timers 99gold-alerts.timer
+   sudo systemctl disable --now 99gold-alerts.timer
+   sudo systemctl disable --now 99gold-alerts.service
+   sudo rm -f /etc/systemd/system/99gold-alerts.timer /etc/systemd/system/99gold-alerts.service
+   sudo systemctl daemon-reload
+   sudo systemctl reset-failed 99gold-alerts.timer 99gold-alerts.service 2>/dev/null || true
    ```
 
-   瀏覽器 Notification 不依賴此 timer；Email／LINE 發送才需要。未設定金鑰時指令仍會成功，只是 `fired` 為 0。
+   若曾用 crontab 跑 `npm run alerts:dispatch`，一併刪除該行。到價提醒功能已整段移除。
 
 ## 1. 系統套件
 
@@ -70,21 +73,6 @@ NODE_ENV=production
 # OPENAI_API_KEY=
 # TRANSLATE_API_KEY=
 # MYMEMORY_EMAIL=
-
-# 到價提醒 Email（擇一：Resend HTTP 或 SMTP 465）。未設定時前台仍有瀏覽器通知。
-# ALERT_EMAIL_TO=stanleys1225@gmail.com
-# ALERT_EMAIL_FROM=99GOLD.NET <alerts@99gold.net>
-# RESEND_API_KEY=
-# SMTP_HOST=smtp.resend.com
-# SMTP_PORT=465
-# SMTP_USER=resend
-# SMTP_PASS=
-
-# 到價提醒 LINE（擇一）。LINE Notify 已停用，請優先 Messaging API。
-# LINE_CHANNEL_ACCESS_TOKEN=
-# LINE_USER_ID=
-# LINE_NOTIFY_TOKEN=
-# LINE_WEBHOOK_URL=
 ```
 
 產生權杖範例：`openssl rand -hex 32`。不要把真實權杖寫進 git。
@@ -179,33 +167,21 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now 99gold-news.timer
 ```
 
-## 5b. systemd timer：到價提醒 Email／LINE
+## 5b. 已退休：到價提醒 timer
 
-瀏覽器 Notification 仍在訪客裝置上檢查。Email／LINE 則由伺服器發送（同一目標 6 小時冷卻，另有 30 秒全域間隔以免洗版）。金鑰寫在 `/etc/99gold.env` 一次即可；收件人與 LINE 使用者 ID 也可在 `/admin` 儲存。
-
-安裝用單位檔在 repo 的 `deploy/systemd/`（不含密鑰）：
+到價提醒（瀏覽器 Notification、Email／LINE、`/api/price-alerts`）已自程式碼移除。Linode 上請停用並刪除單位檔：
 
 ```bash
-sudo cp /var/www/99gold/deploy/systemd/99gold-alerts.service /etc/systemd/system/
-sudo cp /var/www/99gold/deploy/systemd/99gold-alerts.timer /etc/systemd/system/
+sudo systemctl disable --now 99gold-alerts.timer
+sudo systemctl disable --now 99gold-alerts.service
+sudo rm -f /etc/systemd/system/99gold-alerts.timer /etc/systemd/system/99gold-alerts.service
 sudo systemctl daemon-reload
-sudo systemctl enable --now 99gold-alerts.timer
-# 可先手動跑一次確認腳本存在：
-cd /var/www/99gold && sudo -u www-data npm run alerts:dispatch
-sudo systemctl list-timers 99gold-alerts.timer
+sudo systemctl reset-failed 99gold-alerts.timer 99gold-alerts.service 2>/dev/null || true
 ```
 
-`99gold-alerts.timer` **每 15 分鐘**呼叫 `npm run alerts:dispatch`。服務讀 `EnvironmentFile=/etc/99gold.env`，工作目錄 `/var/www/99gold`。
+`/etc/99gold.env` 裡的 `ALERT_*`、`RESEND_API_KEY`、`SMTP_*`、`LINE_*` 若只為提醒而設，可一併刪除（翻譯用的 OpenAI／MyMemory 金鑰請保留）。
 
-未設定 `RESEND_API_KEY`／`SMTP_HOST` 與 LINE token 時，指令會成功但 `fired` 為 0，不影響網站。前台「我的到價提醒」仍可開瀏覽器通知。GET `/api/price-alerts` 的 `email.configured`／`line.configured` 只反映目前環境金鑰，不是程式故障。
-
-等價 crontab：
-
-```cron
-*/15 * * * * www-data cd /var/www/99gold && /usr/bin/npm run alerts:dispatch >> /var/log/99gold-alerts.log 2>&1
-```
-
-等價 crontab（若不用 systemd timer）：
+等價 crontab（若不用 systemd timer 跑新聞管線）：
 
 ```cron
 0 */3 * * * www-data cd /var/www/99gold && /usr/bin/npm run news:pipeline >> /var/log/99gold-news.log 2>&1
@@ -344,7 +320,7 @@ curl -sS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3000/
 curl -sS http://127.0.0.1:3000/api/global-quotes | head
 curl -sS http://127.0.0.1:3000/robots.txt
 curl -sS http://127.0.0.1:3000/sitemap.xml | head
-sudo systemctl status 99gold.service 99gold-news.timer 99gold-alerts.timer
+sudo systemctl status 99gold.service 99gold-news.timer
 ```
 
 ## 8. SEO

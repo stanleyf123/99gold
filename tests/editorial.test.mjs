@@ -8,7 +8,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 const require=createRequire(import.meta.url);
 function moduleFrom(file, overrides={}) {
  const code=ts.transpileModule(readFileSync(new URL(file,import.meta.url),"utf8"),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText;
- const context={exports:{},require:(id)=>overrides[id]??require(id),Date,console,JSON,URL,AbortSignal,Headers,fetch,setTimeout,process};
+ const context={exports:{},require:(id)=>overrides[id]??require(id),Date,console,JSON,URL,URLSearchParams,AbortSignal,Headers,fetch,setTimeout,process};
  vm.runInNewContext(code,context);return context.exports;
 }
 const batch=moduleFrom("../app/news/batch-20260912.ts");
@@ -17,7 +17,8 @@ const batchPolicy=moduleFrom("../app/news/batch-policy-20260913.ts");
 const categories=moduleFrom("../app/news/categories.ts");
 const data=moduleFrom("../app/news/editorial.ts",{"./batch-20260912":batch,"./batch-20260913":batchNew,"./batch-policy-20260913":batchPolicy});
 const cover=moduleFrom("../app/CoverImage.tsx");
-const view=moduleFrom("../app/news/EditorialView.tsx",{"./editorial":data,"./categories":categories,"../CoverImage":cover});
+const localePath=moduleFrom("../lib/locale-path.ts");
+const view=moduleFrom("../app/news/EditorialView.tsx",{"./editorial":data,"./categories":categories,"../CoverImage":cover,"../../lib/locale-path":localePath});
 const feedClient=moduleFrom("../lib/news/feed-client.ts");
 const translate=moduleFrom("../lib/news/translate.ts");
 test("three complete editions have local art, stable dates and cited sources",()=>{
@@ -38,7 +39,7 @@ test("three complete editions have local art, stable dates and cited sources",()
   assert.ok(html.includes(a.sections.at(-1).paragraphs[0]));
   assert.ok(html.includes(a.image));
   assert.ok(html.includes('type="application/ld+json"'));
-  assert.ok(html.includes(`href="/news?lang=${a.locale}`));
+  assert.ok(html.includes(a.locale === "zh" ? 'href="/news"' : `href="/${a.locale}/news"`));
   assert.ok(html.includes(a.locale==="zh"?'lang="zh-Hant"':`lang="${a.locale}"`));
  }
 });

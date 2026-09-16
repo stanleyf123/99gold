@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import SiteLinks from "../SiteLinks";
+import GoldFxStrip from "../GoldFxStrip";
 import PriceHistoryChart from "../PriceHistoryChart";
 import GoldSilverRatioPanel from "../GoldSilverRatio";
 import { type Locale, t, useSiteLocale } from "../locale";
@@ -211,6 +212,7 @@ export default function SectionView({
   ratioPoints = [],
   goldPrice = Number.NaN,
   silverPrice = Number.NaN,
+  currencies = {},
 }: {
   section: SectionName;
   view: LiveView;
@@ -226,6 +228,7 @@ export default function SectionView({
   ratioPoints?: Array<{ timestamp: number; close: number }>;
   goldPrice?: number;
   silverPrice?: number;
+  currencies?: Record<string, number>;
 }) {
   const { locale } = useSiteLocale();
   const copy = chrome[section];
@@ -254,6 +257,13 @@ export default function SectionView({
           <b>{localize(locale, view.change)}</b>
         </div>
       </section>
+      {section === "international" ? (
+        <GoldFxStrip
+          goldUsdPerOz={Number.isFinite(goldPrice) ? goldPrice : null}
+          taiwanQian={taiwanQian}
+          currencies={currencies}
+        />
+      ) : null}
       <section className="subContent">
         <div className="sectionHead">
           <div><p className="eyebrow">TODAY&apos;S REFERENCE</p><h2>{t(locale, "重點數據", "Key figures", "注目データ")}</h2></div>

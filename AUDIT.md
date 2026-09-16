@@ -11,7 +11,9 @@ Legend: **PASS** = works end-to-end in code + live (or local reasoning where liv
 | Homepage SSR live quotes | **PASS** | `getGlobalQuotesOrNull` + `force-dynamic`. Live HTML includes GC=F, Taiwan qian/gram, BOT sight-sell. Client refresh is skipped when SSR already has items (no empty flash). |
 | Market radar + BOT USD spot sell | **PASS** | Radar shows gold, theoretical buy, estimated sell, 臺銀美金即期賣出. False “目前沒有可驗證的即時報價” only when `quotes.length === 0`. |
 | Gold/silver ratio (30D/90D/1Y/3Y/5Y) | **PASS** | Home, `/international`, `/global`. `/api/gold-silver-ratio?period=5Y` 200. Missing GC/SI days omitted, not interpolated. |
-| Alerts UI (browser) | **PASS** | Homepage + `/global`. Browser Notification path is localStorage-only. |
+| Alerts UI (browser) | **REMOVED** | Price-alert UI, Notification prompts, `/api/price-alerts`, and `99gold-alerts.timer` were deleted. Linode should `systemctl disable --now 99gold-alerts.timer`. |
+| Locale path routes | **PASS** | `/en` and `/ja` (and nested paths) rewrite to existing pages; `?lang=` 308s to the prefix. `hreflang` on public metadata. |
+| Multi-currency gold strip | **PASS** | Home, `/global`, `/international`. TWD qian + USD/oz + EUR/JPY/CNY from BOT / open.er-api.com; missing rates show —. |
 | `/jewelry` hero buy/sell | **PASS** | Live theoretical buy/sell + month range. Recycle *calculator* is not on this page (only `/recycling`). |
 | `/jewelry` daily table + historical FX | **PASS** (deployed from #15) | Badge **歷史匯率換算參考**, column **當日匯率**. `/api/jewelry-history?period=1M`: 21 sessions, **21 distinct** BOT sight-sell rates, `omitted: 0`. |
 | `/international` | **PASS** | COMEX metals, 30/90 charts, ratio 1Y/3Y/5Y. |
@@ -26,7 +28,7 @@ Legend: **PASS** = works end-to-end in code + live (or local reasoning where liv
 | PWA manifest / sw | **PASS** | `/manifest.webmanifest` standalone; `/sw.js` network-first for shell + `/api/global-quotes`; admin excluded. |
 | `/og` | **PASS** | `image/png` 1200×630 from live quotes. Canonical `og:image` is `https://99gold.net/og`. |
 | HTTPS / canonical | **PASS** | Apex canonical `https://99gold.net`. `www` and `http` 301 to https://99gold.net/. |
-| Price alerts Email/LINE without keys | **PASS** | Live GET `/api/price-alerts` → `email.configured: false`, `line.configured: false`, `browser: true`. Checkboxes disabled; no crash. |
+| Locale path routes `/en` `/ja` | **PASS** | Prefix routes + `?lang=` bookmarks redirect. |
 
 ## Fixes in this PR
 
@@ -44,7 +46,6 @@ Do **not** treat these as merge blockers for this audit PR.
 - **OpenAI translation**: several 市場快訊 titles remain English or mixed (e.g. ECB speeches). MyMemory is the current default; `OPENAI_API_KEY` is documented in `.env.example` but not required here. Rate-limit-safe MyMemory backfill now retries published rows with empty/English zh·ja titles.
 - **Sitemap for auto-published briefs**: shipped after this audit (`news_candidates` `status=published` with lastmod + hreflang).
 - **Jewelry daily table vs chart period**: shipped after this audit (table, range stats, and chart share 30D/90D/1Y/3Y; long ranges cap the table at 90 rows).
-- **Email/LINE dispatch**: needs `RESEND_API_KEY` or SMTP + `LINE_CHANNEL_ACCESS_TOKEN` in `/etc/99gold.env` and `99gold-alerts.timer`. Without keys, browser alerts still work.
 - **Cloudflare `cf-ipcountry`**: if a CDN is added later, JP/US geo-detect will start working; until then everyone without a stored locale stays zh.
 
 ## How to verify this PR

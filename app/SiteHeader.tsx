@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
+import { localizedHref, stripLocalePrefix } from "../lib/locale-path";
 import { localeHrefsFromLocation as hrefsFromPath } from "../lib/site-locale";
 import { type Locale, persistLocale, localeFromLocation, useSiteLocale } from "./locale";
 
@@ -70,6 +71,7 @@ function SiteHeaderInner({
   search,
 }: SiteHeaderProps & { search: string }) {
   const pathname = usePathname() || "/";
+  const barePath = stripLocalePrefix(pathname).pathname;
   const { locale: contextLocale, setLocale: setContextLocale } = useSiteLocale();
   const [menuOpen, setMenuOpen] = useState(false);
   const derivedHrefs = useMemo(() => hrefsFromPath(pathname, search), [pathname, search]);
@@ -97,53 +99,32 @@ function SiteHeaderInner({
     };
   }, [menuOpen]);
 
-  const changeLocale = (next: Locale) => {
-    if (controlledLocale) persistLocale(next);
-    else setContextLocale(next);
-    onLocaleChange?.(next);
-  };
-
-  const newsHref = locale === "zh" ? "/news" : `/news?lang=${locale}`;
+  const newsHref = barePath === "/news" ? (localeHrefs[locale] ?? localizedHref("/news", locale)) : localizedHref("/news", locale);
   const links = navItems.map((item) => ({
     ...item,
-    href: item.key === "news" ? (localeHrefs?.[locale] ?? newsHref) : item.href,
+    href: item.key === "news" ? newsHref : localizedHref(item.href, locale),
+    active: item.match(barePath),
   }));
 
   const languageControl = (code: Locale) => {
     const label = code === "zh" ? "中" : code === "en" ? "EN" : "日";
-    const href = localeHrefs?.[code];
+    const href = localeHrefs[code] ?? localizedHref(barePath, code);
     const className = locale === code ? "active" : "";
-    if (href) {
-      return (
-        <Link
-          key={code}
-          href={href}
-          className={className}
-          aria-current={locale === code ? "true" : undefined}
-          lang={code === "zh" ? "zh-Hant" : code}
-          onClick={() => {
-            persistLocale(code);
-            setMenuOpen(false);
-          }}
-        >
-          {label}
-        </Link>
-      );
-    }
     return (
-      <button
+      <Link
         key={code}
-        type="button"
+        href={href}
         className={className}
-        aria-pressed={locale === code}
+        aria-current={locale === code ? "true" : undefined}
         lang={code === "zh" ? "zh-Hant" : code}
         onClick={() => {
-          changeLocale(code);
+          persistLocale(code);
+          onLocaleChange?.(code);
           setMenuOpen(false);
         }}
       >
         {label}
-      </button>
+      </Link>
     );
   };
 
@@ -153,8 +134,8 @@ function SiteHeaderInner({
         <Link
           key={item.key}
           href={item.href}
-          className={item.match(pathname) ? "active" : ""}
-          aria-current={item.match(pathname) ? "page" : undefined}
+          className={item.active ? "active" : ""}
+          aria-current={item.active ? "page" : undefined}
           onClick={onNavigate}
         >
           {copy[item.key]}
@@ -165,7 +146,7 @@ function SiteHeaderInner({
 
   return (
     <header className="siteHeader">
-      <Link className="brand" href="/">
+      <Link className="brand" href={localizedHref("/", locale)}>
         <i>99</i>
         <span>
           {brandName}

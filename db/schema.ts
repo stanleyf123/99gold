@@ -1,4 +1,4 @@
-import { integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const newsArticles = sqliteTable("news_articles", {
   id: text("id").primaryKey(),
@@ -87,17 +87,4 @@ export const siteSettings = sqliteTable("site_settings", {
   value: text("value").notNull(),
   updatedAt: text("updated_at").notNull(),
   updatedBy: text("updated_by").notNull(),
-});
-
-export const priceAlertSubscriptions = sqliteTable("price_alert_subscriptions", {
-  id: integer("id").primaryKey(),
-  market: text("market").notNull(),
-  target: real("target").notNull(),
-  direction: text("direction").notNull(),
-  locale: text("locale").notNull().default("zh"),
-  notifyEmail: integer("notify_email").notNull().default(0),
-  notifyLine: integer("notify_line").notNull().default(0),
-  createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at").notNull(),
-  lastNotifiedAt: text("last_notified_at"),
 });

@@ -4,12 +4,25 @@ import vm from "node:vm";
 import test from "node:test";
 import ts from "typescript";
 
-const code = ts.transpileModule(
-  readFileSync(new URL("../lib/seo.ts", import.meta.url), "utf8"),
-  { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } },
-).outputText;
-const context = { exports: {}, module: { exports: {} } };
-vm.runInNewContext(code, context);
+function load(path, requireMap = {}) {
+  const code = ts.transpileModule(readFileSync(new URL(path, import.meta.url), "utf8"), {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+  }).outputText;
+  const context = {
+    exports: {},
+    module: { exports: {} },
+    require: (id) => {
+      if (requireMap[id]) return requireMap[id];
+      throw new Error(`unexpected require: ${id}`);
+    },
+    URLSearchParams,
+    Object,
+  };
+  vm.runInNewContext(code, context);
+  return context.exports;
+}
+
+const localePath = load("../lib/locale-path.ts");
 const {
   SITE_URL,
   DEFAULT_OG_IMAGE,
@@ -24,7 +37,7 @@ const {
   newsIndexFaq,
   briefFaq,
   routeCopy,
-} = context.exports;
+} = load("../lib/seo.ts", { "./locale-path": localePath });
 
 test("each public route has a unique zh title, description and https canonical", () => {
   const titles = new Set();
@@ -48,6 +61,10 @@ test("each public route has a unique zh title, description and https canonical",
     assert.equal(meta.alternates.canonical, absoluteUrl(routeCopy[route].path));
     assert.match(meta.alternates.canonical, /^https:\/\/99gold\.net/);
     assert.doesNotMatch(meta.alternates.canonical, /www\.99gold/);
+    assert.equal(meta.alternates.languages["zh-Hant"], absoluteUrl(routeCopy[route].path));
+    assert.equal(meta.alternates.languages.en, absoluteUrl(routeCopy[route].path === "/" ? "/en" : `/en${routeCopy[route].path}`));
+    assert.equal(meta.alternates.languages.ja, absoluteUrl(routeCopy[route].path === "/" ? "/ja" : `/ja${routeCopy[route].path}`));
+    assert.equal(meta.alternates.languages["x-default"], meta.alternates.languages["zh-Hant"]);
     assert.equal(meta.openGraph.url, meta.alternates.canonical);
     assert.equal(meta.openGraph.type, "website");
     assert.equal(meta.openGraph.images[0].url, DEFAULT_OG_IMAGE);
@@ -82,6 +99,9 @@ test("JSON-LD builders emit WebSite, Organization, FAQ and breadcrumbs", () => {
   assert.equal(article.publisher.name, "玖久黃金報價網");
   assert.equal(article.image[0], "https://99gold.net/og");
   assert.equal(article.image.length, 1);
+  const englishHome = pageMetadata("home", "en");
+  assert.equal(englishHome.alternates.canonical, "https://99gold.net/en");
+  assert.equal(englishHome.openGraph.locale, "en_US");
   const list = itemListJsonLd([{ name: "Brief", path: "/news/fed-1" }]);
   assert.equal(list.itemListElement[0].url, "https://99gold.net/news/fed-1");
   assert.equal(newsIndexFaq.zh.length, 3);
