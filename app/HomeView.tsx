@@ -457,8 +457,8 @@ export default function HomeView({
               return (
                 <li key={String(item.id ?? item.url)}>
                   <time dateTime={item.date}>{item.date}</time>
-                  <Link href={href} lang={item.translationPending ? "en" : undefined}>{item.title}</Link>
-                  {item.translationPending ? <em className="translationPending">{item.translationPendingLabel || t("原文／翻譯待補", "Original / translation pending", "原文／翻訳待ち")}</em> : null}
+                  <Link href={href}>{item.title}</Link>
+                  {item.translationPending ? <em className="translationPending">{item.translationPendingLabel || t("翻譯處理中", "Translation pending", "翻訳待ち")}</em> : null}
                 </li>
               );
             })}
@@ -635,12 +635,12 @@ export default function HomeView({
               const href = localizedHref(`/news/${item.id}`, locale);
               const excerpt = newsExcerpt(item.summary);
               return <article key={key}>
-                <div className={cover ? "newsVisual hasImage" : "newsVisual officialSourceVisual"}>{cover ? <CoverImage src={cover} alt={item.title} /> : <div className="newsSourceMark"><b>99</b><small>{t("市場快訊", "MARKET BRIEF", "市場速報")}</small></div>}</div>
+                <div className="newsVisual hasImage"><CoverImage src={cover} alt="" compact /></div>
                 <p><b>{categories[category][locale]}</b><time>{item.date}</time></p>
-                <div className="newsSource"><span>{item.sourceName || t("市場快訊", "Market brief", "市場速報")}</span>{item.translated ? <em>{item.translationLabel || t("自動翻譯", "Auto-translated", "自動翻訳")}</em> : item.translationPending ? <em className="translationPending">{item.translationPendingLabel || t("原文／翻譯待補", "Original / translation pending", "原文／翻訳待ち")}</em> : null}</div>
-                <h3><Link href={href} lang={item.translationPending ? "en" : undefined}>{item.title}</Link></h3>
+                <div className="newsSource"><span>{item.sourceName || t("市場快訊", "Market brief", "市場速報")}</span>{item.translated ? <em>{item.translationLabel || t("自動翻譯", "Auto-translated", "自動翻訳")}</em> : item.translationPending ? <em className="translationPending">{item.translationPendingLabel || t("翻譯處理中", "Translation pending", "翻訳待ち")}</em> : null}</div>
+                <h3><Link href={href}>{item.title}</Link></h3>
                 {excerpt ? <p className="newsSynopsis">{excerpt}</p> : <p className="newsExcerptMuted">{item.external ? t("這則快訊沒有可顯示的摘要。", "No excerpt is available for this brief.", "この速報には表示できる要約がありません。") : t("這篇文章沒有可顯示的摘要。", "No excerpt is available for this article.", "この記事には表示できる要約がありません。")}</p>}
-                {cover && <small className="newsIllustrationLabel">{locale === "zh" ? "AI生成示意圖" : locale === "ja" ? "AI生成イメージ" : "AI-generated illustration"}</small>}
+                {cover && !item.external && <small className="newsIllustrationLabel">{locale === "zh" ? "AI生成示意圖" : locale === "ja" ? "AI生成イメージ" : "AI-generated illustration"}</small>}
                 <a href={href}>{item.external ? t("閱讀快訊", "Read brief", "速報を読む") : copy.read}　→</a>
               </article>;
             })}</div>

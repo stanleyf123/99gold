@@ -4,6 +4,7 @@ export type FeedItem = {
   summary: string;
   url: string;
   publishedAt: string;
+  imageUrl: string | null;
 };
 
 function decodeXml(value: string) {
@@ -34,6 +35,41 @@ function linkValue(block: string) {
   return attributeLink ? decodeXml(attributeLink).trim() : "";
 }
 
+function looksLikeImageTag(tag: string) {
+  return /(?:type|medium)\s*=\s*["'][^"']*(?:image|jpe?g|png|webp|gif|avif)/i.test(tag)
+    || /\.(?:jpe?g|png|webp|gif|avif)(?:\?|$)/i.test(tag);
+}
+
+export function canonicalizeCoverUrl(value: string, baseUrl?: string) {
+  try {
+    const url = new URL(value.trim(), baseUrl);
+    if (url.protocol === "http:") url.protocol = "https:";
+    if (url.protocol !== "https:") return null;
+    if (/favicon|sprite|pixel|tracking|1x1|logo[-_]?small|icon[-_]?32/i.test(url.pathname)) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+/** RSS/Atom enclosure, media:content/thumbnail, or first <img> in the item block. */
+export function extractFeedCover(block: string, baseUrl?: string) {
+  const enclosure = block.match(/<enclosure\b[^>]*>/i)?.[0];
+  if (enclosure && looksLikeImageTag(enclosure)) {
+    const href = enclosure.match(/\burl=["']([^"']+)["']/i)?.[1];
+    const url = href ? canonicalizeCoverUrl(decodeXml(href), baseUrl) : null;
+    if (url) return url;
+  }
+  const mediaTags = block.match(/<media:(?:content|thumbnail)\b[^>]*>/gi) ?? [];
+  for (const tag of mediaTags) {
+    const href = tag.match(/\burl=["']([^"']+)["']/i)?.[1];
+    const url = href ? canonicalizeCoverUrl(decodeXml(href), baseUrl) : null;
+    if (url) return url;
+  }
+  const img = block.match(/<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/i)?.[1];
+  return img ? canonicalizeCoverUrl(decodeXml(img), baseUrl) : null;
+}
+
 /** RSS dates are usually RFC 2822; some publishers append an IANA zone (e.g. America/Chicago). */
 export function parseFeedDate(rawDate: string) {
   const trimmed = rawDate.trim();
@@ -59,6 +95,7 @@ export function parseFeed(xml: string): FeedItem[] {
       summary: tagValue(block, ["description", "summary", "content:encoded", "content"]).slice(0, 800),
       url,
       publishedAt: new Date(timestamp).toISOString(),
+      imageUrl: extractFeedCover(block, url),
     }];
   });
 }

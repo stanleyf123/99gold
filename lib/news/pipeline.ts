@@ -1,3 +1,4 @@
+import { resolveArticleCover } from "./cover";
 import { inspectFeedResponse, newsFeedHeaders } from "./feed-client";
 import { canonicalizeUrl, normalizedTitle, parseFeed, sha256 } from "./normalize";
 import { newsSources, sourceAcceptsTitle } from "./source-config";
@@ -93,7 +94,9 @@ type PublishableCandidate = {
   id: string;
   title: string;
   summary: string | null;
+  canonical_url?: string | null;
   source_language: string;
+  image_url?: string | null;
   title_zh?: string | null;
   title_en?: string | null;
   title_ja?: string | null;
@@ -105,7 +108,7 @@ type PublishableCandidate = {
   translation_attempts?: number | null;
 };
 
-const candidateSelect = `id, title, summary, source_language,
+const candidateSelect = `id, title, summary, canonical_url, source_language, image_url,
   title_zh, title_en, title_ja, summary_zh, summary_en, summary_ja, translation_provider,
   translation_retry_at, translation_attempts`;
 
@@ -144,9 +147,9 @@ async function translationsFor(candidate: PublishableCandidate): Promise<Localiz
   ) {
     return {
       titles: {
-        zh: candidate.title_zh ?? candidate.title,
-        en: candidate.title_en?.trim() || cleanSourceText(candidate.title),
-        ja: candidate.title_ja ?? candidate.title,
+      zh: candidate.title_zh ?? "",
+      en: candidate.title_en?.trim() || cleanSourceText(candidate.title),
+      ja: candidate.title_ja ?? "",
       },
       summaries: {
         zh: candidate.summary_zh ?? null,
@@ -221,6 +224,38 @@ const BACKFILL_POOL = 40;
 function sleep(ms: number) {
   if (ms <= 0) return Promise.resolve();
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function persistCoverUrl(db: NewsDatabase, id: string, imageUrl: string | null) {
+  if (!imageUrl) return;
+  await db.prepare(`UPDATE news_candidates SET image_url = ?
+    WHERE id = ? AND (image_url IS NULL OR image_url = '')`)
+    .bind(imageUrl, id).run();
+}
+
+const COVER_BACKFILL_BATCH = 6;
+
+export async function backfillPublishedCovers(
+  db: NewsDatabase,
+  fetcher: typeof fetch = fetch,
+  limit = COVER_BACKFILL_BATCH,
+) {
+  const rows = await db.prepare(`SELECT ${candidateSelect}
+    FROM news_candidates
+    WHERE status = 'published' AND (image_url IS NULL OR image_url = '')
+      AND canonical_url IS NOT NULL
+    ORDER BY published_at DESC LIMIT ?`)
+    .bind(Math.max(1, limit)).all<PublishableCandidate>();
+  let filled = 0;
+  for (const row of rows?.results ?? []) {
+    const url = row.canonical_url?.trim();
+    if (!url) continue;
+    const cover = await resolveArticleCover(url, row.image_url, fetcher);
+    if (!cover) continue;
+    await persistCoverUrl(db, row.id, cover);
+    filled += 1;
+  }
+  return filled;
 }
 
 export async function backfillPublishedTranslations(
@@ -397,12 +432,17 @@ export async function runNewsPipeline(
           continue;
         }
         const candidateHash = await sha256(`${source.id}\n${externalId}\n${canonicalUrl}`);
+        const candidateId = `${source.id}-${candidateHash.slice(0, 24)}`;
+        let coverUrl = item.imageUrl;
+        if (!coverUrl) {
+          coverUrl = await resolveArticleCover(canonicalUrl, null, fetcher);
+        }
         const result = await db.prepare(`INSERT OR IGNORE INTO news_candidates
           (id, source_id, external_id, canonical_url, title, title_hash, summary, source_name,
-           source_language, category, source_published_at, first_seen_at, status)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`)
+           source_language, category, source_published_at, first_seen_at, image_url, status)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`)
           .bind(
-            `${source.id}-${candidateHash.slice(0, 24)}`,
+            candidateId,
             source.id,
             externalId,
             canonicalUrl,
@@ -414,6 +454,7 @@ export async function runNewsPipeline(
             source.category,
             item.publishedAt,
             attemptedAt,
+            coverUrl,
           ).run();
         const changes = result.meta?.changes ?? 0;
         candidatesAdded += changes;
@@ -452,6 +493,7 @@ export async function runNewsPipeline(
 
   const publishedCount = await publishReadyCandidates(db, scheduledFor.toISOString());
   const retranslatedCount = await backfillPublishedTranslations(db, scheduledFor.toISOString());
+  await backfillPublishedCovers(db, fetcher);
   const status: NewsRunSummary["status"] = errorCount === 0 ? "succeeded" : errorCount < newsSources.length ? "partial" : "failed";
   const finishedAt = new Date().toISOString();
   await db.prepare(`UPDATE news_runs SET

@@ -31,11 +31,11 @@ npm start
 | `npm run build` | 標準 `next build` |
 | `npm start` | `next start`，監聽 `127.0.0.1:3000` |
 | `npm run db:migrate` | 套用 `drizzle/*.sql` 到本機 SQLite |
-| `npm run news:pipeline` | 檢查官方 RSS、翻譯（zh-Hant／en／ja）並自動上架快訊 |
+| `npm run news:pipeline` | 檢查官方 RSS、翻譯（zh-Hant／en／ja）、抓封面並自動上架快訊 |
 | `npm test` | 單元／原始碼測試（不需要完整 build） |
 | `npm run test:build` | 先 build 再檢查產出 |
 
-新聞排程請用 systemd timer（每 3 小時）或 cron 呼叫 `npm run news:pipeline`，不要在訪客請求裡抓 RSS。流水線會把新 RSS 候選自動核准、翻譯並上架到 `/news`，不必再經 `/admin` 人工核准；既有 `pending` 列會在第一次跑管線時一次回填。Linode 上手動跑一次：`sudo systemctl start 99gold-news.service`（見 [DEPLOY-LINODE.md](./DEPLOY-LINODE.md)）。白名單是公開 RSS/Atom（Fed、BLS、ECB、BEA、Census、MINING.COM 黃金、Investing.com 市場快訊經金銀過濾、Oilprice 能源衝擊）。ONS／HM Treasury 已停用。**不要**把 Bank of England 或 Google News RSS 加回 production cron：BoE 在機房 IP 是 Akamai 403，Google News 在 Linode `172.237.11.195` 是 HTTP 503。
+新聞排程請用 systemd timer（每 3 小時）或 cron 呼叫 `npm run news:pipeline`，不要在訪客請求裡抓 RSS。流水線會把新 RSS 候選自動核准、翻譯並上架；**中文 `/news` 只顯示已有 `title_zh` 的快訊**，翻譯未完成的英文電訊不會出現在預設語系。既有列可再跑一次 `news:pipeline` 回填譯文與 `og:image` 封面（見 [DEPLOY-LINODE.md](./DEPLOY-LINODE.md)）。Linode 上手動跑一次：`sudo systemctl start 99gold-news.service`。白名單是公開 RSS/Atom（Fed、BLS、ECB、BEA、Census、MINING.COM 黃金、Investing.com 市場快訊經金銀過濾、Oilprice 能源衝擊）。ONS／HM Treasury 已停用。**不要**把 Bank of England 或 Google News RSS 加回 production cron：BoE 在機房 IP 是 Akamai 403，Google News 在 Linode `172.237.11.195` 是 HTTP 503。
 
 翻譯預設用公開 MyMemory（不必金鑰）。若在 `/etc/99gold.env` 設定 `OPENAI_API_KEY` 或 `TRANSLATE_API_KEY`，則改走 OpenAI；也可設 `LIBRETRANSLATE_URL`。標題品質以機器翻譯為主時，前台會標示「機器翻譯」。
 

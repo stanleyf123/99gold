@@ -8,14 +8,14 @@
 
 程式碼同步並 `systemctl restart 99gold.service` 之後，還要做這兩步：
 
-1. **跑 migration**（含會員表 `users` / `oauth_accounts` / `sessions`，以及 `translation_retry_at` / `translation_attempts`）：
+1. **跑 migration**（含會員表、`translation_retry_at` / `translation_attempts`，以及快訊封面 `image_url`）：
 
    ```bash
    cd /var/www/99gold
    sudo -u www-data npm run db:migrate
    ```
 
-   漏跑時新聞 cron 無法把翻譯未完成的已發布快訊排進重試佇列。
+   漏跑時新聞 cron 無法把翻譯未完成的已發布快訊排進重試佇列，也無法寫入封面圖。
 
 2. **停用已退休的到價提醒 timer**（repo 已刪除 `deploy/systemd/99gold-alerts.*`）：
 
@@ -29,17 +29,19 @@
 
    若曾用 crontab 跑 `npm run alerts:dispatch`，一併刪除該行。到價提醒功能已整段移除。
 
-3. **首頁 hero／導覽 CSS 熱修**（無新 migration；會員表已在 #26）：
+3. **新聞中文圖文列表**（migration `0010_news_cover_image.sql`）：部署後務必 migrate + 跑一次管線，回填中文譯文與封面。未完成 `title_zh` 的英文快訊不會出現在預設 `/news`。
 
    ```bash
    cd /var/www/99gold
    sudo -u www-data git fetch origin
    sudo -u www-data git merge --ff-only origin/main
+   sudo -u www-data npm run db:migrate
    sudo -u www-data npm run build
    sudo systemctl restart 99gold.service
+   sudo -u www-data npm run news:pipeline
    ```
 
-   此改動只動 `app/site-chrome.css`（與測試），**不必**再跑 `db:migrate`。CSS 在 `.next/static/chunks/`，重啟後請硬重新整理（或清 Nginx 快取）再看 `https://99gold.net/`、`/en`、`/ja`。確認橫排「玖久黃金報價網」七字完整、桌面「登入」為獨立 pill 且與導覽／語系有間距、手機選單仍可開。
+   管線會翻譯尚未完成的 zh／ja 標題，並從原文 og:image／RSS 圖回填 `image_url`。MyMemory 有速率限制時，可隔幾小時再跑一次 `news:pipeline`（或等 3 小時 timer）。確認 `https://99gold.net/news` 是中文圖文卡片、沒有英文電訊標題；`/en/news`、`/ja/news` 仍可用。
 
 ## 1. 系統套件
 
@@ -243,7 +245,7 @@ sudo systemctl reset-failed 99gold-alerts.timer 99gold-alerts.service 2>/dev/nul
 0 */3 * * * www-data cd /var/www/99gold && /usr/bin/npm run news:pipeline >> /var/log/99gold-news.log 2>&1
 ```
 
-部署或更新後請先跑 migration，再手動跑一次管線，讓既有 `pending` 候選一次回填為已發布：
+部署或更新後請先跑 migration，再手動跑一次管線，讓既有快訊回填中文譯文與封面：
 
 ```bash
 cd /var/www/99gold
@@ -251,7 +253,15 @@ sudo -u www-data npm run db:migrate
 sudo -u www-data npm run news:pipeline
 ```
 
-成功時摘要裡的 `publishedCount` 應增加，新快訊會出現在 `https://99gold.net/news`（以及 `?lang=zh`／`en`／`ja`），不必登入 `/admin` 核准。timer 之後每 3 小時重複：抓取白名單 RSS → 翻譯標題與摘要 → 直接上架。已 `rejected` 的列不會自動發布。管理後台仍可列出項目與拒絕尚未發布的列，但快樂路徑不再需要人工核准。
+`0010_news_cover_image.sql` 會加上 `news_candidates.image_url`。管線行為：
+
+- 抓取白名單 publisher RSS（**不要**加 Google News：Linode 上是 HTTP 503）
+- 從 enclosure／media:content 或原文 `og:image` 寫入封面
+- 翻譯 zh-Hant／ja；**預設 `/news`（zh）只列出已有中文標題的快訊**，不會用英文原文充數
+- `/en/news` 顯示英文；`/ja/news` 缺日文時顯示「翻訳待ち」，不以英文當主標題
+- 已 `rejected` 的列不會自動發布
+
+MyMemory 公開額度容易 429。若這次 `news:pipeline` 沒補完中文，隔幾小時再跑一次即可（timer 每 3 小時也會 `backfillPublishedTranslations`）。不必登入 `/admin` 核准。管理後台仍可查看佇列與來源健康度。
 
 ### 手動觸發一次新聞抓取（Linode）
 

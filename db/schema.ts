@@ -54,6 +54,7 @@ export const newsCandidates = sqliteTable("news_candidates", {
   translatedAt: text("translated_at"),
   translationRetryAt: text("translation_retry_at"),
   translationAttempts: integer("translation_attempts").notNull().default(0),
+  imageUrl: text("image_url"),
 });
 
 export const newsSourceState = sqliteTable("news_source_state", {
