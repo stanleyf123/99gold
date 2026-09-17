@@ -40,6 +40,9 @@ export async function generateMetadata(): Promise<Metadata> {
       title: "99GOLD",
       statusBarStyle: "black-translucent",
     },
+    verification: {
+      google: "jBhQhqXkJFYbUB8tV6F-fHwAewHran0rHoYJ1C2amLg",
+    },
   };
 }
 
