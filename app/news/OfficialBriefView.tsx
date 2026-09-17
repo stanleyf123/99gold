@@ -1,6 +1,7 @@
 import Link from "next/link";
 import JsonLd from "../JsonLd";
 import SiteLinks from "../SiteLinks";
+import CoverImage from "../CoverImage";
 import ShareBrief from "./ShareBrief";
 import { categories, type NewsCategory } from "./categories";
 import type { NewsLocale } from "./editorial";
@@ -56,6 +57,7 @@ export default function OfficialBriefView({
   eventDate,
   publishedAt,
   originalUrl,
+  image,
   translationLabel,
   translationPending = false,
   translationPendingLabel = null,
@@ -68,6 +70,7 @@ export default function OfficialBriefView({
   eventDate: string;
   publishedAt: string;
   originalUrl: string;
+  image?: string | null;
   translationLabel: string | null;
   translationPending?: boolean;
   translationPendingLabel?: string | null;
@@ -82,10 +85,11 @@ export default function OfficialBriefView({
     url: pageUrl,
     datePublished: publishedAt,
     dateModified: publishedAt,
-    inLanguage: translationPending ? "en" : locale === "zh" ? "zh-Hant" : locale,
+    inLanguage: translationPending ? (locale === "zh" ? "zh-Hant" : locale) : locale === "zh" ? "zh-Hant" : locale,
+    image: image || undefined,
   });
   const pendingLabel = translationPendingLabel
-    || (locale === "zh" ? "原文／翻譯待補" : locale === "ja" ? "原文／翻訳待ち" : "Original / translation pending");
+    || (locale === "zh" ? "翻譯處理中" : locale === "ja" ? "翻訳待ち" : "Translation pending");
   const statusLabel = translationLabel
     ? ` · ${translationLabel}`
     : translationPending
@@ -98,11 +102,15 @@ export default function OfficialBriefView({
       <JsonLd data={faqJsonLd(faq)} />
       <article>
         <p className="articleKicker">{t.brief} · <Link href={localizedHref("/news", locale, { category })}>{categoryLabel}</Link>{statusLabel}</p>
-        <h1 lang={translationPending ? "en" : undefined}>{title}</h1>
+        <h1>{title}</h1>
         <div className="editorialDates">
           <span>{t.published}: <time dateTime={publishedAt}>{eventDate}</time></span>
         </div>
-        {summary ? summary.split(/\n\n+/).map((paragraph, index) => <p key={index}>{paragraph}</p>) : null}
+        <figure className="editorialFigure newsBriefCover">
+          <CoverImage src={image} alt="" priority width={960} height={420} compact />
+        </figure>
+        {translationPending ? <p className="newsPendingBadge">{pendingLabel}</p> : null}
+        {summary && !translationPending ? summary.split(/\n\n+/).map((paragraph, index) => <p key={index}>{paragraph}</p>) : null}
         <ShareBrief locale={locale} title={title} url={pageUrl} />
         <section className="briefFaq" aria-labelledby="brief-faq">
           <h2 id="brief-faq">{t.faq}</h2>

@@ -75,6 +75,8 @@ test("official briefs expose locale-specific translations from stored fields",as
  assert.doesNotMatch(zhItem.sourceName,/Federal Reserve|ONS|Treasury|BLS|ECB/i);
  assert.equal(zhItem.url,"/news/fed-1");
  assert.doesNotMatch(zhItem.url,/federalreserve|ons\.gov|bls\.gov|ecb\.europa/i);
+ assert.equal(zhItem.translationPending,false);
+ assert.match(zhItem.title,/[\u3400-\u9fff]/);
  const enItem=(await api.getDailyGoldNews("en",db)).items.find((item)=>item.external);
  assert.equal(enItem.title,"Federal Reserve issues FOMC statement");
  assert.equal(enItem.sourceName,"Market brief");
@@ -84,7 +86,7 @@ test("official briefs expose locale-specific translations from stored fields",as
  assert.equal(jaItem.sourceName,"市場速報");
  assert.equal(jaItem.translated,true);
 });
-test("official briefs mark English titles as pending under zh/ja chrome",async()=>{
+test("official briefs omit untranslated English titles from the zh listing",async()=>{
  const api=moduleFrom("../app/api/news-service.ts",{"../news/editorial":data,"../news/categories":categories,"../../lib/news/feed-client":feedClient,"../../lib/news/translate":translate});
  const official={
   id:"ecb-1",title:"Christine Lagarde: Introductory statement",summary:"Policy remarks.",
@@ -97,14 +99,19 @@ test("official briefs mark English titles as pending under zh/ja chrome",async()
   translation_provider:"source",
  };
  const db={prepare(query){const q=query.replace(/\s+/g," ");return{bind(){return this;},async first(){return q.includes("news_runs")?{finished_at:"2026-09-14T13:00:00.000Z",status:"succeeded"}:null;},async all(){return{results:q.includes("news_candidates")?[official]:[]};}};}};
- const zhItem=(await api.getDailyGoldNews("zh",db)).items.find((item)=>item.external);
- assert.equal(zhItem.title,"Christine Lagarde: Introductory statement");
- assert.equal(zhItem.translated,false);
- assert.equal(zhItem.translationPending,true);
- assert.equal(zhItem.translationPendingLabel,"原文／翻譯待補");
+ const zh=await api.getDailyGoldNews("zh",db);
+ const zhOfficial=zh.items.filter((item)=>item.external);
+ assert.equal(zhOfficial.length,0);
+ assert.equal(zh.items.some((item)=>item.title===official.title),false);
+ for (const item of zh.items) {
+  assert.doesNotMatch(item.title,/Christine Lagarde|Introductory statement|StanChart|Tanker Rates/i);
+ }
  const jaItem=(await api.getDailyGoldNews("ja",db)).items.find((item)=>item.external);
+ assert.equal(jaItem.title,"翻訳処理中");
+ assert.notEqual(jaItem.title,official.title);
  assert.equal(jaItem.translationPending,true);
- assert.equal(jaItem.translationPendingLabel,"原文／翻訳待ち");
+ assert.equal(jaItem.translationPendingLabel,"翻訳待ち");
  const enItem=(await api.getDailyGoldNews("en",db)).items.find((item)=>item.external);
+ assert.equal(enItem.title,"Christine Lagarde: Introductory statement");
  assert.equal(enItem.translationPending,false);
 });

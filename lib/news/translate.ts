@@ -193,9 +193,15 @@ export function isMyMemoryCoolingDown(
 }
 
 export function translationPendingLabel(locale: NewsLocale) {
-  if (locale === "zh") return "原文／翻譯待補";
-  if (locale === "ja") return "原文／翻訳待ち";
-  return "Original / translation pending";
+  if (locale === "zh") return "翻譯處理中";
+  if (locale === "ja") return "翻訳待ち";
+  return "Translation pending";
+}
+
+export function translationPendingHeadline(locale: NewsLocale) {
+  if (locale === "zh") return "翻譯處理中";
+  if (locale === "ja") return "翻訳処理中";
+  return "Translation pending";
 }
 
 export function isTranslationPending(locale: NewsLocale, translated: boolean, sourceLanguage?: string | null) {
@@ -204,34 +210,69 @@ export function isTranslationPending(locale: NewsLocale, translated: boolean, so
   return locale !== source;
 }
 
+export function hasLocalizedTitle(row: StoredBrief, locale: NewsLocale) {
+  const sourceTitle = cleanSourceText(row.title) || cleanSourceText(row.title_en ?? "");
+  if (locale === "en") {
+    const english = cleanSourceText(row.title_en ?? "") || sourceTitle;
+    return Boolean(english);
+  }
+  const localized = locale === "zh" ? row.title_zh : row.title_ja;
+  return looksLikeTargetLocale(localized ?? "", locale, sourceTitle);
+}
+
+/** zh listings omit untranslated wires. ja/en still list them (ja uses a pending placeholder). */
+export function isReadyForLocaleListing(row: StoredBrief, locale: NewsLocale) {
+  if (locale === "zh") return hasLocalizedTitle(row, "zh");
+  return true;
+}
+
 export function localizedBriefFields(row: StoredBrief, locale: NewsLocale) {
   const sourceTitle = cleanSourceText(row.title) || cleanSourceText(row.title_en ?? "") || "Market brief";
   const sourceSummary = row.summary ? cleanSourceText(row.summary) : (row.summary_en ? cleanSourceText(row.summary_en) : null);
-  const title = pickLocalizedTitle(
-    locale === "zh" ? (row.title_zh ?? "") : locale === "ja" ? (row.title_ja ?? "") : (row.title_en ?? ""),
-    sourceTitle,
-    locale,
-  );
-  const summary = pickLocalizedSummary(
-    locale === "zh" ? (row.summary_zh ?? "") : locale === "ja" ? (row.summary_ja ?? "") : (row.summary_en ?? ""),
-    sourceSummary,
-    locale,
-  );
   const sourceLanguage = row.source_language === "zh" || row.source_language === "ja" ? row.source_language : "en";
   const provider = row.translation_provider ?? null;
-  const translated = locale !== sourceLanguage
+  if (locale === "en") {
+    const title = pickLocalizedTitle(row.title_en ?? "", sourceTitle, "en") || sourceTitle;
+    const summary = pickLocalizedSummary(row.summary_en ?? "", sourceSummary, "en");
+    return {
+      title,
+      summary,
+      translated: false,
+      translationProvider: null as string | null,
+      translationLabel: null as string | null,
+      translationPending: false,
+      translationPendingLabel: null as string | null,
+    };
+  }
+
+  const rawTitle = locale === "zh" ? (row.title_zh ?? "") : (row.title_ja ?? "");
+  const rawSummary = locale === "zh" ? (row.summary_zh ?? "") : (row.summary_ja ?? "");
+  const localizedTitle = looksLikeTargetLocale(rawTitle, locale, sourceTitle) ? cleanSourceText(rawTitle) : "";
+  const localizedSummary = looksLikeTargetLocale(rawSummary, locale, sourceSummary ?? rawSummary)
+    ? cleanSourceText(rawSummary)
+    : null;
+  const translated = Boolean(localizedTitle)
     && Boolean(provider && provider !== "source")
-    && Boolean(title)
-    && title !== sourceTitle;
-  const translationPending = isTranslationPending(locale, translated, sourceLanguage);
+    && locale !== sourceLanguage;
+  if (!localizedTitle) {
+    return {
+      title: translationPendingHeadline(locale),
+      summary: null,
+      translated: false,
+      translationProvider: null,
+      translationLabel: null,
+      translationPending: true,
+      translationPendingLabel: translationPendingLabel(locale),
+    };
+  }
   return {
-    title: title || sourceTitle,
-    summary,
+    title: localizedTitle,
+    summary: localizedSummary,
     translated,
     translationProvider: translated ? provider : null,
     translationLabel: translated ? translationAttribution(locale, provider) : null,
-    translationPending,
-    translationPendingLabel: translationPending ? translationPendingLabel(locale) : null,
+    translationPending: false,
+    translationPendingLabel: null,
   };
 }
 
@@ -482,12 +523,23 @@ function sourceBrief(title: string, summary: string | null): LocalizedBrief {
   const cleanedTitle = cleanSourceText(title);
   const cleanedSummary = summary ? cleanSourceText(summary) : null;
   return {
-    titles: { zh: cleanedTitle, en: cleanedTitle, ja: cleanedTitle },
-    summaries: { zh: cleanedSummary, en: cleanedSummary, ja: cleanedSummary },
+    titles: { zh: "", en: cleanedTitle, ja: "" },
+    summaries: { zh: null, en: cleanedSummary, ja: null },
     provider: "source",
     translated: false,
     complete: false,
   };
+}
+
+function keepLocalized(
+  candidate: string | null | undefined,
+  current: string | null | undefined,
+  source: string,
+  locale: Exclude<NewsLocale, "en">,
+) {
+  if (looksLikeTargetLocale(candidate ?? "", locale, source)) return cleanSourceText(candidate ?? "");
+  if (looksLikeTargetLocale(current ?? "", locale, source)) return cleanSourceText(current ?? "");
+  return "";
 }
 
 function overlayTranslation(
@@ -499,22 +551,15 @@ function overlayTranslation(
   provider: TranslationProvider,
 ): LocalizedBrief {
   const nextTitles = {
-    zh: looksLikeTargetLocale(titles.zh ?? "", "zh", sourceTitle) ? cleanSourceText(titles.zh ?? "") : current.titles.zh,
+    zh: keepLocalized(titles.zh, current.titles.zh, sourceTitle, "zh"),
     en: cleanSourceText(titles.en ?? "") || current.titles.en || sourceTitle,
-    ja: looksLikeTargetLocale(titles.ja ?? "", "ja", sourceTitle) ? cleanSourceText(titles.ja ?? "") : current.titles.ja,
+    ja: keepLocalized(titles.ja, current.titles.ja, sourceTitle, "ja"),
   };
+  const summarySource = sourceSummary ?? "";
   const nextSummaries = {
-    zh: sourceSummary && looksLikeTargetLocale(summaries.zh ?? "", "zh", sourceSummary)
-      ? cleanSourceText(summaries.zh ?? "")
-      : (looksLikeTargetLocale(current.summaries.zh ?? "", "zh", sourceSummary ?? current.summaries.zh ?? "")
-        ? current.summaries.zh
-        : sourceSummary),
+    zh: keepLocalized(summaries.zh, current.summaries.zh, summarySource || (summaries.zh ?? ""), "zh") || null,
     en: cleanSourceText(summaries.en ?? "") || current.summaries.en || sourceSummary,
-    ja: sourceSummary && looksLikeTargetLocale(summaries.ja ?? "", "ja", sourceSummary)
-      ? cleanSourceText(summaries.ja ?? "")
-      : (looksLikeTargetLocale(current.summaries.ja ?? "", "ja", sourceSummary ?? current.summaries.ja ?? "")
-        ? current.summaries.ja
-        : sourceSummary),
+    ja: keepLocalized(summaries.ja, current.summaries.ja, summarySource || (summaries.ja ?? ""), "ja") || null,
   };
   const zhOk = looksLikeTargetLocale(nextTitles.zh, "zh", sourceTitle);
   const jaOk = looksLikeTargetLocale(nextTitles.ja, "ja", sourceTitle);
@@ -523,14 +568,14 @@ function overlayTranslation(
     || provider === current.provider;
   return {
     titles: {
-      zh: nextTitles.zh || sourceTitle,
+      zh: nextTitles.zh,
       en: nextTitles.en || sourceTitle,
-      ja: nextTitles.ja || sourceTitle,
+      ja: nextTitles.ja,
     },
     summaries: {
-      zh: nextSummaries.zh || sourceSummary,
+      zh: nextSummaries.zh,
       en: nextSummaries.en || sourceSummary,
-      ja: nextSummaries.ja || sourceSummary,
+      ja: nextSummaries.ja,
     },
     provider: zhOk || jaOk ? (contributed && provider !== "source" ? provider : (current.provider === "source" ? provider : current.provider)) : "source",
     translated: zhOk || jaOk,

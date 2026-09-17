@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 type CoverImageProps = {
-  src: string;
+  src?: string | null;
   alt?: string;
   className?: string;
   width?: number;
@@ -16,7 +16,7 @@ export default function CoverImage({ src, alt = "", className, width = 720, heig
   const [failed, setFailed] = useState(!src);
   const classes = [className, compact ? "coverCompact" : ""].filter(Boolean).join(" ");
 
-  if (failed) {
+  if (failed || !src) {
     return (
       <div className={`coverFallback${compact ? " coverFallbackCompact" : ""}${className ? ` ${className}` : ""}`} aria-hidden="true">
         <b>99</b>

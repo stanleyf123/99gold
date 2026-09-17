@@ -35,6 +35,7 @@ type StoredBrief = {
   summary_en: string | null;
   summary_ja: string | null;
   translation_provider: string | null;
+  image_url?: string | null;
 };
 
 function briefCategory(value?: string): NewsCategory {
@@ -47,7 +48,7 @@ async function getLegacyArticle(id: string) {
 
 async function getPublishedBrief(id: string) {
   return getRawDb().prepare(`SELECT id, title, summary, canonical_url, category,
-    source_published_at, published_at, source_language,
+    source_published_at, published_at, source_language, image_url,
     title_zh, title_en, title_ja, summary_zh, summary_en, summary_ja, translation_provider
     FROM news_candidates
     WHERE id = ? AND status = 'published' AND published_at IS NOT NULL`)
@@ -118,6 +119,7 @@ export default async function NewsArticle(
       eventDate={brief.source_published_at.slice(0, 10)}
       publishedAt={brief.published_at}
       originalUrl={brief.canonical_url}
+      image={brief.image_url}
       translationLabel={localized.translationLabel}
       translationPending={localized.translationPending}
       translationPendingLabel={localized.translationPendingLabel}

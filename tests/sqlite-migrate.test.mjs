@@ -40,13 +40,14 @@ test("db:migrate applies drizzle SQL to a fresh SQLite file", () => {
     assert.ok(tables.includes("sessions"));
     assert.equal(tables.includes("price_alert_subscriptions"), false);
     const applied = database.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get();
-    assert.equal(applied.count, 10);
+    assert.equal(applied.count, 11);
     const candidateColumns = database.prepare("PRAGMA table_info(news_candidates)").all().map((row) => row.name);
     assert.ok(candidateColumns.includes("title_zh"));
     assert.ok(candidateColumns.includes("title_ja"));
     assert.ok(candidateColumns.includes("translation_provider"));
     assert.ok(candidateColumns.includes("translation_retry_at"));
     assert.ok(candidateColumns.includes("translation_attempts"));
+    assert.ok(candidateColumns.includes("image_url"));
     database.close();
   } finally {
     rmSync(directory, { recursive: true, force: true });

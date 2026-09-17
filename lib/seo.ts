@@ -248,17 +248,17 @@ export function itemListJsonLd(items: Array<{ name: string; path: string }>) {
 export const newsIndexFaq: Record<SeoLocale, Array<{ question: string; answer: string }>> = {
   zh: [
     { question: "市場快訊和本站分析有何不同？", answer: "市場快訊來自允許的官方來源，本站翻譯後上架，不改寫政策原文。分析文章是本站查核近期資料後自行撰寫，並把事實與解讀分開。" },
-    { question: "快訊多久更新一次？", answer: "官方來源每 3 小時自動檢查、翻譯並上架，無需人工核准。翻譯失敗時會保留原文標題，不會留空白。" },
+    { question: "快訊多久更新一次？", answer: "官方來源每 3 小時自動檢查、翻譯並上架，無需人工核准。中文版只列出已完成翻譯的快訊；翻譯尚未完成時不會用英文標題充數。" },
     { question: "這些內容是投資建議嗎？", answer: "不是。資訊與分析僅供參考，不構成個人投資或交易建議。" },
   ],
   en: [
     { question: "What is the difference between a market brief and analysis?", answer: "Market briefs come from allowlisted official sources and are translated for publication without rewriting the policy text. Analysis articles are written here after checking recent sources, with facts separated from commentary." },
-    { question: "How often are briefs updated?", answer: "Official sources are checked every 3 hours, then auto-translated and published. If translation fails, the original headline is kept instead of a blank title." },
+    { question: "How often are briefs updated?", answer: "Official sources are checked every 3 hours, then auto-translated and published. The default Chinese feed only lists briefs that already have a Chinese title; English originals stay on /en/news until translation lands." },
     { question: "Is this investment advice?", answer: "No. Information and analysis are for reference only and are not personal investment or trading advice." },
   ],
   ja: [
     { question: "市場速報と分析記事の違いは？", answer: "市場速報は許可した公式情報源を翻訳して公開し、政策原文は書き換えません。分析記事は最近の資料を確認したうえで本サイトが執筆し、事実と解説を分けます。" },
-    { question: "速報はどのくらい更新されますか？", answer: "公式情報源を3時間ごとに確認し、自動翻訳して公開します。翻訳できない場合は空欄にせず原文見出しを残します。" },
+    { question: "速報はどのくらい更新されますか？", answer: "公式情報源を3時間ごとに確認し、自動翻訳して公開します。日本語がまだない場合は「翻訳待ち」と表示し、英語見出しを本文の代わりにはしません。" },
     { question: "投資助言ですか？", answer: "いいえ。情報と分析は参考用であり、個別の投資・取引助言ではありません。" },
   ],
 };

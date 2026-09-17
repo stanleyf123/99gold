@@ -142,7 +142,8 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.match(globalView, /現地取引所の決済価格／店頭掲示価格ではありません/);
   assert.doesNotMatch(news, /<SiteHeader/);
   assert.doesNotMatch(news, /articleNav/);
-  assert.match(news, /alt=\{article\.imageAlt\}/);
+  assert.match(news, /src=\{item\.image\}/);
+  assert.match(news, /newsCardMedia/);
   assert.doesNotMatch(article, /<SiteHeader/);
   assert.doesNotMatch(article, /FEDERAL RESERVE/);
   assert.match(article, /OfficialBriefView/);
@@ -316,12 +317,16 @@ test("ships a scheduled auto-publish news pipeline", async () => {
   assert.match(deploy, /investing\.com\/rss\/news_25\.rss/);
   assert.match(deploy, /oilprice\.com\/rss\/main/);
   assert.match(deploy, /db:migrate/);
-  assert.match(deploy, /translation_retry/);
+  assert.match(deploy, /image_url/);
+  assert.match(deploy, /0010_news_cover_image/);
+  assert.match(deploy, /title_zh/);
   assert.match(deploy, /disable --now 99gold-alerts\.timer/);
   assert.doesNotMatch(deploy, /快訊仍須在 `\/admin` 核准/);
   assert.match(pipeline, /status = 'published'/);
   assert.match(pipeline, /status IN \('pending', 'approved'\)/);
   assert.match(pipeline, /backfillPublishedTranslations/);
+  assert.match(pipeline, /backfillPublishedCovers/);
+  assert.match(pipeline, /resolveArticleCover/);
   assert.match(pipeline, /selectRetranslateCandidates/);
   assert.match(pipeline, /translation_retry_at/);
   assert.match(pipeline, /translateOfficialBrief/);
@@ -346,6 +351,7 @@ test("ships a scheduled auto-publish news pipeline", async () => {
   assert.doesNotMatch(sources, /feedUrl:\s*["']https:\/\/news\.google\.com/);
   assert.doesNotMatch(service, /fetch\(/);
   assert.match(service, /localizedBriefFields/);
+  assert.match(service, /isReadyForLocaleListing/);
   assert.match(service, /asNewsCategory/);
   assert.match(service, /briefLabels/);
   assert.doesNotMatch(service, /sourceName:r\.source_name/);
@@ -440,7 +446,7 @@ test("wires 30-90 day charts, metal comparison, OG route and PWA shell", async (
   assert.match(homeView, /鈀金（PA=F）歷史走勢/);
   assert.match(homeView, /\/api\/palladium-history/);
   assert.match(homeView, /translationPending/);
-  assert.match(homeView, /原文／翻譯待補/);
+  assert.match(homeView, /翻譯處理中/);
   assert.match(chart, /onPeriodChange/);
   assert.match(chart, /onHistoryData/);
   assert.match(chart, /\$\{endpoint\}\?period=\$\{period\}/);
@@ -480,8 +486,12 @@ test("wires 30-90 day charts, metal comparison, OG route and PWA shell", async (
   assert.match(newsPage, /newsEmpty/);
   assert.match(excerpt, /newsExcerpt/);
   assert.match(newsService, /localizedBriefFields/);
+  assert.match(newsService, /isReadyForLocaleListing/);
   assert.match(newsService, /translationPending/);
   assert.match(newsService, /url:"\/news\/"\+r\.id/);
+  assert.match(newsPage, /newsCardMedia/);
+  assert.match(newsPage, /CoverImage/);
+  assert.doesNotMatch(newsPage, /officialBriefCard/);
   assert.match(newsPage, /translationPendingLabel/);
   assert.match(briefView, /translationPending/);
 });

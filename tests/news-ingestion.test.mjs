@@ -42,6 +42,7 @@ const normalize = moduleFrom("../lib/news/normalize.ts");
 const sources = moduleFrom("../lib/news/source-config.ts");
 const feedClient = moduleFrom("../lib/news/feed-client.ts");
 const translateLib = moduleFrom("../lib/news/translate.ts");
+const cover = moduleFrom("../lib/news/cover.ts");
 
 function loadPipeline(translate = defaultTranslate()) {
   const mocks = {
@@ -49,6 +50,7 @@ function loadPipeline(translate = defaultTranslate()) {
     "./source-config": sources,
     "./feed-client": feedClient,
     "./translate": translate,
+    "./cover": cover,
   };
   return moduleFrom("../lib/news/pipeline.ts", {
     require: (id) => {
@@ -119,6 +121,7 @@ function memoryDb(seed = []) {
             const row = {
               id: bound[0],
               url: bound[3],
+              canonical_url: bound[3],
               title: bound[4],
               summary: bound[6] ?? null,
               source_language: bound[8] ?? "en",
@@ -128,11 +131,19 @@ function memoryDb(seed = []) {
               title_zh: null,
               title_en: null,
               title_ja: null,
+              image_url: bound[12] ?? null,
             };
             if (candidates.some((item) => item.id === row.id || item.url === row.url)) {
               return { meta: { changes: 0 } };
             }
             candidates.push(row);
+            return { meta: { changes: 1 } };
+          }
+          if (q.includes("UPDATE news_candidates") && q.includes("image_url")) {
+            const id = bound[bound.length - 1];
+            const row = candidates.find((item) => item.id === id);
+            if (!row || row.image_url) return { meta: { changes: 0 } };
+            row.image_url = bound[0];
             return { meta: { changes: 1 } };
           }
           if (q.includes("UPDATE news_candidates") && q.includes("title_zh") && q.includes("reviewed_by")) {
@@ -252,6 +263,28 @@ test("parses RSS and Atom entries without copying markup into candidates", () =>
   assert.equal(rssItem.title, "Consumer Price Index & gold");
   assert.equal(rssItem.summary, "Official release summary.");
   assert.equal(rssItem.publishedAt, "2026-09-13T12:00:00.000Z");
+  assert.equal(rssItem.imageUrl, null);
+
+  const withCover = `<rss><channel><item>
+    <title>Gold miners rally</title>
+    <link>https://www.mining.com/gold-miners-rally/</link>
+    <enclosure url="http://www.mining.com/wp-content/uploads/gold.jpg" type="image/jpeg" />
+    <pubDate>Tue, 15 Sep 2026 12:00:00 GMT</pubDate>
+  </item></channel></rss>`;
+  assert.equal(normalize.parseFeed(withCover)[0].imageUrl, "https://www.mining.com/wp-content/uploads/gold.jpg");
+
+  const media = `<rss><channel><item>
+    <title>Spot gold</title>
+    <link>https://www.mining.com/spot-gold/</link>
+    <media:content url="https://www.mining.com/wp-content/uploads/spot.webp" medium="image" />
+    <description><![CDATA[<img src="/favicon.ico" /><p>Gold held near highs.</p>]]></description>
+    <pubDate>Tue, 15 Sep 2026 13:00:00 GMT</pubDate>
+  </item></channel></rss>`;
+  assert.equal(normalize.parseFeed(media)[0].imageUrl, "https://www.mining.com/wp-content/uploads/spot.webp");
+  assert.equal(cover.extractHtmlCover(
+    `<html><head><meta property="og:image" content="https://cdn.mining.com/covers/gold.png"></head><body><img src="/tiny.png" width="16" height="16"></body></html>`,
+    "https://www.mining.com/article/",
+  ), "https://cdn.mining.com/covers/gold.png");
 
   const atom = `<feed><entry><id>fed-1</id><title>FOMC statement</title><link href="https://www.federalreserve.gov/newsevents/pressreleases/monetary20260913a.htm"/><content>Official policy decision</content><updated>2026-09-13T18:00:00Z</updated></entry></feed>`;
   assert.equal(normalize.parseFeed(atom)[0].url, "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260913a.htm");
@@ -453,6 +486,35 @@ test("pipeline records per-source 403 errors instead of empty success", async ()
   assert.equal(db.candidates[0].reviewed_by, "auto-pipeline");
   assert.match(db.candidates[0].title_zh, /中文：/);
   assert.ok(summary.publishedCount >= 1);
+});
+
+test("pipeline stores RSS enclosure covers on new candidates", async () => {
+  const { runNewsPipeline } = loadPipeline();
+  const db = memoryDb();
+  const feed = `<rss><channel><item>
+    <title>Gold miners lift output</title>
+    <link>https://www.mining.com/gold-miners-lift-output/</link>
+    <guid>mining-cover-1</guid>
+    <enclosure url="https://www.mining.com/wp-content/uploads/gold-cover.jpg" type="image/jpeg" />
+    <description>Bullion miners added ounces.</description>
+    <pubDate>Sun, 13 Sep 2026 12:00:00 GMT</pubDate>
+  </item></channel></rss>`;
+  const fetcher = async (url) => {
+    if (String(url).includes("mining.com/commodity/gold")) return jsonResponse(200, feed);
+    if (String(url).includes("mining.com/gold-miners")) {
+      return new Response("<html><head><meta property='og:image' content='https://www.mining.com/wp-content/uploads/og.jpg'></head></html>", {
+        status: 200,
+        headers: { "content-type": "text/html" },
+      });
+    }
+    return jsonResponse(403, "<html>blocked</html>", "Forbidden");
+  };
+  const summary = await runNewsPipeline(db, new Date("2026-09-14T13:00:00Z"), "manual", fetcher);
+  const row = db.candidates.find((item) => item.title === "Gold miners lift output");
+  assert.ok(row, `candidates: ${db.candidates.map((item) => item.title).join(",")}`);
+  assert.equal(row.image_url, "https://www.mining.com/wp-content/uploads/gold-cover.jpg");
+  assert.ok(summary.publishedCount >= 1);
+  assert.match(row.title_zh, /中文：/);
 });
 
 test("pipeline counts parsed feed items even when they are older than the candidate window", async () => {

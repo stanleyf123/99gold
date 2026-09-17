@@ -79,7 +79,7 @@ test("localizedBriefFields selects zh/en/ja titles and marks MT translations", (
   assert.equal(ja.translationLabel, "機械翻訳");
 });
 
-test("localizedBriefFields does not claim translation when zh/ja fields are still English", () => {
+test("localizedBriefFields never shows English as the zh display title when translation is pending", () => {
   const row = {
     title: englishTitle,
     summary: englishSummary,
@@ -90,17 +90,24 @@ test("localizedBriefFields does not claim translation when zh/ja fields are stil
     summary_zh: englishSummary,
     summary_en: englishSummary,
     summary_ja: englishSummary,
-    translation_provider: "mymemory",
+    translation_provider: "source",
   };
   const zh = translate.localizedBriefFields(row, "zh");
-  assert.equal(zh.title, englishTitle);
+  assert.equal(zh.title, "翻譯處理中");
+  assert.notEqual(zh.title, englishTitle);
+  assert.equal(zh.summary, null);
   assert.equal(zh.translated, false);
   assert.equal(zh.translationPending, true);
-  assert.equal(zh.translationPendingLabel, "原文／翻譯待補");
+  assert.equal(zh.translationPendingLabel, "翻譯處理中");
+  assert.equal(translate.isReadyForLocaleListing(row, "zh"), false);
+  assert.equal(translate.isReadyForLocaleListing(row, "en"), true);
   const ja = translate.localizedBriefFields(row, "ja");
+  assert.equal(ja.title, "翻訳処理中");
+  assert.notEqual(ja.title, englishTitle);
   assert.equal(ja.translationPending, true);
-  assert.equal(ja.translationPendingLabel, "原文／翻訳待ち");
+  assert.equal(ja.translationPendingLabel, "翻訳待ち");
   const en = translate.localizedBriefFields(row, "en");
+  assert.equal(en.title, englishTitle);
   assert.equal(en.translationPending, false);
   assert.equal(en.translationPendingLabel, null);
 });
@@ -119,14 +126,16 @@ test("localizedBriefFields never prefers empty zh/ja fields over the source titl
     translation_provider: "mymemory",
   };
   const zh = translate.localizedBriefFields(row, "zh");
-  assert.equal(zh.title, englishTitle);
-  assert.equal(zh.summary, englishSummary);
+  assert.equal(zh.title, "翻譯處理中");
+  assert.notEqual(zh.title, englishTitle);
+  assert.equal(zh.summary, null);
   assert.equal(zh.translated, false);
   assert.equal(zh.translationPending, true);
   assert.equal(translate.needsTranslationBackfill(row), true);
+  assert.equal(translate.isReadyForLocaleListing(row, "zh"), false);
   const ja = translate.localizedBriefFields(row, "ja");
-  assert.equal(ja.title, englishTitle);
-  assert.ok(ja.title.length > 0);
+  assert.equal(ja.title, "翻訳処理中");
+  assert.notEqual(ja.title, englishTitle);
   assert.equal(ja.translationPending, true);
 });
 
@@ -286,13 +295,13 @@ test("MyMemory calls are serialized and long 429 pauses skip later locales witho
   });
   assert.equal(maxInflight, 1);
   assert.match(result.titles.zh, /^中文/);
-  assert.equal(result.titles.ja, englishTitle);
+  assert.equal(result.titles.ja, "");
   assert.equal(result.titles.en, englishTitle);
   assert.equal(result.complete, false);
   assert.equal(result.translated, true);
   assert.ok(translate.isMyMemoryCoolingDown());
   assert.ok(result.titles.zh.length > 0);
-  assert.ok(result.titles.ja.length > 0);
+  assert.equal(result.titles.ja.length, 0);
 });
 
 test("retranslate selection skips cooled-down rows and keeps due English gaps", () => {
