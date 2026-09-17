@@ -77,6 +77,10 @@ export async function generateMetadata(
   if (brief) {
     const localized = localizedBriefFields(brief, locale);
     const canonical = `${SITE_URL}${localizedHref(`/news/${id}`, locale)}`;
+    const cover = brief.image_url?.trim();
+    const ogImages = cover
+      ? [{ url: cover, alt: localized.title }]
+      : [{ url: DEFAULT_OG_IMAGE, width: OG_IMAGE_WIDTH, height: OG_IMAGE_HEIGHT, alt: localized.title, type: "image/png" }];
     return {
       title: localized.title,
       description: localized.summary ?? localized.title,
@@ -84,8 +88,8 @@ export async function generateMetadata(
         canonical,
         languages: languageAlternates(`/news/${id}`),
       },
-      openGraph: { type: "article", title: localized.title, description: localized.summary ?? localized.title, url: canonical, images: [{ url: DEFAULT_OG_IMAGE, width: OG_IMAGE_WIDTH, height: OG_IMAGE_HEIGHT, alt: localized.title, type: "image/png" }] },
-      twitter: { card: "summary_large_image", title: localized.title, description: localized.summary ?? localized.title, images: [DEFAULT_OG_IMAGE] },
+      openGraph: { type: "article", title: localized.title, description: localized.summary ?? localized.title, url: canonical, images: ogImages },
+      twitter: { card: "summary_large_image", title: localized.title, description: localized.summary ?? localized.title, images: cover ? [cover] : [DEFAULT_OG_IMAGE] },
     };
   }
   const row = await getLegacyArticle(id);

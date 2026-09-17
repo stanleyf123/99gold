@@ -13,10 +13,11 @@ type CoverImageProps = {
 };
 
 export default function CoverImage({ src, alt = "", className, width = 720, height = 480, priority = false, compact = false }: CoverImageProps) {
-  const [failed, setFailed] = useState(!src);
+  const coverSrc = src?.trim() || "";
+  const [failedSrc, setFailedSrc] = useState("");
   const classes = [className, compact ? "coverCompact" : ""].filter(Boolean).join(" ");
 
-  if (failed || !src) {
+  if (!coverSrc || failedSrc === coverSrc) {
     return (
       <div className={`coverFallback${compact ? " coverFallbackCompact" : ""}${className ? ` ${className}` : ""}`} aria-hidden="true">
         <b>99</b>
@@ -29,7 +30,7 @@ export default function CoverImage({ src, alt = "", className, width = 720, heig
     // Decorative listing/article covers; never dump long alt text into the layout.
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={src}
+      src={coverSrc}
       alt={alt}
       width={width}
       height={height}
@@ -39,7 +40,7 @@ export default function CoverImage({ src, alt = "", className, width = 720, heig
       decoding="async"
       referrerPolicy="no-referrer"
       className={classes}
-      onError={() => setFailed(true)}
+      onError={() => setFailedSrc(coverSrc)}
     />
   );
 }

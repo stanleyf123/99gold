@@ -1,3 +1,7 @@
+import { canonicalizeCoverUrl, extractFeedCover } from "./cover";
+
+export { canonicalizeCoverUrl, extractFeedCover };
+
 export type FeedItem = {
   externalId: string;
   title: string;
@@ -33,41 +37,6 @@ function linkValue(block: string) {
   if (textLink) return textLink;
   const attributeLink = block.match(/<link\b[^>]*\bhref=["']([^"']+)["'][^>]*>/i)?.[1];
   return attributeLink ? decodeXml(attributeLink).trim() : "";
-}
-
-function looksLikeImageTag(tag: string) {
-  return /(?:type|medium)\s*=\s*["'][^"']*(?:image|jpe?g|png|webp|gif|avif)/i.test(tag)
-    || /\.(?:jpe?g|png|webp|gif|avif)(?:\?|$)/i.test(tag);
-}
-
-export function canonicalizeCoverUrl(value: string, baseUrl?: string) {
-  try {
-    const url = new URL(value.trim(), baseUrl);
-    if (url.protocol === "http:") url.protocol = "https:";
-    if (url.protocol !== "https:") return null;
-    if (/favicon|sprite|pixel|tracking|1x1|logo[-_]?small|icon[-_]?32/i.test(url.pathname)) return null;
-    return url.toString();
-  } catch {
-    return null;
-  }
-}
-
-/** RSS/Atom enclosure, media:content/thumbnail, or first <img> in the item block. */
-export function extractFeedCover(block: string, baseUrl?: string) {
-  const enclosure = block.match(/<enclosure\b[^>]*>/i)?.[0];
-  if (enclosure && looksLikeImageTag(enclosure)) {
-    const href = enclosure.match(/\burl=["']([^"']+)["']/i)?.[1];
-    const url = href ? canonicalizeCoverUrl(decodeXml(href), baseUrl) : null;
-    if (url) return url;
-  }
-  const mediaTags = block.match(/<media:(?:content|thumbnail)\b[^>]*>/gi) ?? [];
-  for (const tag of mediaTags) {
-    const href = tag.match(/\burl=["']([^"']+)["']/i)?.[1];
-    const url = href ? canonicalizeCoverUrl(decodeXml(href), baseUrl) : null;
-    if (url) return url;
-  }
-  const img = block.match(/<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/i)?.[1];
-  return img ? canonicalizeCoverUrl(decodeXml(img), baseUrl) : null;
 }
 
 /** RSS dates are usually RFC 2822; some publishers append an IANA zone (e.g. America/Chicago). */

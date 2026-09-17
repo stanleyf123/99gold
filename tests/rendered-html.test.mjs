@@ -142,7 +142,7 @@ test("uses a shared SiteHeader and coherent homepage layout", async () => {
   assert.match(globalView, /現地取引所の決済価格／店頭掲示価格ではありません/);
   assert.doesNotMatch(news, /<SiteHeader/);
   assert.doesNotMatch(news, /articleNav/);
-  assert.match(news, /src=\{item\.image\}/);
+  assert.match(news, /src=\{item\.image \|\| item\.imageUrl\}/);
   assert.match(news, /newsCardMedia/);
   assert.doesNotMatch(article, /<SiteHeader/);
   assert.doesNotMatch(article, /FEDERAL RESERVE/);
@@ -283,8 +283,9 @@ test("keeps quote history, data transparency and responsive styles wired", async
 });
 
 test("ships a scheduled auto-publish news pipeline", async () => {
-  const [script, deploy, service, pipeline, migration, translations, admin, sources, newsPage, homeView, briefView, share] = await Promise.all([
+  const [script, backfill, deploy, service, pipeline, migration, translations, admin, sources, newsPage, homeView, briefView, share] = await Promise.all([
     readFile(new URL("../scripts/run-news-pipeline.ts", import.meta.url), "utf8"),
+    readFile(new URL("../scripts/backfill-news-covers.ts", import.meta.url), "utf8"),
     readFile(new URL("../DEPLOY-LINODE.md", import.meta.url), "utf8"),
     readFile(new URL("../app/api/news-service.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/news/pipeline.ts", import.meta.url), "utf8"),
@@ -299,6 +300,8 @@ test("ships a scheduled auto-publish news pipeline", async () => {
   ]);
   assert.match(script, /runNewsPipeline/);
   assert.match(script, /news:pipeline|--manual|cron/);
+  assert.match(backfill, /backfillPublishedCovers/);
+  assert.match(backfill, /--limit/);
   assert.match(deploy, /OnCalendar=0\/3:00:00/);
   assert.match(deploy, /99gold-news\.timer/);
   assert.match(deploy, /npm run news:pipeline/);
@@ -319,6 +322,8 @@ test("ships a scheduled auto-publish news pipeline", async () => {
   assert.match(deploy, /db:migrate/);
   assert.match(deploy, /image_url/);
   assert.match(deploy, /0010_news_cover_image/);
+  assert.match(deploy, /post-thumbnail/);
+  assert.match(deploy, /news:backfill-covers/);
   assert.match(deploy, /title_zh/);
   assert.match(deploy, /disable --now 99gold-alerts\.timer/);
   assert.doesNotMatch(deploy, /快訊仍須在 `\/admin` 核准/);
@@ -327,6 +332,8 @@ test("ships a scheduled auto-publish news pipeline", async () => {
   assert.match(pipeline, /backfillPublishedTranslations/);
   assert.match(pipeline, /backfillPublishedCovers/);
   assert.match(pipeline, /resolveArticleCover/);
+  assert.match(pipeline, /COVER_BACKFILL_BATCH/);
+  assert.match(pipeline, /item\.imageUrl/);
   assert.match(pipeline, /selectRetranslateCandidates/);
   assert.match(pipeline, /translation_retry_at/);
   assert.match(pipeline, /translateOfficialBrief/);
@@ -354,6 +361,8 @@ test("ships a scheduled auto-publish news pipeline", async () => {
   assert.match(service, /isReadyForLocaleListing/);
   assert.match(service, /asNewsCategory/);
   assert.match(service, /briefLabels/);
+  assert.match(service, /imageUrl/);
+  assert.match(service, /coverFields/);
   assert.doesNotMatch(service, /sourceName:r\.source_name/);
   assert.match(newsPage, /newsIndexFaq/);
   assert.match(newsPage, /itemListJsonLd/);
@@ -366,6 +375,7 @@ test("ships a scheduled auto-publish news pipeline", async () => {
   assert.match(homeView, /自動檢查、翻譯並上架/);
   assert.match(homeView, /MARKET BRIEF/);
   assert.match(homeView, /localizedHref\(`\/news\/\$\{item\.id\}`, locale\)/);
+  assert.match(homeView, /item\.image \|\| item\.imageUrl/);
   assert.doesNotMatch(homeView, /<small>OFFICIAL SOURCE<\/small>/);
   assert.match(briefView, /ShareBrief/);
   assert.match(briefView, /articleJsonLd/);
@@ -578,6 +588,7 @@ test("packages the app as 99gold and documents Linode alert-timer cleanup", asyn
   ]);
   const parsed = JSON.parse(pkg);
   assert.equal(parsed.name, "99gold");
+  assert.match(parsed.scripts["news:backfill-covers"], /backfill-news-covers/);
   assert.equal(parsed.scripts["alerts:dispatch"], undefined);
   assert.doesNotMatch(pkg, /OPENAI_API_KEY.*(required|必須)/i);
   assert.match(deploy, /disable --now 99gold-alerts\.timer/);

@@ -29,7 +29,18 @@
 
    若曾用 crontab 跑 `npm run alerts:dispatch`，一併刪除該行。到價提醒功能已整段移除。
 
-3. **新聞中文圖文列表**（migration `0010_news_cover_image.sql`）：部署後務必 migrate + 跑一次管線，回填中文譯文與封面。未完成 `title_zh` 的英文快訊不會出現在預設 `/news`。
+3. **新聞中文圖文列表**（migration `0010_news_cover_image.sql`）：部署後務必 migrate + 跑一次管線，回填中文譯文與封面。未完成 `title_zh` 的英文快訊不會出現在預設 `/news`。已上架但缺圖的快訊可用 `news:backfill-covers` 補封面。
+
+   ```bash
+   cd /var/www/99gold
+   sudo -u www-data git fetch origin
+   sudo -u www-data git merge --ff-only origin/main
+   sudo -u www-data npm run db:migrate
+   sudo -u www-data npm run build
+   sudo systemctl restart 99gold.service
+   sudo -u www-data npm run news:pipeline
+   sudo -u www-data npm run news:backfill-covers -- --limit=40
+   ```
 
    ```bash
    cd /var/www/99gold
@@ -256,10 +267,19 @@ sudo -u www-data npm run news:pipeline
 `0010_news_cover_image.sql` 會加上 `news_candidates.image_url`。管線行為：
 
 - 抓取白名單 publisher RSS（**不要**加 Google News：Linode 上是 HTTP 503）
-- 從 enclosure／media:content 或原文 `og:image` 寫入封面
+- 從 RSS `enclosure`／`media:content`／`itunes:image`／mining.com `post-thumbnail`，或原文 `og:image`／`twitter:image` 寫入封面
+- 已上架但缺圖的快訊會在每次管線結尾回填（預設最近 30 則）；也可單獨跑 `npm run news:backfill-covers -- --limit=40`
 - 翻譯 zh-Hant／ja；**預設 `/news`（zh）只列出已有中文標題的快訊**，不會用英文原文充數
 - `/en/news` 顯示英文；`/ja/news` 缺日文時顯示「翻訳待ち」，不以英文當主標題
 - 已 `rejected` 的列不會自動發布
+
+部署或更新後若列表仍是品牌佔位圖，先 migrate 再回填封面（不必等新稿）：
+
+```bash
+cd /var/www/99gold
+sudo -u www-data npm run db:migrate
+sudo -u www-data npm run news:backfill-covers -- --limit=40
+```
 
 MyMemory 公開額度容易 429。若這次 `news:pipeline` 沒補完中文，隔幾小時再跑一次即可（timer 每 3 小時也會 `backfillPublishedTranslations`）。不必登入 `/admin` 核准。管理後台仍可查看佇列與來源健康度。
 

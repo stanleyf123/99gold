@@ -62,6 +62,7 @@ test("official briefs expose locale-specific translations from stored fields",as
   title_ja:"米連邦準備制度理事会がFOMC声明を発表",
   summary_zh:"官方政策決定",summary_en:"Official policy decision",summary_ja:"公式の政策決定",
   translation_provider:"mymemory",
+  image_url:"https://www.mining.com/wp-content/uploads/2026/09/gold-selloff.jpeg",
  };
  const db={prepare(query){const q=query.replace(/\s+/g," ");return{bind(){return this;},async first(){return q.includes("news_runs")?{finished_at:"2026-09-14T13:00:00.000Z",status:"succeeded"}:null;},async all(){return{results:q.includes("news_candidates")?[official]:[]};}};}};
  const zh=await api.getDailyGoldNews("zh",db);
@@ -74,6 +75,8 @@ test("official briefs expose locale-specific translations from stored fields",as
  assert.equal(zhItem.sourceName,"市場快訊");
  assert.doesNotMatch(zhItem.sourceName,/Federal Reserve|ONS|Treasury|BLS|ECB/i);
  assert.equal(zhItem.url,"/news/fed-1");
+ assert.equal(zhItem.image,"https://www.mining.com/wp-content/uploads/2026/09/gold-selloff.jpeg");
+ assert.equal(zhItem.imageUrl,"https://www.mining.com/wp-content/uploads/2026/09/gold-selloff.jpeg");
  assert.doesNotMatch(zhItem.url,/federalreserve|ons\.gov|bls\.gov|ecb\.europa/i);
  assert.equal(zhItem.translationPending,false);
  assert.match(zhItem.title,/[\u3400-\u9fff]/);
