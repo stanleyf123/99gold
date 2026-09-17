@@ -90,7 +90,7 @@ export default async function NewsIndex({ searchParams }: { searchParams: Promis
       const pending = Boolean(item.translationPending);
       return <article key={String(item.id)} className="newsCard">
       <Link href={href}>
-        <CoverImage src={item.image} alt="" className="newsCardMedia" compact priority={index === 0} />
+        <CoverImage src={item.image || item.imageUrl} alt="" className="newsCardMedia" compact priority={index === 0} />
         <p className="articleKicker">{item.sourceName || (locale === "zh" ? "市場快訊" : locale === "ja" ? "市場速報" : "Market brief")} · {categories[safeItemCategory(item.category)][locale]} · {item.date}</p>
         <h2 lang={pending ? undefined : (locale === "zh" ? "zh-Hant" : locale)}>{item.title}</h2>
       </Link>

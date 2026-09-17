@@ -233,7 +233,8 @@ async function persistCoverUrl(db: NewsDatabase, id: string, imageUrl: string | 
     .bind(imageUrl, id).run();
 }
 
-const COVER_BACKFILL_BATCH = 6;
+export const COVER_BACKFILL_BATCH = 30;
+const COVER_BACKFILL_GAP_MS = 200;
 
 export async function backfillPublishedCovers(
   db: NewsDatabase,
@@ -249,11 +250,12 @@ export async function backfillPublishedCovers(
   let filled = 0;
   for (const row of rows?.results ?? []) {
     const url = row.canonical_url?.trim();
-    if (!url) continue;
+    if (!url || row.image_url) continue;
     const cover = await resolveArticleCover(url, row.image_url, fetcher);
     if (!cover) continue;
     await persistCoverUrl(db, row.id, cover);
     filled += 1;
+    await sleep(COVER_BACKFILL_GAP_MS);
   }
   return filled;
 }
@@ -421,14 +423,18 @@ export async function runNewsPipeline(
         }
         const titleHash = await sha256(normalizedTitle(item.title));
         const externalId = item.externalId.slice(0, 800);
-        const duplicate = await db.prepare(`SELECT id FROM news_candidates
+        const duplicate = await db.prepare(`SELECT id, image_url FROM news_candidates
           WHERE canonical_url = ?
              OR (source_id = ? AND external_id = ?)
              OR (title_hash = ? AND first_seen_at >= ?)
           LIMIT 1`)
-          .bind(canonicalUrl, source.id, externalId, titleHash, recentCutoff).first<{ id: string }>();
+          .bind(canonicalUrl, source.id, externalId, titleHash, recentCutoff)
+          .first<{ id: string; image_url?: string | null }>();
         if (duplicate) {
           duplicatesSkipped += 1;
+          if (!duplicate.image_url && item.imageUrl) {
+            await persistCoverUrl(db, duplicate.id, item.imageUrl);
+          }
           continue;
         }
         const candidateHash = await sha256(`${source.id}\n${externalId}\n${canonicalUrl}`);

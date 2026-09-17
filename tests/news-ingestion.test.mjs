@@ -38,11 +38,16 @@ function moduleFrom(path, extras = {}) {
   return context.exports;
 }
 
-const normalize = moduleFrom("../lib/news/normalize.ts");
+const cover = moduleFrom("../lib/news/cover.ts");
+const normalize = moduleFrom("../lib/news/normalize.ts", {
+  require: (id) => {
+    if (id === "./cover") return cover;
+    throw new Error(`unexpected require: ${id}`);
+  },
+});
 const sources = moduleFrom("../lib/news/source-config.ts");
 const feedClient = moduleFrom("../lib/news/feed-client.ts");
 const translateLib = moduleFrom("../lib/news/translate.ts");
-const cover = moduleFrom("../lib/news/cover.ts");
 
 function loadPipeline(translate = defaultTranslate()) {
   const mocks = {
@@ -281,10 +286,40 @@ test("parses RSS and Atom entries without copying markup into candidates", () =>
     <pubDate>Tue, 15 Sep 2026 13:00:00 GMT</pubDate>
   </item></channel></rss>`;
   assert.equal(normalize.parseFeed(media)[0].imageUrl, "https://www.mining.com/wp-content/uploads/spot.webp");
+  const thumbnail = `<rss><channel><item>
+    <title>Fed’s decisions driving investors to precious metals</title>
+    <link>https://www.mining.com/feds-decisions-driving-investors-to-precious-metals-expert/</link>
+    <description>Investors put money in silver and gold.</description>
+    <pubDate>Wed, 16 Sep 2026 19:24:31 +0000</pubDate>
+    <post-thumbnail><url>https://www.mining.com/wp-content/uploads/2026/09/gold-selloff.jpeg</url><width>900</width><height>500</height></post-thumbnail>
+  </item></channel></rss>`;
+  assert.equal(
+    normalize.parseFeed(thumbnail)[0].imageUrl,
+    "https://www.mining.com/wp-content/uploads/2026/09/gold-selloff.jpeg",
+  );
+  const itunes = `<rss><channel><item>
+    <title>Gold podcast</title>
+    <link>https://www.mining.com/gold-podcast/</link>
+    <itunes:image href="https://www.mining.com/wp-content/uploads/podcast-cover.png" />
+    <pubDate>Wed, 16 Sep 2026 12:00:00 GMT</pubDate>
+  </item></channel></rss>`;
+  assert.equal(normalize.parseFeed(itunes)[0].imageUrl, "https://www.mining.com/wp-content/uploads/podcast-cover.png");
+  const laterImg = `<rss><channel><item>
+    <title>Gold photo story</title>
+    <link>https://www.mining.com/gold-photo-story/</link>
+    <description><![CDATA[<img src="/favicon.ico" width="16" height="16" /><img src="https://www.mining.com/wp-content/uploads/hero.webp" />]]></description>
+    <pubDate>Wed, 16 Sep 2026 12:00:00 GMT</pubDate>
+  </item></channel></rss>`;
+  assert.equal(normalize.parseFeed(laterImg)[0].imageUrl, "https://www.mining.com/wp-content/uploads/hero.webp");
+  assert.equal(cover.canonicalizeCoverUrl("https://www.federalreserve.gov/newsevents/pressreleases/monetary20260916a.htm"), null);
   assert.equal(cover.extractHtmlCover(
     `<html><head><meta property="og:image" content="https://cdn.mining.com/covers/gold.png"></head><body><img src="/tiny.png" width="16" height="16"></body></html>`,
     "https://www.mining.com/article/",
   ), "https://cdn.mining.com/covers/gold.png");
+  assert.equal(cover.extractHtmlCover(
+    `<html><head><meta name="twitter:image" content="https://d32r1sh890xpii.cloudfront.net/article/1200x675/2026-09-16_mkgzwvubsd.jpg"><meta property="og:image" content="https://d32r1sh890xpii.cloudfront.net/article/1200x675/2026-09-16_mkgzwvubsd.jpg"></head></html>`,
+    "https://oilprice.com/Energy/Crude-Oil/Saudi-Oil-Crisis-Is-About-to-Hit-Europe.html",
+  ), "https://d32r1sh890xpii.cloudfront.net/article/1200x675/2026-09-16_mkgzwvubsd.jpg");
 
   const atom = `<feed><entry><id>fed-1</id><title>FOMC statement</title><link href="https://www.federalreserve.gov/newsevents/pressreleases/monetary20260913a.htm"/><content>Official policy decision</content><updated>2026-09-13T18:00:00Z</updated></entry></feed>`;
   assert.equal(normalize.parseFeed(atom)[0].url, "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260913a.htm");
@@ -515,6 +550,63 @@ test("pipeline stores RSS enclosure covers on new candidates", async () => {
   assert.equal(row.image_url, "https://www.mining.com/wp-content/uploads/gold-cover.jpg");
   assert.ok(summary.publishedCount >= 1);
   assert.match(row.title_zh, /中文：/);
+});
+
+test("pipeline fills missing covers on duplicate mining.com post-thumbnail items", async () => {
+  const { runNewsPipeline } = loadPipeline();
+  const db = memoryDb([{
+    id: "mining-com-gold-existing",
+    url: "https://www.mining.com/feds-decisions-driving-investors-to-precious-metals-expert",
+    canonical_url: "https://www.mining.com/feds-decisions-driving-investors-to-precious-metals-expert",
+    title: "Fed’s decisions driving investors to precious metals, says expert",
+    summary: "Investors put money in silver and gold.",
+    source_language: "en",
+    status: "published",
+    image_url: null,
+    published_at: "2026-09-16T19:54:11.148Z",
+  }]);
+  const feed = `<rss><channel><item>
+    <title>Fed’s decisions driving investors to precious metals, says expert</title>
+    <link>https://www.mining.com/feds-decisions-driving-investors-to-precious-metals-expert/</link>
+    <guid>https://www.mining.com/?p=1214525</guid>
+    <description>Investors put money in silver and gold.</description>
+    <pubDate>Wed, 16 Sep 2026 19:24:31 +0000</pubDate>
+    <post-thumbnail><url>https://www.mining.com/wp-content/uploads/2026/09/gold-selloff.jpeg</url><width>900</width><height>500</height></post-thumbnail>
+  </item></channel></rss>`;
+  const fetcher = async (url) => {
+    if (String(url).includes("mining.com/commodity/gold")) return jsonResponse(200, feed);
+    return jsonResponse(403, "<html>blocked</html>", "Forbidden");
+  };
+  await runNewsPipeline(db, new Date("2026-09-17T04:00:00Z"), "manual", fetcher);
+  assert.equal(
+    db.candidates[0].image_url,
+    "https://www.mining.com/wp-content/uploads/2026/09/gold-selloff.jpeg",
+  );
+});
+
+test("backfillPublishedCovers writes og:image for published oilprice rows", async () => {
+  const { backfillPublishedCovers } = loadPipeline();
+  const db = memoryDb([{
+    id: "oilprice-energy-existing",
+    url: "https://oilprice.com/Energy/Crude-Oil/Saudi-Oil-Crisis-Is-About-to-Hit-Europe.html",
+    canonical_url: "https://oilprice.com/Energy/Crude-Oil/Saudi-Oil-Crisis-Is-About-to-Hit-Europe.html",
+    title: "Saudi Oil Crisis Is About to Hit Europe",
+    summary: "Pipeline outage.",
+    source_language: "en",
+    status: "published",
+    image_url: null,
+    published_at: "2026-09-16T18:32:00.000Z",
+  }]);
+  const fetcher = async () => new Response(
+    `<html><head><meta property="og:image" content="https://d32r1sh890xpii.cloudfront.net/article/1200x675/2026-09-16_mkgzwvubsd.jpg"></head></html>`,
+    { status: 200, headers: { "content-type": "text/html" } },
+  );
+  const filled = await backfillPublishedCovers(db, fetcher, 8);
+  assert.equal(filled, 1);
+  assert.equal(
+    db.candidates[0].image_url,
+    "https://d32r1sh890xpii.cloudfront.net/article/1200x675/2026-09-16_mkgzwvubsd.jpg",
+  );
 });
 
 test("pipeline counts parsed feed items even when they are older than the candidate window", async () => {

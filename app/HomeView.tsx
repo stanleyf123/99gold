@@ -16,7 +16,7 @@ import GoldSilverRatioPanel from "./GoldSilverRatio";
 import PriceHistoryChart from "./PriceHistoryChart";
 import { newsExcerpt } from "../lib/news-excerpt";
 
-type NewsItem = { id?: number | string; title: string; category?: NewsCategory; originalTitle?: string; summary?: string | null; date: string; url: string; image?: string; sourceName?: string; translated?: boolean; translationLabel?: string | null; translationProvider?: string | null; translationPending?: boolean; translationPendingLabel?: string | null; external?: boolean };
+type NewsItem = { id?: number | string; title: string; category?: NewsCategory; originalTitle?: string; summary?: string | null; date: string; url: string; image?: string | null; imageUrl?: string | null; sourceName?: string; translated?: boolean; translationLabel?: string | null; translationProvider?: string | null; translationPending?: boolean; translationPendingLabel?: string | null; external?: boolean };
 type QuoteItem = { id?: string; label: string; code: string; price: string; unit: string; change: string; up: boolean | null };
 type HistoryPeriod = "1D" | "1W" | "1M" | "3M" | "1Y";
 type MarketStatus = "checking" | "open" | "delayed" | "daily-break" | "weekend-closed" | "unavailable";
@@ -631,7 +631,7 @@ export default function HomeView({
             <div className="newsGrid">{filteredNews.slice(0, 10).map((item) => {
               const category = asNewsCategory(item.category);
               const key = String(item.id ?? item.url);
-              const cover = item.image;
+              const cover = item.image || item.imageUrl;
               const href = localizedHref(`/news/${item.id}`, locale);
               const excerpt = newsExcerpt(item.summary);
               return <article key={key}>

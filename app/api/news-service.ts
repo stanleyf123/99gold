@@ -35,6 +35,11 @@ async function scheduledNews(database?:NewsDatabase) {
  }catch{return {items:[] as PublishedCandidate[],checkedAt:"",runStatus:"pending"};}
 }
 
+function coverFields(imageUrl?: string | null) {
+  const url = imageUrl?.trim() || null;
+  return { image: url || undefined, imageUrl: url };
+}
+
 // Reader requests only read published work. Discovery, translation and publication
 // happen in the scheduled news pipeline (`npm run news:pipeline`), never during a visitor request.
 export async function getDailyGoldNews(inputLocale="zh",database?:NewsDatabase,options?:{limit?:number}) {
@@ -44,11 +49,11 @@ export async function getDailyGoldNews(inputLocale="zh",database?:NewsDatabase,o
  const names={zh:"本站撰文 · AI協作",en:"Original editorial · AI-assisted",ja:"独自記事 · AI協働"};
  const briefLabels={zh:"市場快訊",en:"Market brief",ja:"市場速報"};
  const scheduled=await scheduledNews(database);
- const editorialItems=rows.map(r=>({id:r.id,title:r.title,summary:r.description,date:r.eventDate,category:r.category??"macro",url:"/news/"+r.id,image:r.image,sourceName:names[locale],translated:false,translationProvider:null as string|null,translationLabel:null as string|null,translationPending:false,translationPendingLabel:null as string|null,external:false,sourcePublishedAt:r.eventDate,publishedAt:r.publishedAt}));
+ const editorialItems=rows.map(r=>({id:r.id,title:r.title,summary:r.description,date:r.eventDate,category:r.category??"macro",url:"/news/"+r.id,...coverFields(r.image),sourceName:names[locale],translated:false,translationProvider:null as string|null,translationLabel:null as string|null,translationPending:false,translationPendingLabel:null as string|null,external:false,sourcePublishedAt:r.eventDate,publishedAt:r.publishedAt}));
  const officialItems=scheduled.items.flatMap(r=>{
   if(!isReadyForLocaleListing(r,locale)) return [];
   const localized=localizedBriefFields(r,locale);
-  return [{id:r.id,title:localized.title,summary:localized.summary,date:r.source_published_at.slice(0,10),category:asNewsCategory(r.category),url:"/news/"+r.id,image:r.image_url||undefined,sourceName:briefLabels[locale],translated:localized.translated,translationProvider:localized.translationProvider,translationLabel:localized.translationLabel,translationPending:localized.translationPending,translationPendingLabel:localized.translationPendingLabel,external:true,sourcePublishedAt:r.source_published_at,publishedAt:r.published_at}];
+  return [{id:r.id,title:localized.title,summary:localized.summary,date:r.source_published_at.slice(0,10),category:asNewsCategory(r.category),url:"/news/"+r.id,...coverFields(r.image_url),sourceName:briefLabels[locale],translated:localized.translated,translationProvider:localized.translationProvider,translationLabel:localized.translationLabel,translationPending:localized.translationPending,translationPendingLabel:localized.translationPendingLabel,external:true,sourcePublishedAt:r.source_published_at,publishedAt:r.published_at}];
  });
  const items=[...officialItems,...editorialItems].sort((a,b)=>Date.parse(b.sourcePublishedAt)-Date.parse(a.sourcePublishedAt)).slice(0,limit);
  const updatedAt=items.reduce((latest,item)=>Date.parse(item.publishedAt)>Date.parse(latest||"1970-01-01")?item.publishedAt:latest,"");
